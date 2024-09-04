@@ -28,6 +28,7 @@ CMake should just work, with as few arguments as possible.
 
 ## Code Style
 
+- File names should be `snake_case`.
 - Types should use `UpperCamelCase`. Avoid suffixes like `_t`.
 - Enum variants should also use `UpperCamelCase`.
 - Functions should use `snake_case`.
