@@ -49,6 +49,6 @@ target_include_directories(bmcore PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
 
-target_link_libraries(bmcore PUBLIC bm_netif)
+target_link_libraries(bmcore PUBLIC bmnetif)
 
 add_test(NAME test_packet COMMAND test_packet)
