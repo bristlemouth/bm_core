@@ -16,21 +16,21 @@
  @return BmError on failure
  */
 static BMErr ll_advance_cursor(LL *ll, void **data) {
-    BMErr ret = BmEINVAL;
+  BMErr ret = BmEINVAL;
 
-    if (ll && data) {
-        ret = BmENODEV;
-        if (!ll->cursor) {
-            ll->cursor = ll->head;
-        }
-        if (ll->cursor) {
-            *data = ll->cursor->data;
-            ll->cursor = ll->cursor->next;
-            ret = BmOK;
-        }
+  if (ll && data) {
+    ret = BmENODEV;
+    if (!ll->cursor) {
+      ll->cursor = ll->head;
     }
+    if (ll->cursor) {
+      *data = ll->cursor->data;
+      ll->cursor = ll->cursor->next;
+      ret = BmOK;
+    }
+  }
 
-    return ret;
+  return ret;
 }
 
 /*!
@@ -46,14 +46,14 @@ static BMErr ll_advance_cursor(LL *ll, void **data) {
  @return BmError on failure
  */
 static BMErr ll_reset_cursor(LL *ll) {
-    BMErr ret = BmEINVAL;
+  BMErr ret = BmEINVAL;
 
-    if (ll) {
-        ll->cursor = NULL;
-        ret = BmOK;
-    }
+  if (ll) {
+    ll->cursor = NULL;
+    ret = BmOK;
+  }
 
-    return ret;
+  return ret;
 }
 
 /*!
@@ -69,22 +69,21 @@ static BMErr ll_reset_cursor(LL *ll) {
  @return BmOK on success
  @return BmError on failure
  */
-BMErr ll_item_add(LL *ll, LLItem *node)
-{
-    BMErr ret = BmEINVAL;
-    if (ll && node) {
-        ret = BmOK;
-        if (ll->head) {
-            node->previous = ll->tail;
-            ll->tail->next = node;
-            ll->tail = node;
-            ll->tail->next = NULL;
-        } else {
-            ll->head = ll->tail = node;
-            ll->head->next = ll->head->previous = NULL;
-        }
+BMErr ll_item_add(LL *ll, LLItem *node) {
+  BMErr ret = BmEINVAL;
+  if (ll && node) {
+    ret = BmOK;
+    if (ll->head) {
+      node->previous = ll->tail;
+      ll->tail->next = node;
+      ll->tail = node;
+      ll->tail->next = NULL;
+    } else {
+      ll->head = ll->tail = node;
+      ll->head->next = ll->head->previous = NULL;
     }
-    return ret;
+  }
+  return ret;
 }
 
 /*!
@@ -99,22 +98,21 @@ BMErr ll_item_add(LL *ll, LLItem *node)
  @return BmOK on success
  @return BmError on failure
  */
-BMErr ll_get_item(LL *ll, uint32_t id, void **data)
-{
-    BMErr ret = BmEINVAL;
-    LLItem_t *current = NULL;
-    if (ll && data) {
-        current = ll->head;
-        ret = BmENODEV;
-        while (current != NULL && current->id != id) {
-            current = current->next;
-        }
-        if (current) {
-            *data = current->data;
-            ret = BmOK;
-        }
+BMErr ll_get_item(LL *ll, uint32_t id, void **data) {
+  BMErr ret = BmEINVAL;
+  LLItem_t *current = NULL;
+  if (ll && data) {
+    current = ll->head;
+    ret = BmENODEV;
+    while (current != NULL && current->id != id) {
+      current = current->next;
     }
-    return ret;
+    if (current) {
+      *data = current->data;
+      ret = BmOK;
+    }
+  }
+  return ret;
 }
 
 /*!
@@ -128,29 +126,28 @@ BMErr ll_get_item(LL *ll, uint32_t id, void **data)
  @return BmOK on success
  @return BmError on failure
  */
-BMErr ll_remove(LL *ll, uint32_t id)
-{
-    BMErr ret = BmEINVAL;
-    LLItem **current = NULL;
-    if (ll) {
-        current = &ll->head;
-        ret = BmENODEV;
-        while (*current != NULL && (*current)->id != id) {
-            current = &(*current)->next;
-        }
-        if (*current) {
-            ret = BmOK;
-            if (*current == ll->head) {
-                ll->head = (*current)->next;
-            } else {
-                if (*current == ll->tail) {
-                    ll->tail = (*current)->previous;
-                }
-                *current = (*current)->next;
-            }
-        }
+BMErr ll_remove(LL *ll, uint32_t id) {
+  BMErr ret = BmEINVAL;
+  LLItem **current = NULL;
+  if (ll) {
+    current = &ll->head;
+    ret = BmENODEV;
+    while (*current != NULL && (*current)->id != id) {
+      current = &(*current)->next;
     }
-    return ret;
+    if (*current) {
+      ret = BmOK;
+      if (*current == ll->head) {
+        ll->head = (*current)->next;
+      } else {
+        if (*current == ll->tail) {
+          ll->tail = (*current)->previous;
+        }
+        *current = (*current)->next;
+      }
+    }
+  }
+  return ret;
 }
 
 /*!
@@ -167,19 +164,18 @@ BMErr ll_remove(LL *ll, uint32_t id)
  @return BmError on failure
  */
 BMErr ll_traverse(LL *ll, LLTraverseCb cb, void *arg) {
-    BMErr ret = BmEINVAL;
-    void *data = NULL;
+  BMErr ret = BmEINVAL;
+  void *data = NULL;
 
-    if (ll && cb) {
-        ll_reset_cursor(ll);
-        do {
-            ret = ll_advance_cursor(ll, &data);
-            if (ret == 0) {
-                ret = cb(data, arg);
-            }
-        } while (ll->cursor && ret == 0);
-    }
+  if (ll && cb) {
+    ll_reset_cursor(ll);
+    do {
+      ret = ll_advance_cursor(ll, &data);
+      if (ret == 0) {
+        ret = cb(data, arg);
+      }
+    } while (ll->cursor && ret == 0);
+  }
 
-    return ret;
+  return ret;
 }
-

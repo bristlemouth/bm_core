@@ -4,19 +4,17 @@
 #include "util.h"
 #include <stdint.h>
 
-typedef struct LLItem
-{
-    struct LLItem *next;
-    struct LLItem *previous;
-    void *data;
-    uint32_t id;
+typedef struct LLItem {
+  struct LLItem *next;
+  struct LLItem *previous;
+  void *data;
+  uint32_t id;
 } LLItem;
 
-typedef struct
-{
-    LLItem *head;
-    LLItem *tail;
-    LLItem *cursor;
+typedef struct {
+  LLItem *head;
+  LLItem *tail;
+  LLItem *cursor;
 } LL;
 
 typedef BMErr (*LLTraverseCb)(void *data, void *arg);
