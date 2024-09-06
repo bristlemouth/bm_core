@@ -2,18 +2,10 @@
 #define __BM_PACKET_H__
 
 #include "ip_addr.h"
-#include "pbuf.h"
-#include "ll.h"
 #include "messages.h"
+#include "pbuf.h"
 #include "util.h"
 #include <stdint.h>
-
-#define bcmp_serialize_data(err, buf, info)                                                    \
-  do {                                                                                         \
-    BCMPVarLength var_len[] = {info##_layout};                                                 \
-    BCMPSerializeInfo serialize = info##_params(var_len);                                      \
-    err = bcmp_serialize(buf, serialize);                                                      \
-  } while (0)
 
 typedef struct {
   BCMPHeader *header;
@@ -24,36 +16,20 @@ typedef struct {
   uint8_t ingress_port;
 } BCMPParserData;
 
-typedef BMErr (*BCMPParserCb)(BCMPParserData data);
+typedef BMErr (*BCMPParseCb)(BCMPParserData data);
 
 typedef struct {
-  struct {
-    BCMPMessageType *types;
-    uint32_t count;
-  } msg;
-  BCMPParserCb cb;
-} BCMPMessageParserCfg;
-
-typedef struct {
-  BCMPMessageParserCfg cfg;
-  LLItem object;
+  BCMPMessageType type;
+  BCMPParseCb cb;
 } BCMPParserItem;
 
-typedef enum {
-  BCMP_PARSER_8BIT,
-  BCMP_PARSER_16BIT,
-  BCMP_PARSER_32BIT,
-  BCMP_PARSER_64BIT,
-} BCMPVarLength;
-
 typedef struct {
-  BCMPVarLength *lengths;
-  uint32_t size;
-} BCMPSerializeInfo;
+  struct pbuf *pbuf;
+  ip_addr_t *src;
+  ip_addr_t *dst;
+} BCMPParseIngest;
 
-BMErr bcmp_parser_init(void);
-BMErr bcmp_parser_add(BCMPParserItem *item);
-BMErr bcmp_parse_update(struct pbuf *pbuf, ip_addr_t *src, ip_addr_t *dst);
-BMErr bcmp_serialize(void *buf, BCMPSerializeInfo info);
+BMErr parse(BCMPParseIngest info, BCMPParserItem *items, uint32_t size);
+BMErr serialize(void *buf, BCMPMessageType type);
 
 #endif

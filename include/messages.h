@@ -14,10 +14,6 @@ typedef struct {
   uint8_t frag_id;
   uint8_t next_header;
 } __attribute__((packed)) BCMPHeader;
-#define bcmp_header_layout                                                              \
-  BCMP_PARSER_16BIT, BCMP_PARSER_16BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,             \
-  BCMP_PARSER_32BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,
-#define bcmp_header_params(l) {l, sizeof(BCMPHeader)}
 
 typedef struct {
   // Microseconds since system has last reset/powered on.
@@ -26,8 +22,6 @@ typedef struct {
   // How long to consider this node alive. 0 can mean indefinite, which could be useful for certain applications.
   uint32_t liveliness_lease_dur_s;
 } __attribute__((packed)) BCMPHeartbeat;
-#define bcmp_heartbeat_layout BCMP_PARSER_64BIT, BCMP_PARSER_32BIT,
-#define bcmp_heartbeat_params {{bcmp_heartbeat_layout}, sizeof(BCMPHeartbeat)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -45,10 +39,6 @@ typedef struct {
   // Optional payload. If used, the reply to this request must send a matching payload to be considered valid
   uint8_t payload[0];
 } __attribute__((packed)) BCMPEchoRequest;
-#define bcmp_echo_request_layout                                                        \
-  BCMP_PARSER_64BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT,
-#define bcmp_echo_request_params                                                     \
-  {{bcmp_echo_request_layout}, sizeof(BCMPEchoRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -66,18 +56,11 @@ typedef struct {
   // Optional payload. Must match with original request payload to be considered valid.
   uint8_t payload[0];
 } __attribute__((packed)) BCMPEchoReply;
-#define bcmp_echo_reply_layout                                                          \
-  BCMP_PARSER_64BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT,
-#define bcmp_echo_reply_params                                                       \
-  {{bcmp_echo_reply_layout}, sizeof(BCMPEchoReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
 } __attribute__((packed)) BCMPDeviceInfoRequest;
-#define bcmp_device_info_request_layout BCMP_PARSER_64BIT,
-#define bcmp_device_info_request_params                                                        \
-  {{bcmp_device_info_request_layout}, sizeof(BCMPDeviceInfoRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -107,14 +90,6 @@ typedef struct {
   // Version of the product hardware (0 for don't care)
   uint8_t ver_hw;
 } __attribute__((packed)) BCMPDeviceInfo;
-#define bcmp_device_info_layout                                                                \
-  BCMP_PARSER_64BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, \
-      BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,                  \
-      BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,                  \
-      BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,                  \
-      BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_32BIT, BCMP_PARSER_8BIT,                 \
-      BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,
-#define bcmp_device_info_params {{bcmp_device_info_layout}, sizeof(BCMPDeviceInfo)}
 
 typedef struct {
   BCMPDeviceInfo info;
@@ -128,10 +103,6 @@ typedef struct {
   // ver_str is immediately followed by dev_name_len
   char strings[0];
 } __attribute__((packed)) BCMPDeviceInfoReply;
-#define bcmp_device_info_reply_layout                                                          \
-  bcmp_device_info_layout, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,
-#define bcmp_device_info_reply_params                                                          \
-  {{bcmp_device_info_reply_layout}, sizeof(BCMPDeviceInfoReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -143,9 +114,6 @@ typedef struct {
   // List of Capability IDs requested from target node(s)
   uint16_t caps_list[0];
 } __attribute__((packed)) BCMPProtocolCapsRequest;
-#define bcmp_protocol_caps_request_layout BCMP_PARSER_64BIT, BCMP_PARSER_16BIT,
-#define bcmp_protocol_caps_request_params                                                      \
-  {{bcmp_protocol_caps_request_layout}, sizeof(BCMPProtocolCapsRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -161,17 +129,11 @@ typedef struct {
   // TODO - Switch to bcmp_cap_tlv caps[0]; when implemented
   uint8_t caps[0];
 } __attribute__((packed)) BCMPProtocolCapsReply;
-#define bcmp_protocol_caps_reply_layout BCMP_PARSER_64BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT,
-#define bcmp_protocol_caps_reply_params                                                        \
-  {{bcmp_protocol_caps_reply_layout}, sizeof(BCMPProtocolCapsReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
 } __attribute__((packed)) BCMPNeighborTableRequest;
-#define bcmp_neighbor_table_request_layout BCMP_PARSER_64BIT,
-#define bcmp_neighbor_table_request_params                                                     \
-  {{bcmp_neighbor_table_request_layout}, sizeof(BCMPNeighborTableRequest)}
 
 typedef struct {
   // Port state up/down
@@ -181,8 +143,6 @@ typedef struct {
   // Maps to bm_port_type_e
   uint8_t type;
 } __attribute__((packed)) BCMPPortInfo;
-#define bcmp_port_info_layout BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,
-#define bcmp_port_info_params {{bcmp_port_info_layout}, sizeof(BCMPPortInfo)}
 
 typedef struct {
   // Node ID of the responding node
@@ -200,9 +160,6 @@ typedef struct {
   // Followed by neighbor list
   // bcmp_neighbor_info_t
 } __attribute__((packed)) BCMPNeighborTableReply;
-#define bcmp_neighbor_table_reply_layout BCMP_PARSER_64BIT, BCMP_PARSER_8BIT, BCMP_PARSER_16BIT,
-#define bcmp_neighbor_table_reply_params                                                       \
-  {{bcmp_neighbor_table_reply_layout}, sizeof(BCMPNeighborTableReply)}
 
 typedef struct {
   // Neighbor's node_id
@@ -214,16 +171,11 @@ typedef struct {
   // Is this neighbor online or not?
   uint8_t online;
 } __attribute__((packed)) BCMPNeighborInfo;
-#define bcmp_neighbor_info_layout BCMP_PARSER_64BIT, BCMP_PARSER_8BIT, BCMP_PARSER_16BIT,
-#define bcmp_neighbor_info_params {{bcmp_neighbor_info_layout}, sizeof(BCMPNeighborInfo)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
 } __attribute__((packed)) BCMPResourceTableRequest;
-#define bcmp_resource_table_request_layout BCMP_PARSER_64BIT,
-#define bcmp_resource_table_request_params                                                     \
-  {{bcmp_resource_table_request_layout}, sizeof(BCMPResourceTableRequest)}
 
 typedef struct {
   // Length of resource name
@@ -231,8 +183,6 @@ typedef struct {
   // Name of resource
   char resource[0];
 } __attribute__((packed)) BCMPResource;
-#define bcmp_resource_layout BCMP_PARSER_16BIT,
-#define bcmp_resource_params {{bcmp_resource_layout}, sizeof(BCMPResource)}
 
 typedef struct {
   // Node ID of the responding node
@@ -251,10 +201,6 @@ typedef struct {
   // and num_pubs to (num_pubs + num_subs - 1) to access the subscribed resources.
   uint8_t resource_list[0];
 } __attribute__((packed)) BCMPResourceTableReply;
-#define bcmp_resource_table_reply_layout                                                       \
-  BCMP_PARSER_64BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT,
-#define bcmp_resource_table_reply_params                                                       \
-  {{bcmp_resource_table_reply_layout}, sizeof(BCMPResourceTableReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -266,9 +212,6 @@ typedef struct {
   // TODO - switch to bcmp_proto_opt_tlv options[0]; when defined
   uint8_t options[0];
 } __attribute__((packed)) BCMPNeighborProtoRequest;
-#define bcmp_neighbor_proto_request_layout BCMP_PARSER_64BIT, BCMP_PARSER_16BIT,
-#define bcmp_neighbor_proto_request_params                                                     \
-  {{bcmp_neighbor_proto_request_layout}, sizeof(BCMPNeighborProtoRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -280,9 +223,6 @@ typedef struct {
   // TODO - switch to bcmp_proto_opt_tlv option_list[0]; when defined
   uint8_t option_list[0];
 } __attribute__((packed)) BCMPNeighborProtoReply;
-#define bcmp_neighbor_proto_reply_layout BCMP_PARSER_64BIT, BCMP_PARSER_16BIT,
-#define bcmp_neighbor_proto_reply_params                                                       \
-  {{bcmp_neighbor_proto_reply_layout}, sizeof(BCMPNeighborProtoReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made.
@@ -292,41 +232,27 @@ typedef struct {
   // message payload
   uint8_t payload[0];
 } __attribute__((packed)) BCMPSystemTimeHeader;
-#define bcmp_system_time_header_layout BCMP_PARSER_64BIT, BCMP_PARSER_64BIT,
-#define bcmp_system_time_header_params                                                         \
-  {{bcmp_system_time_header_layout}, sizeof(BCMPSystemTimeHeader)}
 
 typedef struct {
   BCMPSystemTimeHeader header;
 } __attribute__((packed)) BCMPSystemTimeRequest;
-#define bcmp_system_time_request_layout bcmp_system_time_header_layout,
-#define bcmp_system_time_request_params                                                        \
-  {{bcmp_system_time_request_layout}, sizeof(BCMPSystemTimeRequest)}
 
 typedef struct {
   BCMPSystemTimeHeader header;
   // time
   uint64_t utc_time_us;
 } __attribute__((packed)) BCMPSystemTimeResponse;
-#define bcmp_system_time_response_layout bcmp_system_time_header_layout, BCMP_PARSER_64BIT,
-#define bcmp_system_time_response_params                                                       \
-  {{bcmp_system_time_response_layout}, sizeof(BCMPSystemTimeResponse)}
 
 typedef struct {
   BCMPSystemTimeHeader header;
   // time
   uint64_t utc_time_us;
-} __attribute__((packed)) BCMPSystemTimeLayout;
-#define bcmp_system_time_set_layout bcmp_system_time_header_layout, BCMP_PARSER_64BIT,
-#define bcmp_system_time_set_params                                                            \
-  {{bcmp_system_time_set_layout}, sizeof(BCMPSystemTimeLayout)}
+} __attribute__((packed)) BCMPSystemTimeSet;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
 } __attribute__((packed)) BCMPNetstatRequest;
-#define bcmp_netstat_request_layout BCMP_PARSER_64BIT,
-#define bcmp_netstat_request_params {{bcmp_netstat_request_layout}, sizeof(BCMPNetstatRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -334,16 +260,11 @@ typedef struct {
 
   // TODO - add node info here
 } __attribute__((packed)) BCMPNetstatReply;
-#define bcmp_netstat_reply_layout BCMP_PARSER_64BIT,
-#define bcmp_netstat_reply_params {{bcmp_netstat_reply_layout}, sizeof(BCMPNetstatReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
 } __attribute__((packed)) BCMPPowerStateRequest;
-#define bcmp_power_state_request_layout BCMP_PARSER_64BIT,
-#define bcmp_power_state_request_params                                                        \
-  {{bcmp_power_state_request_layout}, sizeof(BCMPPowerStateRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -356,9 +277,6 @@ typedef struct {
   // TODO - switch to  bcmp_port_power port_list[0];
   uint8_t port_list[0];
 } __attribute__((packed)) BCMPPowerStateReply;
-#define bcmp_power_state_reply_layout BCMP_PARSER_64BIT, BCMP_PARSER_8BIT,
-#define bcmp_power_state_reply_params                                                          \
-  {{bcmp_power_state_reply_layout}, sizeof(BCMPPowerStateReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -367,8 +285,6 @@ typedef struct {
   // Bypass preventative measures to trigger a reboot (use with caution)
   uint8_t force;
 } __attribute__((packed)) BCMPRebootRequest;
-#define bcmp_reboot_request_layout BCMP_PARSER_64BIT, BCMP_PARSER_8BIT,
-#define bcmp_reboot_request_params {{bcmp_reboot_request_layout}, sizeof(BCMPRebootRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -378,16 +294,11 @@ typedef struct {
   uint8_t ack_nack;
 
 } __attribute__((packed)) BCMPRebootReply;
-#define bcmp_reboot_reply_layout BCMP_PARSER_64BIT, BCMP_PARSER_8BIT,
-#define bcmp_reboot_reply_params {{bcmp_reboot_reply_layout}, sizeof(BCMPRebootReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
 } __attribute__((packed)) BCMPNetAssertQuiet;
-#define bcmp_net_assert_quiet_layout BCMP_PARSER_64BIT,
-#define bcmp_net_assert_quiet_params                                                           \
-  {{bcmp_net_assert_quiet_layout}, sizeof(BCMPNetAssertQuiet)}
 
 // TODO move this to DFU specific stuff
 // DFU stuff goes below
@@ -491,6 +402,8 @@ typedef enum {
   BCMP_DFU_REBOOT = 0xD8,
   BCMP_DFU_BOOT_COMPLETE = 0xD9,
   BCMP_DFU_LAST_MESSAGE = BCMP_DFU_BOOT_COMPLETE,
+
+  BCMP_HEADER = 0xFFFF
 } BCMPMessageType;
 
 #endif

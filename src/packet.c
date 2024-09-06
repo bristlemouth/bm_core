@@ -1,90 +1,5 @@
 #include "packet.h"
-#include "util.h"
 #include <stddef.h>
-#include <string.h>
-
-struct SizeLUT {
-  uint32_t size;
-  void (*cb)(void *);
-};
-
-static struct SizeLUT SERIAL_LUT[] = {
-    [BCMP_PARSER_8BIT] = {sizeof(uint8_t), NULL},
-    [BCMP_PARSER_16BIT] = {sizeof(uint16_t), swap_16bit},
-    [BCMP_PARSER_32BIT] = {sizeof(uint32_t), swap_32bit},
-    [BCMP_PARSER_64BIT] = {sizeof(uint64_t), swap_64bit},
-};
-
-static struct Parser {
-  LL ll;
-  uint32_t c;
-} PARSER;
-
-/*!
- @brief Handler For Parser Traverse Callback Function
-
- @param buf configuration of the message item
- @param arg data to be processed by the message
-
- @return BmOK on success
- @return BmError on failure
- */
-static BMErr parser_handler(void *buf, void *arg) {
-  BMErr err = BmEINVAL;
-  BCMPMessageParserCfg *cfg = NULL;
-  BCMPParserData data;
-
-  if (arg && buf) {
-    err = BmOK;
-    cfg = (BCMPMessageParserCfg *)buf;
-    data = *(BCMPParserData *)arg;
-    for (uint32_t i = 0; i < cfg->msg.count; i++) {
-      if (data.header->type == cfg->msg.types[i]) {
-        if (cfg->cb && cfg->cb(data) != BmOK) {
-          //TODO log something clever here
-        } else {
-          break;
-        }
-      }
-    }
-  }
-
-  return err;
-}
-
-/*!
- @brief Initialize Packet Parser
-
- @return BmOK
- */
-BMErr bcmp_parser_init(void) {
-  memset(&PARSER, 0, sizeof(struct Parser));
-  return BmOK;
-}
-
-/*!
- @brief Add Item To Be Parsed When Handling Incoming Messages
-
- @details This will be a linked list item that is serviced in
-          the update function
-
- @param item parser item to add to linked list
-
- @return BmOK on success
- @return BmError on failure
- */
-BMErr bcmp_parser_add(BCMPParserItem *item) {
-  BMErr err = BmEINVAL;
-  LLItem *object = &item->object;
-
-  if (item) {
-    object->data = &item->cfg;
-    object->id = PARSER.c++;
-    err = ll_item_add(&PARSER.ll, object);
-  }
-
-  return err;
-}
 
 /*!
  @brief Update Function To Parse And Handle Incoming Message
@@ -101,17 +16,27 @@ BMErr bcmp_parser_add(BCMPParserItem *item) {
  @return BmOK on success
  @return BmError on failure
  */
-BMErr bcmp_parse_update(struct pbuf *pbuf, ip_addr_t *src, ip_addr_t *dst) {
+BMErr parse(BCMPParseIngest ingest, BCMPParserItem *items, uint32_t size) {
   BMErr err = BmEINVAL;
   BCMPParserData data;
 
-  data.header = (BCMPHeader *)pbuf->payload;
-  data.payload = (uint8_t *)(pbuf->payload + sizeof(BCMPHeader));
-  data.pbuf = pbuf;
-  data.ingress_port = ((src->addr[1] >> 8) & 0xFF);
-  bcmp_serialize_data(err, data.header, bcmp_header);
+  data.header = (BCMPHeader *)ingest.pbuf->payload;
+  data.payload = (uint8_t *)(ingest.pbuf->payload + sizeof(BCMPHeader));
+  data.pbuf = ingest.pbuf;
+  data.src = ingest.src;
+  data.dst = ingest.dst;
+  data.ingress_port = ((ingest.src->addr[1] >> 8) & 0xFF);
+  err = serialize(data.header, BCMP_HEADER);
 
-  err = ll_traverse(&PARSER.ll, parser_handler, &data);
+  for (uint32_t i = 0; i < size; i++) {
+    if (data.header->type == items[i].type) {
+      if (items[i].cb && items[i].cb(data) != BmOK) {
+        //TODO log something clever here
+      } else {
+        break;
+      }
+    }
+  }
 
   return err;
 }
@@ -130,21 +55,150 @@ BMErr bcmp_parse_update(struct pbuf *pbuf, ip_addr_t *src, ip_addr_t *dst) {
  @return BmOK on success
  @return BmError on failure
  */
-BMErr bcmp_serialize(void *buf, BCMPSerializeInfo info) {
+BMErr serialize(void *buf, BCMPMessageType type) {
   BMErr err = BmEINVAL;
   uint32_t i = 0;
-  struct SizeLUT element;
 
-  if (buf && info.lengths && info.size) {
+  if (buf) {
     err = BmOK;
     if (is_big_endian()) {
-      while (info.size) {
-        element = SERIAL_LUT[info.lengths[i++]];
-        if (element.cb) {
-          element.cb(buf);
-        }
-        buf += element.size;
-        info.size -= element.size;
+      switch (type) {
+      case BCMP_ACK:
+        break;
+      case BCMP_HEARTBEAT: {
+        BCMPHeartbeat *hb = (BCMPHeartbeat *)buf;
+        swap_64bit(&hb->time_since_boot_us);
+        swap_32bit(&hb->liveliness_lease_dur_s);
+      } break;
+      case BCMP_ECHO_REQUEST: {
+        BCMPEchoRequest *request = (BCMPEchoRequest *)buf;
+        swap_64bit(&request->target_node_id);
+        swap_16bit(&request->id);
+        swap_32bit(&request->seq_num);
+        swap_16bit(&request->payload_len);
+      } break;
+      case BCMP_ECHO_REPLY: {
+        BCMPEchoReply *reply = (BCMPEchoReply *)buf;
+        swap_64bit(&reply->node_id);
+        swap_16bit(&reply->id);
+        swap_16bit(&reply->seq_num);
+        swap_16bit(&reply->payload_len);
+      } break;
+      case BCMP_DEVICE_INFO_REQUEST: {
+        BCMPDeviceInfoRequest *request = (BCMPDeviceInfoRequest *)buf;
+        swap_64bit(&request->target_node_id);
+      } break;
+      case BCMP_DEVICE_INFO_REPLY: {
+        BCMPDeviceInfoReply *reply = (BCMPDeviceInfoReply *)buf;
+        swap_64bit(&reply->info.node_id);
+        swap_16bit(&reply->info.vendor_id);
+        swap_16bit(&reply->info.product_id);
+        swap_32bit(&reply->info.git_sha);
+      } break;
+      case BCMP_PROTOCOL_CAPS_REQUEST: {
+        BCMPProtocolCapsRequest *request = (BCMPProtocolCapsRequest *)buf;
+        swap_64bit(&request->target_node_id);
+        swap_16bit(&request->caps_list_len);
+      } break;
+      case BCMP_PROTOCOL_CAPS_REPLY: {
+        BCMPProtocolCapsReply *reply = (BCMPProtocolCapsReply *)buf;
+        swap_64bit(&reply->node_id);
+        swap_16bit(&reply->bcmp_rev);
+        swap_16bit(&reply->caps_count);
+      } break;
+      case BCMP_NEIGHBOR_TABLE_REQUEST: {
+        BCMPNeighborTableRequest *request = (BCMPNeighborTableRequest *)buf;
+        swap_64bit(&request->target_node_id);
+      } break;
+      case BCMP_NEIGHBOR_TABLE_REPLY: {
+        BCMPNeighborTableReply *reply = (BCMPNeighborTableReply *)reply;
+        swap_64bit(&reply->node_id);
+        swap_16bit(&reply->neighbor_len);
+      } break;
+      case BCMP_RESOURCE_TABLE_REQUEST: {
+        BCMPResourceTableRequest *request = (BCMPResourceTableRequest *)buf;
+        swap_64bit(&request->target_node_id);
+      } break;
+      case BCMP_RESOURCE_TABLE_REPLY: {
+        BCMPResourceTableReply *reply = (BCMPResourceTableReply *)buf;
+        swap_64bit(&reply->node_id);
+        swap_16bit(&reply->num_pubs);
+        swap_16bit(&reply->num_subs);
+      } break;
+      case BCMP_NEIGHBOR_PROTO_REQUEST: {
+        BCMPNeighborProtoRequest *request = (BCMPNeighborProtoRequest *)buf;
+        swap_64bit(&request->target_node_id);
+        swap_16bit(&request->option_count);
+      } break;
+      case BCMP_NEIGHBOR_PROTO_REPLY: {
+        BCMPNeighborProtoReply *request = (BCMPNeighborProtoReply *)buf;
+        swap_64bit(&request->node_id);
+        swap_16bit(&request->option_count);
+      } break;
+      case BCMP_SYSTEM_TIME_REQUEST: {
+        BCMPSystemTimeRequest *request = (BCMPSystemTimeRequest *)buf;
+        swap_64bit(&request->header.target_node_id);
+        swap_64bit(&request->header.source_node_id);
+      } break;
+      case BCMP_SYSTEM_TIME_RESPONSE: {
+        BCMPSystemTimeResponse *response = (BCMPSystemTimeResponse *)buf;
+        swap_64bit(&response->header.target_node_id);
+        swap_64bit(&response->header.source_node_id);
+        swap_64bit(&response->utc_time_us);
+      } break;
+      case BCMP_SYSTEM_TIME_SET: {
+        BCMPSystemTimeSet *set = (BCMPSystemTimeSet *)buf;
+        swap_64bit(&set->header.target_node_id);
+        swap_64bit(&set->header.source_node_id);
+        swap_64bit(&set->utc_time_us);
+      } break;
+      case BCMP_NET_STAT_REQUEST: {
+        BCMPNetstatRequest *request = (BCMPNetstatRequest *)buf;
+        swap_64bit(&request->target_node_id);
+      } break;
+      case BCMP_NET_STAT_REPLY: {
+        BCMPNetstatReply *reply = (BCMPNetstatReply *)buf;
+        swap_64bit(&reply->node_id);
+      } break;
+      case BCMP_POWER_STAT_REQUEST: {
+        BCMPPowerStateRequest *request = (BCMPPowerStateRequest *)buf;
+        swap_64bit(&request->target_node_id);
+      } break;
+      case BCMP_POWER_STAT_REPLY: {
+        BCMPPowerStateReply *reply = (BCMPPowerStateReply *)buf;
+        swap_64bit(&reply->node_id);
+      } break;
+      case BCMP_REBOOT_REQUEST: {
+        BCMPRebootRequest *request = (BCMPRebootRequest *)buf;
+        swap_64bit(&request->target_node_id);
+      } break;
+      case BCMP_REBOOT_REPLY: {
+        BCMPRebootReply *reply = (BCMPRebootReply *)buf;
+        swap_64bit(&reply->node_id);
+      } break;
+      case BCMP_NET_ASSERT_QUIET: {
+        BCMPNetAssertQuiet *request = (BCMPNetAssertQuiet *)buf;
+      } break;
+      case BCMP_CONFIG_GET:
+      case BCMP_CONFIG_VALUE:
+      case BCMP_CONFIG_SET:
+      case BCMP_CONFIG_COMMIT:
+      case BCMP_CONFIG_STATUS_REQUEST:
+      case BCMP_CONFIG_STATUS_RESPONSE:
+      case BCMP_CONFIG_DELETE_REQUEST:
+      case BCMP_CONFIG_DELETE_RESPONSE:
+      case BCMP_DFU_START:
+      case BCMP_DFU_PAYLOAD_REQ:
+      case BCMP_DFU_PAYLOAD:
+      case BCMP_DFU_END:
+      case BCMP_DFU_ACK:
+      case BCMP_DFU_ABORT:
+      case BCMP_DFU_HEARTBEAT:
+      case BCMP_DFU_REBOOT_REQ:
+      case BCMP_DFU_REBOOT:
+      case BCMP_DFU_BOOT_COMPLETE:
+      case BCMP_HEADER:
+        break;
       }
     }
   }
