@@ -14,10 +14,10 @@ typedef struct {
   uint8_t frag_id;
   uint8_t next_header;
 } __attribute__((packed)) BCMPHeader;
-#define bcmp_header_struct_layout                                                              \
-  BCMP_PARSER_16BIT, BCMP_PARSER_16BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_32BIT, \
-      BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,
-#define bcmp_header_serialize_params {{bcmp_header_struct_layout}, sizeof(BCMPHeader)}
+#define bcmp_header_layout                                                              \
+  BCMP_PARSER_16BIT, BCMP_PARSER_16BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,             \
+  BCMP_PARSER_32BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT, BCMP_PARSER_8BIT,
+#define bcmp_header_params(l) {l, sizeof(BCMPHeader)}
 
 typedef struct {
   // Microseconds since system has last reset/powered on.
@@ -26,8 +26,8 @@ typedef struct {
   // How long to consider this node alive. 0 can mean indefinite, which could be useful for certain applications.
   uint32_t liveliness_lease_dur_s;
 } __attribute__((packed)) BCMPHeartbeat;
-#define bcmp_heartbeat_struct_layout BCMP_PARSER_64BIT, BCMP_PARSER_32BIT,
-#define bcmp_heartbeat_serialize_params {{bcmp_heartbeat_struct_layout}, sizeof(BCMPHeartbeat)}
+#define bcmp_heartbeat_layout BCMP_PARSER_64BIT, BCMP_PARSER_32BIT,
+#define bcmp_heartbeat_params {{bcmp_heartbeat_layout}, sizeof(BCMPHeartbeat)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -45,10 +45,10 @@ typedef struct {
   // Optional payload. If used, the reply to this request must send a matching payload to be considered valid
   uint8_t payload[0];
 } __attribute__((packed)) BCMPEchoRequest;
-#define bcmp_echo_request_struct_layout                                                        \
+#define bcmp_echo_request_layout                                                        \
   BCMP_PARSER_64BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT,
-#define bcmp_echo_request_serialize_params                                                     \
-  {{bcmp_echo_request_struct_layout}, sizeof(BCMPEchoRequest)}
+#define bcmp_echo_request_params                                                     \
+  {{bcmp_echo_request_layout}, sizeof(BCMPEchoRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -66,18 +66,18 @@ typedef struct {
   // Optional payload. Must match with original request payload to be considered valid.
   uint8_t payload[0];
 } __attribute__((packed)) BCMPEchoReply;
-#define bcmp_echo_reply_struct_layout                                                          \
+#define bcmp_echo_reply_layout                                                          \
   BCMP_PARSER_64BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT, BCMP_PARSER_16BIT,
-#define bcmp_echo_reply_serialize_params                                                       \
-  {{bcmp_echo_reply_struct_layout}, sizeof(BCMPEchoReply)}
+#define bcmp_echo_reply_params                                                       \
+  {{bcmp_echo_reply_layout}, sizeof(BCMPEchoReply)}
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
 } __attribute__((packed)) BCMPDeviceInfoRequest;
-#define bcmp_device_info_request_struct_layout BCMP_PARSER_64BIT,
+#define bcmp_device_info_request_layout BCMP_PARSER_64BIT,
 #define bcmp_device_info_request_params                                                        \
-  {{bcmp_device_info_request_struct_layout}, sizeof(BCMPDeviceInfoRequest)}
+  {{bcmp_device_info_request_layout}, sizeof(BCMPDeviceInfoRequest)}
 
 typedef struct {
   // Node ID of the responding node
@@ -195,7 +195,7 @@ typedef struct {
   uint16_t neighbor_len;
 
   // List of local BM ports and basic status information about them
-  bcmp_port_info_t port_list[0];
+  BCMPPortInfo port_list[0];
 
   // Followed by neighbor list
   // bcmp_neighbor_info_t

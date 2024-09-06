@@ -1,9 +1,11 @@
 #include "packet.h"
 #include "util.h"
+#include <stddef.h>
+#include <string.h>
 
 struct SizeLUT {
   uint32_t size;
-  void (*cb)(void);
+  void (*cb)(void *);
 };
 
 static struct SizeLUT SERIAL_LUT[] = {
@@ -56,7 +58,7 @@ static BMErr parser_handler(void *buf, void *arg) {
  @return BmOK
  */
 BMErr bcmp_parser_init(void) {
-  memset(PARSER, 0, sizeof(struct Parser));
+  memset(&PARSER, 0, sizeof(struct Parser));
   return BmOK;
 }
 
@@ -73,12 +75,12 @@ BMErr bcmp_parser_init(void) {
  */
 BMErr bcmp_parser_add(BCMPParserItem *item) {
   BMErr err = BmEINVAL;
-  LLItem *object = item->object;
+  LLItem *object = &item->object;
 
   if (item) {
-    object->data = &item->Cfg;
+    object->data = &item->cfg;
     object->id = PARSER.c++;
-    err = ll_item_add(&PARSER.ll object);
+    err = ll_item_add(&PARSER.ll, object);
   }
 
   return err;
@@ -104,10 +106,10 @@ BMErr bcmp_parse_update(struct pbuf *pbuf, ip_addr_t *src, ip_addr_t *dst) {
   BCMPParserData data;
 
   data.header = (BCMPHeader *)pbuf->payload;
-  data.payload = (uint8_t *)(pbuf->payload + sizeof(bmcp_header_t));
+  data.payload = (uint8_t *)(pbuf->payload + sizeof(BCMPHeader));
   data.pbuf = pbuf;
   data.ingress_port = ((src->addr[1] >> 8) & 0xFF);
-  bcmp_serialize_data(err, data.header, bcmp_header_serialize_params);
+  bcmp_serialize_data(err, data.header, bcmp_header);
 
   err = ll_traverse(&PARSER.ll, parser_handler, &data);
 
@@ -133,7 +135,7 @@ BMErr bcmp_serialize(void *buf, BCMPSerializeInfo info) {
   uint32_t i = 0;
   struct SizeLUT element;
 
-  if (buf && types && size) {
+  if (buf && info.lengths && info.size) {
     err = BmOK;
     if (is_big_endian()) {
       while (info.size) {

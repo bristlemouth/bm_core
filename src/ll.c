@@ -100,7 +100,7 @@ BMErr ll_item_add(LL *ll, LLItem *node) {
  */
 BMErr ll_get_item(LL *ll, uint32_t id, void **data) {
   BMErr ret = BmEINVAL;
-  LLItem_t *current = NULL;
+  LLItem *current = NULL;
   if (ll && data) {
     current = ll->head;
     ret = BmENODEV;
