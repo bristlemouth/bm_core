@@ -52,11 +52,11 @@ Bristlemouth bm;
 
 int main() {
     // other sensor setup
-    adin->init(...pins...spi peripheral...);
-    bm->init(adin, config);
+    adin.init(...pins...spi peripheral...);
+    bm.init(&adin, config);
     for(;;) {
         // other sensor code
-        bm->update();
+        bm.update();
     }
 }
 ```
