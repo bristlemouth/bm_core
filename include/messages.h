@@ -252,14 +252,14 @@ typedef struct {
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
-} __attribute__((packed)) BCMPNetstatRequest;
+} __attribute__((packed)) BCMPNetStateRequest;
 
 typedef struct {
   // Node ID of the responding node
   uint64_t node_id;
 
   // TODO - add node info here
-} __attribute__((packed)) BCMPNetstatReply;
+} __attribute__((packed)) BCMPNetStateReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -353,57 +353,57 @@ typedef struct {
 //} __attribute__((packed)) bcmp_dfu_boot_complete_t;
 
 typedef enum {
-  BCMP_ACK = 0x00,
-  BCMP_HEARTBEAT = 0x01,
+  BCMPAckMessage = 0x00,
+  BCMPHeartbeatMessage = 0x01,
 
-  BCMP_ECHO_REQUEST = 0x02,
-  BCMP_ECHO_REPLY = 0x03,
-  BCMP_DEVICE_INFO_REQUEST = 0x04,
-  BCMP_DEVICE_INFO_REPLY = 0x05,
-  BCMP_PROTOCOL_CAPS_REQUEST = 0x06,
-  BCMP_PROTOCOL_CAPS_REPLY = 0x07,
-  BCMP_NEIGHBOR_TABLE_REQUEST = 0x08,
-  BCMP_NEIGHBOR_TABLE_REPLY = 0x09,
-  BCMP_RESOURCE_TABLE_REQUEST = 0x0A,
-  BCMP_RESOURCE_TABLE_REPLY = 0x0B,
-  BCMP_NEIGHBOR_PROTO_REQUEST = 0x0C,
-  BCMP_NEIGHBOR_PROTO_REPLY = 0x0D,
+  BCMPEchoRequestMessage = 0x02,
+  BCMPEchoReplyMessage = 0x03,
+  BCMPDeviceInfoRequestMessage = 0x04,
+  BCMPDeviceInfoReplyMessage = 0x05,
+  BCMPProtocolCapsRequestMessage = 0x06,
+  BCMPProtocolCapsReplyMessage = 0x07,
+  BCMPNeighborTableRequestMessage = 0x08,
+  BCMPNeighborTableReplyMessage = 0x09,
+  BCMPResourceTableRequestMessage = 0x0A,
+  BCMPResourceTableReplyMessage = 0x0B,
+  BCMPNeighborProtoRequestMessage = 0x0C,
+  BCMPNeighborProtoReplyMessage = 0x0D,
 
-  BCMP_SYSTEM_TIME_REQUEST = 0x10,
-  BCMP_SYSTEM_TIME_RESPONSE = 0x11,
-  BCMP_SYSTEM_TIME_SET = 0x12,
+  BCMPSystemTimeRequestMessage = 0x10,
+  BCMPSystemTimeResponseMessage = 0x11,
+  BCMPSystemTimeSetMessage = 0x12,
 
-  BCMP_NET_STAT_REQUEST = 0xB0,
-  BCMP_NET_STAT_REPLY = 0xB1,
-  BCMP_POWER_STAT_REQUEST = 0xB2,
-  BCMP_POWER_STAT_REPLY = 0xB3,
+  BCMPNetStateRequestMessage = 0xB0,
+  BCMPNetStateReplyMessage = 0xB1,
+  BCMPPowerStateRequestMessage = 0xB2,
+  BCMPPowerStateReplyMessage = 0xB3,
 
-  BCMP_REBOOT_REQUEST = 0xC0,
-  BCMP_REBOOT_REPLY = 0xC1,
-  BCMP_NET_ASSERT_QUIET = 0xC2,
+  BCMPRebootRequestMessage = 0xC0,
+  BCMPRebootReplyMessage = 0xC1,
+  BCMPNetAssertQuietMessage = 0xC2,
 
-  BCMP_CONFIG_GET = 0xA0,
-  BCMP_CONFIG_VALUE = 0xA1,
-  BCMP_CONFIG_SET = 0xA2,
-  BCMP_CONFIG_COMMIT = 0xA3,
-  BCMP_CONFIG_STATUS_REQUEST = 0xA4,
-  BCMP_CONFIG_STATUS_RESPONSE = 0xA5,
-  BCMP_CONFIG_DELETE_REQUEST = 0xA6,
-  BCMP_CONFIG_DELETE_RESPONSE = 0xA7,
+  BCMPConfigGetMessage = 0xA0,
+  BCMPConfigValueMessage = 0xA1,
+  BCMPConfigSetMessage = 0xA2,
+  BCMPConfigCommitMessage = 0xA3,
+  BCMPConfigStatusRequestMessage = 0xA4,
+  BCMPConfigStatusResponseMessage = 0xA5,
+  BCMPConfigDeleteRequestMessage = 0xA6,
+  BCMPConfigDeleteResponseMessage = 0xA7,
 
-  BCMP_DFU_START = 0xD0,
-  BCMP_DFU_PAYLOAD_REQ = 0xD1,
-  BCMP_DFU_PAYLOAD = 0xD2,
-  BCMP_DFU_END = 0xD3,
-  BCMP_DFU_ACK = 0xD4,
-  BCMP_DFU_ABORT = 0xD5,
-  BCMP_DFU_HEARTBEAT = 0xD6,
-  BCMP_DFU_REBOOT_REQ = 0xD7,
-  BCMP_DFU_REBOOT = 0xD8,
-  BCMP_DFU_BOOT_COMPLETE = 0xD9,
-  BCMP_DFU_LAST_MESSAGE = BCMP_DFU_BOOT_COMPLETE,
+  BCMPDFUStartMessage = 0xD0,
+  BCMPDFUPayloadReqMessage = 0xD1,
+  BCMPDFUPayloadMessage = 0xD2,
+  BCMPDFUEndMessage = 0xD3,
+  BCMPDFUAckMessage = 0xD4,
+  BCMPDFUAbortMessage = 0xD5,
+  BCMPDFUHeartbeatMessage = 0xD6,
+  BCMPDFURebootReqMessage = 0xD7,
+  BCMPDFURebootMessage = 0xD8,
+  BCMPDFUBootCompleteMessage = 0xD9,
+  BCMPDFULastMessageMessage = BCMPDFUBootCompleteMessage,
 
-  BCMP_HEADER = 0xFFFF
+  BCMPHeaderMessage = 0xFFFF
 } BCMPMessageType;
 
 #endif

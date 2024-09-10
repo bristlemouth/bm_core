@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.29)
 
 # Set the project name and specify that it's a C project
 project(Bristlemouth VERSION 0.11 LANGUAGES C)

@@ -1,35 +1,26 @@
 #ifndef __BM_PACKET_H__
 #define __BM_PACKET_H__
 
-#include "ip_addr.h"
 #include "messages.h"
-#include "pbuf.h"
 #include "util.h"
 #include <stdint.h>
 
 typedef struct {
   BCMPHeader *header;
   uint8_t *payload;
-  struct pbuf *pbuf;
-  ip_addr_t *src;
-  ip_addr_t *dst;
+  void *src;
+  void *dst;
   uint8_t ingress_port;
+  uint32_t seq_num;
 } BCMPParserData;
 
-typedef BMErr (*BCMPParseCb)(BCMPParserData data);
+typedef void *(*BCMPGetData)(void *payload);
+typedef void *(*BCMPGetIPAddr)(void *payload);
+typedef uint16_t (*BCMPGetChecksum)(void *payload, uint32_t size);
 
-typedef struct {
-  BCMPMessageType type;
-  BCMPParseCb cb;
-} BCMPParserItem;
-
-typedef struct {
-  struct pbuf *pbuf;
-  ip_addr_t *src;
-  ip_addr_t *dst;
-} BCMPParseIngest;
-
-BMErr parse(BCMPParseIngest info, BCMPParserItem *items, uint32_t size);
-BMErr serialize(void *buf, BCMPMessageType type);
+BmErr packet_init(BCMPGetIPAddr src_ip, BCMPGetIPAddr dst_ip, BCMPGetData data,
+                  BCMPGetChecksum checksum);
+BmErr parse(void *payload);
+BmErr serialize(void *payload, void *data, BCMPMessageType type, uint32_t seq_num);
 
 #endif

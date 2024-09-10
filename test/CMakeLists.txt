@@ -10,9 +10,9 @@ message(STATUS "Building Unit Tests")
 
 # Setup testing
 include(CTest)
-
-# googletest v1.15.0
 include(FetchContent)
+
+# googletest
 FetchContent_Declare(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
@@ -21,8 +21,18 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
+# fff
+FetchContent_Declare(
+  fff
+  GIT_REPOSITORY https://github.com/meekrosoft/fff.git
+  GIT_TAG        5111c61
+)
+FetchContent_MakeAvailable(fff)
+
+set(FETCH_DIR ${CMAKE_BINARY_DIR}/_deps/)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
+set(FFF_DIR ${FETCH_DIR}fff-src)
 
 # Unit test general compile option
 add_compile_options(
@@ -42,6 +52,7 @@ add_link_options(
 
 include_directories(
     ${MOCK_DIR}
+    ${FFF_DIR}
     .
 )
 
@@ -49,17 +60,19 @@ link_libraries(
     gmock
     gtest_main)
 
+file(GLOB TEST_STUBS stubs/*.c)
+
 # - Create Unit Test
 #
 # This function creates a unit test with required source files.
 # Coverage report information is compiled in for the file to be tested.
 #
 # test_name - the name to call the test
+# test_src - test file that is to be unit tested
 # srcs sources - necessary to build the application, if no external sources
 #                are used, fill this in with the ${DUMMY} variable
-# test_src - test file that is to be unit tested
 
-function(create_gtest test_name srcs test_src)
+function(create_gtest test_name test_src srcs)
     set(GTEST_NAME ${test_name}_test)
     add_executable(${GTEST_NAME})
     target_include_directories(${GTEST_NAME}
@@ -70,7 +83,7 @@ function(create_gtest test_name srcs test_src)
         ${srcs}
         ${test_src}
         # Stubs
-        #${TEST_STUBS}
+        "${TEST_STUBS}"
         src/${test_name}_ut.cpp
     )
     gtest_discover_tests(${GTEST_NAME})
@@ -86,8 +99,6 @@ set(DUMMY src)
 
 # Add unit tests below here
 set (SRCS
-    ${SRC_DIR}/ll.c
     ${SRC_DIR}/util.c
 )
-create_gtest("packet" ${SRCS} ${SRC_DIR}/packet.c)
-create_gtest("ll" ${DUMMY} ${SRC_DIR}/ll.c)
+create_gtest("packet" "${SRC_DIR}/packet.c" "${SRCS}")

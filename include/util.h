@@ -26,9 +26,11 @@ typedef enum {
   BmEALREADY = 114,
   BmEINPROGRESS = 115,
   BmECANCELED = 125,
-} BMErr;
+} BmErr;
 
-bool is_big_endian(void);
+#define array_size(x) (sizeof(x) / sizeof(x[0]))
+
+bool is_little_endian(void);
 void swap_16bit(void *x);
 void swap_32bit(void *x);
 void swap_64bit(void *x);
