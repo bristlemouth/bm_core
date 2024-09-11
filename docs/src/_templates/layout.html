@@ -1,0 +1,79 @@
+{% extends "!layout.html" %}
+  {% block footer %} {{ super() }}
+
+  <style>
+    /* Sidebar header (and topbar for mobile) */
+    .wy-side-nav-search, .wy-nav-top {
+      background: #ff6700;
+      color: #000000;
+      a:link {
+        color: #FFFFFF;
+      }
+      a:visited {
+        color: #FFFFFF
+      }
+    }
+    /* Vertical Menu Header */
+    .wy-menu-vertical header, .wy-menu-vertical p.caption {
+      color: #000000;
+    }
+    .wy-menu-vertical {
+      a:link {
+        color: #FFFFFF;
+      }
+      a:visited {
+        color: #FFFFFF
+      }
+    }
+    /* Sidebar */
+    .wy-nav-side {
+      background: #FF6700;
+    }
+    /* Vertical Menu */
+    .wy-menu-vertical {
+      color: #000000;
+    }
+    /* Code Blocks */
+    .rst-content div[class^=highlight], .rst-content {
+      border: 0px solid #000000
+    }
+    .highlight {
+      background: #292929;
+      .kt {
+        color: #F49B5E;
+      };
+      .nf {
+        color: #D3722C;
+      }
+      .k {
+        color: #F87C1C;
+      };
+      .c {
+        color: #DCA488;
+      };
+      .c1 {
+        color: #DCA488;
+      };
+    }
+    /* Main content view */
+    .wy-nav-content {
+      background: #000000;
+      color: #FFFFFF;
+      max-width: 100%;
+      a:link {
+        color: #FC5404;
+      }
+      a:visited {
+        color: #FCAC7C
+      }
+    }
+    .tr {
+      border-color: #000000
+    }
+    /* Overlap of main content view */
+    .wy-nav-content-wrap {
+      background: #000000;
+    }
+}
+  </style>
+{% endblock %}
