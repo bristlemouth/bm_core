@@ -9,6 +9,9 @@ The Bristlemouth core development team is working to increase the
 accessibility of Bristlemouth firmware, especially for potential
 integrators of hardware that would enhance the ecosystem.
 
+Bristlemouth integration usage and API documentation is available at:
+https://bristlemouth.github.io/bm_core/index.html
+
 ## Constraints
 
 We're just getting started, but here are some of our intentions.
@@ -71,10 +74,14 @@ Other elements that integrators may need to specify:
 More to come...
 
 ## Documentation
-Documentation is hosted on this github [page]() that covers the integration API and its usage.
+Documentation is hosted on this github [page](https://bristlemouth.github.io/bm_core/index.html),
+which covers the integration API and its usage.
 In order to build the documentation `python` and `make` are required.
 Python dependencies are installed by running `pip install -r docs/requirements.txt`.
 It is recommended that these be installed in a python virtual environment.
 To build the documentation locally,
 run following command from the root of the repository `make -C docs html`.
 All documentation can then be found under the `build` directory at the root of the repository.
+
+When contributing to documentation,
+please utilize [semantic line breaks](https://sembr.org/) when updating markup files.
