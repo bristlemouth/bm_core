@@ -69,3 +69,12 @@ Other elements that integrators may need to specify:
 - Resource interests, including topics that are published or subscribed to, and services that are hosted (giving replies) or to which requests are made.
 
 More to come...
+
+## Documentation
+Documentation is hosted on this github [page]() that covers the integration API and its usage.
+In order to build the documentation `python` and `make` are required.
+Python dependencies are installed by running `pip install -r docs/requirements.txt`.
+It is recommended that these be installed in a python virtual environment.
+To build the documentation locally,
+run following command from the root of the repository `make -C docs html`.
+All documentation can then be found under the `build` directory at the root of the repository.
