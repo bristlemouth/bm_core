@@ -22,7 +22,7 @@ typedef void *BmQueue;
 typedef void *BmSemaphore;
 typedef void *BmTimer;
 
-// Memory functions - these may not necessarily be tied to the RTOS but I'm including them here for now
+// Memory functions - these may not necessarily be tied to the OS but I'm including them here for now
 void *bm_malloc(size_t size);
 void bm_free(void *ptr);
 
