@@ -1,4 +1,4 @@
-#include "bm_rtos.h"
+#include "bm_os.h"
 
 DEFINE_FFF_GLOBALS;
 
