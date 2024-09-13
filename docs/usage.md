@@ -26,7 +26,9 @@ Bristlemouth can be integrated into other build systems by...
 Bristlemouth is designed to be platform agnostic.
 However, it currently relies on certain OS features to function properly.
 
-<!-- Show how to use one of the available platforms (starting with FreeRTOS)--->
+```
+# Show how to use one of the available platforms here (starting with FreeRTOS)
+```
 
 ## Running The Bristlemouth Stack
 Once Bristlemouth has been added to the project,
