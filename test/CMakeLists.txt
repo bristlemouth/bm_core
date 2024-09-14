@@ -1,27 +1,20 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.29)
 
-# googletest utilizes C++
 enable_language(CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
-message(STATUS "Building Unit Tests")
-
-# Setup testing
 include(CTest)
-include(FetchContent)
 
-# googletest
 FetchContent_Declare(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
   GIT_TAG        v1.15.0
 )
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
-include(GoogleTest)
-
-# fff
 FetchContent_Declare(
   fff
   GIT_REPOSITORY https://github.com/meekrosoft/fff.git
@@ -29,36 +22,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fff)
 
-set(FETCH_DIR ${CMAKE_BINARY_DIR}/_deps/)
+include(GoogleTest)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
-set(FFF_DIR ${FETCH_DIR}fff-src)
-
-# Unit test general compile option
-add_compile_options(
-    -Werror
-    -g
-    -ggdb
-    -Og
-    -DCI_TEST
-    -DGTEST_BREAK_ON_FAILURE=1
-)
-
-# Link options for coverage reports
-add_link_options(
-    -fprofile-arcs
-    -ftest-coverage
-)
 
 include_directories(
     ${MOCK_DIR}
-    ${FFF_DIR}
+    ${fff_SOURCE_DIR}
     .
 )
 
 link_libraries(
     gmock
-    gtest_main)
+    gtest_main
+)
 
 file(GLOB TEST_STUBS stubs/*.c)
 
@@ -84,7 +61,7 @@ function(create_gtest test_name test_src srcs)
         ${test_src}
         # Stubs
         "${TEST_STUBS}"
-        src/${test_name}_ut.cpp
+        src/${test_name}_test.cpp
     )
     gtest_discover_tests(${GTEST_NAME})
     # Generate artifacts for coverage report using lcov
@@ -97,8 +74,9 @@ endfunction()
 # Dummy variable for unit tests that require no source files
 set(DUMMY src)
 
-# Add unit tests below here
 set (SRCS
     ${SRC_DIR}/util.c
+    ${SRC_DIR}/ll.c
 )
 create_gtest("packet" "${SRC_DIR}/packet.c" "${SRCS}")
+create_gtest("ll" "${SRC_DIR}/ll.c" "${DUMMY}")

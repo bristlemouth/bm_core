@@ -1,14 +1,13 @@
 #include "packet.h"
-#include "bm_rtos.h"
+#include "bm_os.h"
+#include "ll.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 
 #define default_message_timeout_ms 24
 #define message_timer_expiry_period_ms 12
-
-typedef BmErr (*BCMPParseCb)(BCMPParserData data);
-typedef BmErr (*BCMPSequencedRequestCb)(uint8_t *payload);
 
 typedef struct BCMPRequestElement {
   uint32_t seq_num;
@@ -18,14 +17,6 @@ typedef struct BCMPRequestElement {
   BCMPSequencedRequestCb cb;
   struct BCMPRequestElement *next;
 } BCMPRequestElement;
-
-struct SerialLUT {
-  BCMPMessageType type;
-  uint32_t size;
-  bool sequenced_reply;
-  BCMPSequencedRequestCb sequenced_request;
-  BCMPParseCb parse;
-};
 
 struct PacketInfo {
   struct {
@@ -38,301 +29,10 @@ struct PacketInfo {
   BmSemaphore sequence_list_semaphore;
   BmTimer timer;
   BCMPRequestElement *sequence_list;
+  LL packet_list;
 };
 
 static struct PacketInfo PACKET;
-
-//TODO: place in parser cbs and sequence cbs here
-static struct SerialLUT PACKET_LUT[] = {
-    {
-        BCMPHeartbeatMessage,
-        sizeof(BCMPHeartbeat),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPEchoRequestMessage,
-        sizeof(BCMPEchoRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPEchoReplyMessage,
-        sizeof(BCMPEchoReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDeviceInfoRequestMessage,
-        sizeof(BCMPDeviceInfoRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDeviceInfoReplyMessage,
-        sizeof(BCMPDeviceInfoReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPProtocolCapsRequestMessage,
-        sizeof(BCMPProtocolCapsRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPProtocolCapsReplyMessage,
-        sizeof(BCMPProtocolCapsReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPNeighborTableRequestMessage,
-        sizeof(BCMPNeighborTableRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPNeighborTableReplyMessage,
-        sizeof(BCMPNeighborTableReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPResourceTableRequestMessage,
-        sizeof(BCMPResourceTableRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPResourceTableReplyMessage,
-        sizeof(BCMPResourceTableReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPNeighborProtoRequestMessage,
-        sizeof(BCMPNeighborProtoRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPNeighborTableReplyMessage,
-        sizeof(BCMPNeighborTableReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPSystemTimeRequestMessage,
-        sizeof(BCMPSystemTimeRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPSystemTimeResponseMessage,
-        sizeof(BCMPSystemTimeResponse),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPSystemTimeSetMessage,
-        sizeof(BCMPSystemTimeSet),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPNetStateRequestMessage,
-        sizeof(BCMPNetStateRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPNetStateReplyMessage,
-        sizeof(BCMPNetStateReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPPowerStateRequestMessage,
-        sizeof(BCMPPowerStateRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPPowerStateReplyMessage,
-        sizeof(BCMPPowerStateReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPRebootRequestMessage,
-        sizeof(BCMPRebootRequest),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPRebootReplyMessage,
-        sizeof(BCMPRebootReply),
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPNetAssertQuietMessage,
-        sizeof(BCMPNetAssertQuiet),
-        false,
-        NULL,
-        NULL,
-    },
-    // TODO: Set the size and callbacks of down belo
-    {
-        BCMPConfigGetMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPConfigValueMessage,
-        1,
-        true,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPConfigSetMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPConfigCommitMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPConfigStatusRequestMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPConfigStatusResponseMessage,
-        1,
-        true,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPConfigDeleteRequestMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPConfigDeleteResponseMessage,
-        1,
-        true,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFUStartMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFUPayloadReqMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFUPayloadMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFUEndMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFUAckMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFUAbortMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFUHeartbeatMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFURebootReqMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFURebootMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-    {
-        BCMPDFUBootCompleteMessage,
-        1,
-        false,
-        NULL,
-        NULL,
-    },
-};
 
 /*!
  @brief Check Endianness Of Message Type And Format Little Endian
@@ -393,7 +93,7 @@ static void check_endianness(void *buf, BCMPMessageType type) {
       swap_64bit(&request->target_node_id);
     } break;
     case BCMPNeighborTableReplyMessage: {
-      BCMPNeighborTableReply *reply = (BCMPNeighborTableReply *)reply;
+      BCMPNeighborTableReply *reply = (BCMPNeighborTableReply *)buf;
       swap_64bit(&reply->node_id);
       swap_16bit(&reply->neighbor_len);
     } break;
@@ -460,6 +160,7 @@ static void check_endianness(void *buf, BCMPMessageType type) {
     } break;
     case BCMPNetAssertQuietMessage: {
       BCMPNetAssertQuiet *request = (BCMPNetAssertQuiet *)buf;
+      swap_64bit(&request->target_node_id);
     } break;
     case BCMPConfigGetMessage:
     case BCMPConfigValueMessage:
@@ -663,6 +364,37 @@ BmErr packet_init(BCMPGetIPAddr src_ip, BCMPGetIPAddr dst_ip, BCMPGetData data,
 }
 
 /*!
+ @brief Add Packet Item To Parser/Serializer
+
+ @param cfg statically allocated configuration of packet
+ @param type type of packet to add, this will be ll item ID
+
+ @return BmOK on success
+ @return BmError on failure
+ */
+BmErr packet_add(BCMPPacketCfg *cfg, BCMPMessageType type) {
+  BmErr err = BmEINVAL;
+  LLItem *item = NULL;
+
+  if (cfg) {
+    item = ll_create_item(item, cfg, type);
+    err = item ? ll_item_add(&PACKET.packet_list, item) : err;
+  }
+
+  return err;
+}
+
+/*!
+ @brief Remove Packet Item From Parser/Serializer
+
+ @param type type of packet to remove, this will be ll item ID
+
+ @return BmOK on success
+ @return BmError on failure
+ */
+BmErr packet_remove(BCMPMessageType type) { return ll_remove(&PACKET.packet_list, type); }
+
+/*!
  @brief Update Function To Parse And Handle Incoming Message
 
  @details This is to be ran on incoming messages, the function
@@ -682,6 +414,7 @@ BmErr parse(void *payload) {
   BCMPParserData data;
   BCMPSequencedRequestCb cb = NULL;
   BCMPRequestElement *request_message = NULL;
+  BCMPPacketCfg *cfg = NULL;
   void *buf = NULL;
 
   if (payload && PACKET.initialized) {
@@ -694,36 +427,32 @@ BmErr parse(void *payload) {
     check_endianness(data.header, BCMPHeaderMessage);
 
     // Handle parsed message type
-    for (uint32_t i = 0; i < array_size(PACKET_LUT); i++) {
-      if (data.header->type == PACKET_LUT[i].type) {
-        check_endianness(data.payload, data.header->type);
+    if ((err = ll_get_item(&PACKET.packet_list, data.header->type, (void *)&cfg)) == BmOK &&
+        cfg) {
+      check_endianness(data.payload, data.header->type);
 
-        // Check if this message is a reply to a message we sent
-        if (PACKET_LUT[i].sequenced_reply && !PACKET_LUT[i].sequenced_request) {
-          BCMPRequestElement *request_message =
-              sequence_list_find_message(data.header->seq_num);
-          if (request_message) {
-            printf("BCMP - Received reply to our request message with seq_num %d\n",
-                   data.header->seq_num);
-            if (bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) ==
-                BmOK) {
-              cb = request_message->cb;
-              sequence_list_remove_message(request_message);
-              bm_semaphore_give(PACKET.sequence_list_semaphore);
-            }
+      // Check if this message is a reply to a message we sent
+      if (cfg->sequenced_reply && !cfg->sequenced_request) {
+        request_message = sequence_list_find_message(data.header->seq_num);
+        if (request_message) {
+          printf("BCMP - Received reply to our request message with seq_num %d\n",
+                 data.header->seq_num);
+          if (bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) ==
+              BmOK) {
+            cb = request_message->cb;
+            sequence_list_remove_message(request_message);
+            bm_semaphore_give(PACKET.sequence_list_semaphore);
           }
         }
+      }
 
-        if (cb) {
-          // If message is a reply, utilize associated cb
-          err = cb(data.payload);
-        } else {
-          // Utilize LUT parsing callback
-          if (PACKET_LUT[i].parse && (err = PACKET_LUT[i].parse(data)) != BmOK) {
-            printf("Error completing parse cb: 0x%X\n", err);
-          } else {
-            break;
-          }
+      if (cb) {
+        // If message is a reply, utilize associated cb
+        err = cb(data.payload);
+      } else {
+        // Utilize parsing callback
+        if (cfg->parse && (err = cfg->parse(data)) != BmOK) {
+          printf("Error completing parse cb: 0x%X\n", err);
         }
       }
     }
@@ -751,53 +480,45 @@ BmErr serialize(void *payload, void *data, BCMPMessageType type, uint32_t seq_nu
   static uint32_t message_count = 0;
   BmErr err = BmEINVAL;
   BCMPHeader *header = NULL;
-  uint32_t size = 0;
-  bool sequenced_reply = false;
-  BCMPSequencedRequestCb sequenced_request = NULL;
+  BCMPPacketCfg *cfg = NULL;
   BCMPRequestElement *request_message = NULL;
 
   if (payload && data && PACKET.initialized) {
-    err = BmOK;
-
     // Check endianness of type and place into little endian form
     check_endianness(data, type);
 
     // Determine size of message type and if there is a sequenced reply/request
-    for (uint32_t i = 0; i < array_size(PACKET_LUT); i++) {
-      if (type == PACKET_LUT[i].type) {
-        size = PACKET_LUT[i].size;
-        sequenced_reply = PACKET_LUT[i].sequenced_reply;
-        sequenced_request = PACKET_LUT[i].sequenced_request;
-        break;
+    if ((err = ll_get_item(&PACKET.packet_list, type, (void *)&cfg)) == BmOK && cfg) {
+
+      header = (BCMPHeader *)PACKET.cb.data(payload);
+      header->flags = 0;       // Unused
+      header->reserved = 0;    // Unused
+      header->frag_total = 0;  // Unused
+      header->frag_id = 0;     // Unused
+      header->next_header = 0; // Unused
+      header->type = type;
+      if (cfg->sequenced_reply) {
+        // if we are replying to a message, use the sequence number from the received message
+        header->seq_num = seq_num;
+      } else if (cfg->sequenced_request) {
+        // If we are sending a new request, use our own sequence number
+        header->seq_num = message_count++;
+        request_message = new_sequence_list_item(
+            header->seq_num, header->type, default_message_timeout_ms, cfg->sequenced_request);
+        sequence_list_add_message(request_message);
+        printf("BCMP - Serializing message with seq_num %d\n", header->seq_num);
+      } else {
+        // If the message doesn't use sequence numbers, set it to 0
+        header->seq_num = 0;
       }
-    }
 
-    header = PACKET.cb.data(payload);
-    header->flags = 0;       // Unused
-    header->reserved = 0;    // Unused
-    header->frag_total = 0;  // Unused
-    header->frag_id = 0;     // Unused
-    header->next_header = 0; // Unused
-    header->type = type;
-    header->checksum = PACKET.cb.checksum(payload, size + sizeof(BCMPHeader));
-    if (sequenced_reply) {
-      // if we are replying to a message, use the sequence number from the received message
-      header->seq_num = seq_num;
-    } else if (sequenced_request) {
-      // If we are sending a new request, use our own sequence number
-      header->seq_num = message_count++;
-      request_message = new_sequence_list_item(header->seq_num, header->type,
-                                               default_message_timeout_ms, sequenced_request);
-      sequence_list_add_message(request_message);
-      printf("BCMP - Sending message with seq_num %d\n", header->seq_num);
-    } else {
-      // If the message doesn't use sequence numbers, set it to 0
-      header->seq_num = 0;
-    }
+      // Format header in little endian format and append data onto payload
+      check_endianness(header, BCMPHeaderMessage);
+      printf("Size :%d\n", cfg->size);
+      memcpy(((uint8_t *)header) + sizeof(BCMPHeader), data, cfg->size);
 
-    // Format header in little endian format and append data onto payload
-    check_endianness(header, BCMPHeaderMessage);
-    memcpy(header + sizeof(BCMPHeader), data, size);
+      header->checksum = PACKET.cb.checksum(payload, cfg->size + sizeof(BCMPHeader));
+    }
   }
 
   return err;

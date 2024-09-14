@@ -2,3 +2,5 @@
 **init.vim
 **venv
 **.DS_Store
+**.cache
+**compile_commands.json
