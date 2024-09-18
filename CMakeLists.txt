@@ -1,56 +1,55 @@
 cmake_minimum_required(VERSION 3.29)
 
-# Set the project name and specify that it's a C project
+if(NOT ENABLE_TESTING)
+    set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/arm-gcc-toolchain.cmake)
+endif()
+
 project(Bristlemouth VERSION 0.11 LANGUAGES C)
 
-enable_testing()
+include(FetchContent)
 
-# Set the C standard to C17 and enable strict compliance
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
-# Add include directories
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+FetchContent_Declare(
+  bm_common
+  GIT_REPOSITORY https://github.com/bristlemouth/bm_common.git
+  #TODO: This must be set by configuration somehow
+  GIT_TAG        main
+)
+FetchContent_MakeAvailable(bm_common)
+
+#TODO: Configuration will determine RTOS and IP stack here
+
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
+    ${bm_common_SOURCE_DIR}/include
 )
 
-# Add the source files
-set(SOURCES
-    src/packet.c
-    src/service.c
-    # Add more source files as needed
-)
 
-# 🤦‍♂️
-# https://stackoverflow.com/questions/68145157/unrecognized-command-line-option-arch-did-you-mean-march
-#set(APPLE FALSE)
+if(ENABLE_TESTING)
+    set(CMAKE_CXX_FLAGS "-g -Wall")
+    set(CMAKE_C_FLAGS "-g -Wall -W")
+    set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
 
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Test")
-    # Specify the target architecture
-    set(TARGET_ARCH "-mcpu=cortex-m33 -mthumb")  # Adjust according to your specific target
-    set(TARGET_FPU "-mfpu=fpv4-sp-d16")  # Adjust or remove if your target does not have an FPU
-    set(TARGET_FLOAT_ABI "-mfloat-abi=hard")  # Adjust or remove if your target does not use hardware floating-point
+    enable_testing()
+    add_subdirectory("test")
+else()
 
-    # Define the compiler
-    set(CMAKE_C_COMPILER "arm-none-eabi-gcc")
 
-    # Set compiler flags for optimization and debugging
-    set(COMMON_FLAGS "-Wall -Wextra -Wpedantic -Werror -Os ${TARGET_ARCH} ${TARGET_FPU} ${TARGET_FLOAT_ABI}")
+    file(GLOB COMMON_SOURCES ${bm_common_SOURCE_DIR}/src/*.c)
 
-    # Add any other flags you need, such as for floating-point hardware or other optimizations
-    set(CMAKE_C_FLAGS_DEBUG "${COMMON_FLAGS} -g")
-    set(CMAKE_C_FLAGS_RELEASE "${COMMON_FLAGS} -DNDEBUG")
-
-    # Define the library target
+    set(SOURCES
+        src/packet.c
+        src/service.c
+        src/heartbeat.c
+        src/bcmp.c
+        "${COMMON_SOURCES}"
+    )
     add_library(bmcore ${SOURCES})
 
-    # Specify any additional include directories or linked libraries
-    target_include_directories(bmcore PUBLIC
-        ${CMAKE_SOURCE_DIR}/include
-    )
-
     target_link_libraries(bmcore PUBLIC bmnetif)
-else()
-    add_subdirectory("test")
 endif()

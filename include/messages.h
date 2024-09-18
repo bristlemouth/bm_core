@@ -1,6 +1,3 @@
-#ifndef __BM_MESSAGES_H__
-#define __BM_MESSAGES_H__
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -405,5 +402,3 @@ typedef enum {
 
   BCMPHeaderMessage = 0xFFFF
 } BCMPMessageType;
-
-#endif
