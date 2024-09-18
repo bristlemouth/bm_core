@@ -25,7 +25,7 @@ FetchContent_MakeAvailable(bm_common)
 #TODO: Configuration will determine RTOS and IP stack here
 
 include_directories(
-    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/include
     ${bm_common_SOURCE_DIR}/include
 )
 
@@ -38,18 +38,13 @@ if(ENABLE_TESTING)
     enable_testing()
     add_subdirectory("test")
 else()
-
-
-    file(GLOB COMMON_SOURCES ${bm_common_SOURCE_DIR}/src/*.c)
-
     set(SOURCES
         src/packet.c
         src/service.c
         src/heartbeat.c
         src/bcmp.c
-        "${COMMON_SOURCES}"
     )
     add_library(bmcore ${SOURCES})
 
-    target_link_libraries(bmcore PUBLIC bmnetif)
+    target_link_libraries(bmcore PUBLIC bmcommon)
 endif()

@@ -3,12 +3,12 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "bm_os.h"
 #include "fff.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "mock_bm_os.h"
 #include "packet.h"
 #ifdef __cplusplus
 }
