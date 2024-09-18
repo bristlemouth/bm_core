@@ -21,14 +21,16 @@ FetchContent_Declare(
   GIT_TAG        5111c61
 )
 FetchContent_MakeAvailable(fff)
-
 include(GoogleTest)
-set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
+set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../src)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
+set(BM_COMMON_MOCK_DIR ${bm_common_SOURCE_DIR}/test/mocks)
+set(BM_COMMON_SOURCE_DIR ${bm_common_SOURCE_DIR}/src)
 
 include_directories(
     ${MOCK_DIR}
     ${fff_SOURCE_DIR}
+    ${BM_COMMON_MOCK_DIR}
     .
 )
 
@@ -38,6 +40,7 @@ link_libraries(
 )
 
 file(GLOB TEST_STUBS stubs/*.c)
+file(GLOB TEST_STUBS_BM_COMMON ${bm_common_SOURCE_DIR}/test/stubs/*.c)
 
 # - Create Unit Test
 #
@@ -61,6 +64,7 @@ function(create_gtest test_name test_src srcs)
         ${test_src}
         # Stubs
         "${TEST_STUBS}"
+        "${TEST_STUBS_BM_COMMON}"
         src/${test_name}_test.cpp
     )
     gtest_discover_tests(${GTEST_NAME})
@@ -75,8 +79,7 @@ endfunction()
 set(DUMMY src)
 
 set (SRCS
-    ${SRC_DIR}/util.c
-    ${SRC_DIR}/ll.c
+    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${BM_COMMON_SOURCE_DIR}/ll.c
 )
 create_gtest("packet" "${SRC_DIR}/packet.c" "${SRCS}")
-create_gtest("ll" "${SRC_DIR}/ll.c" "${DUMMY}")
