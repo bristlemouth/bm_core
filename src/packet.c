@@ -9,26 +9,26 @@
 #define default_message_timeout_ms 24
 #define message_timer_expiry_period_ms 12
 
-typedef struct BCMPRequestElement {
+typedef struct BcmpRequestElement {
   uint32_t seq_num;
   uint16_t type;
   uint32_t timestamp_ms;
   uint32_t timeout_ms;
-  BCMPSequencedRequestCb cb;
-  struct BCMPRequestElement *next;
-} BCMPRequestElement;
+  BcmpSequencedRequestCb cb;
+  struct BcmpRequestElement *next;
+} BcmpRequestElement;
 
 struct PacketInfo {
   struct {
-    BCMPGetIPAddr src_ip;
-    BCMPGetIPAddr dst_ip;
-    BCMPGetData data;
-    BCMPGetChecksum checksum;
+    BcmpGetIPAddr src_ip;
+    BcmpGetIPAddr dst_ip;
+    BcmpGetData data;
+    BcmpGetChecksum checksum;
   } cb;
   bool initialized;
   BmSemaphore sequence_list_semaphore;
   BmTimer timer;
-  BCMPRequestElement *sequence_list;
+  BcmpRequestElement *sequence_list;
   LL packet_list;
 };
 
@@ -42,147 +42,147 @@ static struct PacketInfo PACKET;
  @param buf buffer to format
  @param type message type to format
  */
-static void check_endianness(void *buf, BCMPMessageType type) {
+static void check_endianness(void *buf, BcmpMessageType type) {
   if (!is_little_endian()) {
     switch (type) {
-    case BCMPAckMessage:
+    case BcmpAckMessage:
       break;
-    case BCMPHeartbeatMessage: {
-      BCMPHeartbeat *hb = (BCMPHeartbeat *)buf;
+    case BcmpHeartbeatMessage: {
+      BcmpHeartbeat *hb = (BcmpHeartbeat *)buf;
       swap_64bit(&hb->time_since_boot_us);
       swap_32bit(&hb->liveliness_lease_dur_s);
     } break;
-    case BCMPEchoRequestMessage: {
-      BCMPEchoRequest *request = (BCMPEchoRequest *)buf;
+    case BcmpEchoRequestMessage: {
+      BcmpEchoRequest *request = (BcmpEchoRequest *)buf;
       swap_64bit(&request->target_node_id);
       swap_16bit(&request->id);
       swap_32bit(&request->seq_num);
       swap_16bit(&request->payload_len);
     } break;
-    case BCMPEchoReplyMessage: {
-      BCMPEchoReply *reply = (BCMPEchoReply *)buf;
+    case BcmpEchoReplyMessage: {
+      BcmpEchoReply *reply = (BcmpEchoReply *)buf;
       swap_64bit(&reply->node_id);
       swap_16bit(&reply->id);
       swap_16bit(&reply->seq_num);
       swap_16bit(&reply->payload_len);
     } break;
-    case BCMPDeviceInfoRequestMessage: {
-      BCMPDeviceInfoRequest *request = (BCMPDeviceInfoRequest *)buf;
+    case BcmpDeviceInfoRequestMessage: {
+      BcmpDeviceInfoRequest *request = (BcmpDeviceInfoRequest *)buf;
       swap_64bit(&request->target_node_id);
     } break;
-    case BCMPDeviceInfoReplyMessage: {
-      BCMPDeviceInfoReply *reply = (BCMPDeviceInfoReply *)buf;
+    case BcmpDeviceInfoReplyMessage: {
+      BcmpDeviceInfoReply *reply = (BcmpDeviceInfoReply *)buf;
       swap_64bit(&reply->info.node_id);
       swap_16bit(&reply->info.vendor_id);
       swap_16bit(&reply->info.product_id);
       swap_32bit(&reply->info.git_sha);
     } break;
-    case BCMPProtocolCapsRequestMessage: {
-      BCMPProtocolCapsRequest *request = (BCMPProtocolCapsRequest *)buf;
+    case BcmpProtocolCapsRequestMessage: {
+      BcmpProtocolCapsRequest *request = (BcmpProtocolCapsRequest *)buf;
       swap_64bit(&request->target_node_id);
       swap_16bit(&request->caps_list_len);
     } break;
-    case BCMPProtocolCapsReplyMessage: {
-      BCMPProtocolCapsReply *reply = (BCMPProtocolCapsReply *)buf;
+    case BcmpProtocolCapsReplyMessage: {
+      BcmpProtocolCapsReply *reply = (BcmpProtocolCapsReply *)buf;
       swap_64bit(&reply->node_id);
       swap_16bit(&reply->bcmp_rev);
       swap_16bit(&reply->caps_count);
     } break;
-    case BCMPNeighborTableRequestMessage: {
-      BCMPNeighborTableRequest *request = (BCMPNeighborTableRequest *)buf;
+    case BcmpNeighborTableRequestMessage: {
+      BcmpNeighborTableRequest *request = (BcmpNeighborTableRequest *)buf;
       swap_64bit(&request->target_node_id);
     } break;
-    case BCMPNeighborTableReplyMessage: {
-      BCMPNeighborTableReply *reply = (BCMPNeighborTableReply *)buf;
+    case BcmpNeighborTableReplyMessage: {
+      BcmpNeighborTableReply *reply = (BcmpNeighborTableReply *)buf;
       swap_64bit(&reply->node_id);
       swap_16bit(&reply->neighbor_len);
     } break;
-    case BCMPResourceTableRequestMessage: {
-      BCMPResourceTableRequest *request = (BCMPResourceTableRequest *)buf;
+    case BcmpResourceTableRequestMessage: {
+      BcmpResourceTableRequest *request = (BcmpResourceTableRequest *)buf;
       swap_64bit(&request->target_node_id);
     } break;
-    case BCMPResourceTableReplyMessage: {
-      BCMPResourceTableReply *reply = (BCMPResourceTableReply *)buf;
+    case BcmpResourceTableReplyMessage: {
+      BcmpResourceTableReply *reply = (BcmpResourceTableReply *)buf;
       swap_64bit(&reply->node_id);
       swap_16bit(&reply->num_pubs);
       swap_16bit(&reply->num_subs);
     } break;
-    case BCMPNeighborProtoRequestMessage: {
-      BCMPNeighborProtoRequest *request = (BCMPNeighborProtoRequest *)buf;
+    case BcmpNeighborProtoRequestMessage: {
+      BcmpNeighborProtoRequest *request = (BcmpNeighborProtoRequest *)buf;
       swap_64bit(&request->target_node_id);
       swap_16bit(&request->option_count);
     } break;
-    case BCMPNeighborProtoReplyMessage: {
-      BCMPNeighborProtoReply *request = (BCMPNeighborProtoReply *)buf;
+    case BcmpNeighborProtoReplyMessage: {
+      BcmpNeighborProtoReply *request = (BcmpNeighborProtoReply *)buf;
       swap_64bit(&request->node_id);
       swap_16bit(&request->option_count);
     } break;
-    case BCMPSystemTimeRequestMessage: {
-      BCMPSystemTimeRequest *request = (BCMPSystemTimeRequest *)buf;
+    case BcmpSystemTimeRequestMessage: {
+      BcmpSystemTimeRequest *request = (BcmpSystemTimeRequest *)buf;
       swap_64bit(&request->header.target_node_id);
       swap_64bit(&request->header.source_node_id);
     } break;
-    case BCMPSystemTimeResponseMessage: {
-      BCMPSystemTimeResponse *response = (BCMPSystemTimeResponse *)buf;
+    case BcmpSystemTimeResponseMessage: {
+      BcmpSystemTimeResponse *response = (BcmpSystemTimeResponse *)buf;
       swap_64bit(&response->header.target_node_id);
       swap_64bit(&response->header.source_node_id);
       swap_64bit(&response->utc_time_us);
     } break;
-    case BCMPSystemTimeSetMessage: {
-      BCMPSystemTimeSet *set = (BCMPSystemTimeSet *)buf;
+    case BcmpSystemTimeSetMessage: {
+      BcmpSystemTimeSet *set = (BcmpSystemTimeSet *)buf;
       swap_64bit(&set->header.target_node_id);
       swap_64bit(&set->header.source_node_id);
       swap_64bit(&set->utc_time_us);
     } break;
-    case BCMPNetStateRequestMessage: {
-      BCMPNetStateRequest *request = (BCMPNetStateRequest *)buf;
+    case BcmpNetStateRequestMessage: {
+      BcmpNetStateRequest *request = (BcmpNetStateRequest *)buf;
       swap_64bit(&request->target_node_id);
     } break;
-    case BCMPNetStateReplyMessage: {
-      BCMPNetStateReply *reply = (BCMPNetStateReply *)buf;
+    case BcmpNetStateReplyMessage: {
+      BcmpNetStateReply *reply = (BcmpNetStateReply *)buf;
       swap_64bit(&reply->node_id);
     } break;
-    case BCMPPowerStateRequestMessage: {
-      BCMPPowerStateRequest *request = (BCMPPowerStateRequest *)buf;
+    case BcmpPowerStateRequestMessage: {
+      BcmpPowerStateRequest *request = (BcmpPowerStateRequest *)buf;
       swap_64bit(&request->target_node_id);
     } break;
-    case BCMPPowerStateReplyMessage: {
-      BCMPPowerStateReply *reply = (BCMPPowerStateReply *)buf;
+    case BcmpPowerStateReplyMessage: {
+      BcmpPowerStateReply *reply = (BcmpPowerStateReply *)buf;
       swap_64bit(&reply->node_id);
     } break;
-    case BCMPRebootRequestMessage: {
-      BCMPRebootRequest *request = (BCMPRebootRequest *)buf;
+    case BcmpRebootRequestMessage: {
+      BcmpRebootRequest *request = (BcmpRebootRequest *)buf;
       swap_64bit(&request->target_node_id);
     } break;
-    case BCMPRebootReplyMessage: {
-      BCMPRebootReply *reply = (BCMPRebootReply *)buf;
+    case BcmpRebootReplyMessage: {
+      BcmpRebootReply *reply = (BcmpRebootReply *)buf;
       swap_64bit(&reply->node_id);
     } break;
-    case BCMPNetAssertQuietMessage: {
-      BCMPNetAssertQuiet *request = (BCMPNetAssertQuiet *)buf;
+    case BcmpNetAssertQuietMessage: {
+      BcmpNetAssertQuiet *request = (BcmpNetAssertQuiet *)buf;
       swap_64bit(&request->target_node_id);
     } break;
-    case BCMPConfigGetMessage:
-    case BCMPConfigValueMessage:
-    case BCMPConfigSetMessage:
-    case BCMPConfigCommitMessage:
-    case BCMPConfigStatusRequestMessage:
-    case BCMPConfigStatusResponseMessage:
-    case BCMPConfigDeleteRequestMessage:
-    case BCMPConfigDeleteResponseMessage:
-    case BCMPDFUStartMessage:
-    case BCMPDFUPayloadReqMessage:
-    case BCMPDFUPayloadMessage:
-    case BCMPDFUEndMessage:
-    case BCMPDFUAckMessage:
-    case BCMPDFUAbortMessage:
-    case BCMPDFUHeartbeatMessage:
-    case BCMPDFURebootReqMessage:
-    case BCMPDFURebootMessage:
-    case BCMPDFUBootCompleteMessage:
+    case BcmpConfigGetMessage:
+    case BcmpConfigValueMessage:
+    case BcmpConfigSetMessage:
+    case BcmpConfigCommitMessage:
+    case BcmpConfigStatusRequestMessage:
+    case BcmpConfigStatusResponseMessage:
+    case BcmpConfigDeleteRequestMessage:
+    case BcmpConfigDeleteResponseMessage:
+    case BcmpDFUStartMessage:
+    case BcmpDFUPayloadReqMessage:
+    case BcmpDFUPayloadMessage:
+    case BcmpDFUEndMessage:
+    case BcmpDFUAckMessage:
+    case BcmpDFUAbortMessage:
+    case BcmpDFUHeartbeatMessage:
+    case BcmpDFURebootReqMessage:
+    case BcmpDFURebootMessage:
+    case BcmpDFUBootCompleteMessage:
       break;
-    case BCMPHeaderMessage: {
-      BCMPHeader *header = (BCMPHeader *)buf;
+    case BcmpHeaderMessage: {
+      BcmpHeader *header = (BcmpHeader *)buf;
       swap_16bit(&header->type);
       swap_16bit(&header->checksum);
       swap_32bit(&header->seq_num);
@@ -199,14 +199,14 @@ static void check_endianness(void *buf, BCMPMessageType type) {
  @return true if message is added successfully
  @return false if message is not added successfully
  */
-static bool sequence_list_add_message(BCMPRequestElement *message) {
+static bool sequence_list_add_message(BcmpRequestElement *message) {
   bool rval = false;
   if (message &&
       bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) == BmOK) {
     if (PACKET.sequence_list == NULL) {
       PACKET.sequence_list = message;
     } else {
-      BCMPRequestElement *current = PACKET.sequence_list;
+      BcmpRequestElement *current = PACKET.sequence_list;
       while (current->next != NULL) {
         current = current->next;
       }
@@ -226,15 +226,15 @@ static bool sequence_list_add_message(BCMPRequestElement *message) {
  @return true if message is removed successfully
  @return false if message is not removed successfully
  */
-static bool sequence_list_remove_message(BCMPRequestElement *message) {
+static bool sequence_list_remove_message(BcmpRequestElement *message) {
   bool rval = false;
-  BCMPRequestElement *element_to_delete = NULL;
+  BcmpRequestElement *element_to_delete = NULL;
   if (message) {
     if (PACKET.sequence_list == message) {
       element_to_delete = PACKET.sequence_list;
       PACKET.sequence_list = PACKET.sequence_list->next;
     } else {
-      BCMPRequestElement *current = PACKET.sequence_list;
+      BcmpRequestElement *current = PACKET.sequence_list;
       while (current && current->next != message) {
         current = current->next;
       }
@@ -262,10 +262,10 @@ static bool sequence_list_remove_message(BCMPRequestElement *message) {
  @return new item that has been added
  @return NULL if item is not able to be created
  */
-static BCMPRequestElement *new_sequence_list_item(uint16_t seq_num, BCMPMessageType type,
+static BcmpRequestElement *new_sequence_list_item(uint16_t seq_num, BcmpMessageType type,
                                                   uint32_t timeout_ms,
-                                                  BCMPSequencedRequestCb cb) {
-  BCMPRequestElement *element = (BCMPRequestElement *)bm_malloc(sizeof(BCMPRequestElement));
+                                                  BcmpSequencedRequestCb cb) {
+  BcmpRequestElement *element = (BcmpRequestElement *)bm_malloc(sizeof(BcmpRequestElement));
   if (element != NULL) {
     element->seq_num = seq_num;
     element->type = type;
@@ -288,10 +288,10 @@ static BCMPRequestElement *new_sequence_list_item(uint16_t seq_num, BCMPMessageT
 static void sequence_list_timer_callback(BmTimer tmr) {
   (void)tmr;
   if (bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) == BmOK) {
-    BCMPRequestElement *current = PACKET.sequence_list;
+    BcmpRequestElement *current = PACKET.sequence_list;
     while (current) {
       if (bm_ticks_to_ms(bm_get_tick_count()) - current->timestamp_ms > current->timeout_ms) {
-        printf("BCMP message with seq_num %d timed out\n", current->seq_num);
+        printf("Bcmp message with seq_num %d timed out\n", current->seq_num);
         if (current->cb) {
           current->cb(NULL);
         }
@@ -313,13 +313,13 @@ static void sequence_list_timer_callback(BmTimer tmr) {
  @return item if it is found in linked list
  @return NULL if item is not able to found
  */
-static BCMPRequestElement *sequence_list_find_message(uint16_t seq_num) {
-  BCMPRequestElement *rval = NULL;
+static BcmpRequestElement *sequence_list_find_message(uint16_t seq_num) {
+  BcmpRequestElement *rval = NULL;
   if (bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) == BmOK) {
-    BCMPRequestElement *current = PACKET.sequence_list;
+    BcmpRequestElement *current = PACKET.sequence_list;
     while (current) {
       if (current->seq_num == seq_num) {
-        printf("BCMP message with seq_num %d found\n", current->seq_num);
+        printf("Bcmp message with seq_num %d found\n", current->seq_num);
         rval = current;
         break;
       }
@@ -341,8 +341,8 @@ static BCMPRequestElement *sequence_list_find_message(uint16_t seq_num) {
  @return BmOK on success
  @return BmError on failure
  */
-BmErr packet_init(BCMPGetIPAddr src_ip, BCMPGetIPAddr dst_ip, BCMPGetData data,
-                  BCMPGetChecksum checksum) {
+BmErr packet_init(BcmpGetIPAddr src_ip, BcmpGetIPAddr dst_ip, BcmpGetData data,
+                  BcmpGetChecksum checksum) {
   BmErr err = BmEINVAL;
   if (src_ip && dst_ip && data && checksum) {
     PACKET.cb.src_ip = src_ip;
@@ -372,7 +372,7 @@ BmErr packet_init(BCMPGetIPAddr src_ip, BCMPGetIPAddr dst_ip, BCMPGetData data,
  @return BmOK on success
  @return BmError on failure
  */
-BmErr packet_add(BCMPPacketCfg *cfg, BCMPMessageType type) {
+BmErr packet_add(BcmpPacketCfg *cfg, BcmpMessageType type) {
   BmErr err = BmEINVAL;
   LLItem *item = NULL;
 
@@ -392,7 +392,7 @@ BmErr packet_add(BCMPPacketCfg *cfg, BCMPMessageType type) {
  @return BmOK on success
  @return BmError on failure
  */
-BmErr packet_remove(BCMPMessageType type) { return ll_remove(&PACKET.packet_list, type); }
+BmErr packet_remove(BcmpMessageType type) { return ll_remove(&PACKET.packet_list, type); }
 
 /*!
  @brief Update Function To Parse And Handle Incoming Message
@@ -411,20 +411,20 @@ BmErr packet_remove(BCMPMessageType type) { return ll_remove(&PACKET.packet_list
  */
 BmErr parse(void *payload) {
   BmErr err = BmEINVAL;
-  BCMPParserData data;
-  BCMPSequencedRequestCb cb = NULL;
-  BCMPRequestElement *request_message = NULL;
-  BCMPPacketCfg *cfg = NULL;
+  BcmpParserData data;
+  BcmpSequencedRequestCb cb = NULL;
+  BcmpRequestElement *request_message = NULL;
+  BcmpPacketCfg *cfg = NULL;
   void *buf = NULL;
 
   if (payload && PACKET.initialized) {
     buf = PACKET.cb.data(payload);
-    data.header = (BCMPHeader *)buf;
-    data.payload = (uint8_t *)(buf + sizeof(BCMPHeader));
+    data.header = (BcmpHeader *)buf;
+    data.payload = (uint8_t *)(buf + sizeof(BcmpHeader));
     data.src = PACKET.cb.src_ip(payload);
     data.dst = PACKET.cb.dst_ip(payload);
     data.ingress_port = (((uint32_t *)(data.src))[1] >> 8) & 0xFF;
-    check_endianness(data.header, BCMPHeaderMessage);
+    check_endianness(data.header, BcmpHeaderMessage);
 
     // Handle parsed message type
     if ((err = ll_get_item(&PACKET.packet_list, data.header->type, (void *)&cfg)) == BmOK &&
@@ -476,12 +476,12 @@ BmErr parse(void *payload) {
  @return BmOK on success
  @return BmError on failure
  */
-BmErr serialize(void *payload, void *data, BCMPMessageType type, uint32_t seq_num) {
+BmErr serialize(void *payload, void *data, BcmpMessageType type, uint32_t seq_num) {
   static uint32_t message_count = 0;
   BmErr err = BmEINVAL;
-  BCMPHeader *header = NULL;
-  BCMPPacketCfg *cfg = NULL;
-  BCMPRequestElement *request_message = NULL;
+  BcmpHeader *header = NULL;
+  BcmpPacketCfg *cfg = NULL;
+  BcmpRequestElement *request_message = NULL;
 
   if (payload && data && PACKET.initialized) {
     // Check endianness of type and place into little endian form
@@ -490,7 +490,7 @@ BmErr serialize(void *payload, void *data, BCMPMessageType type, uint32_t seq_nu
     // Determine size of message type and if there is a sequenced reply/request
     if ((err = ll_get_item(&PACKET.packet_list, type, (void *)&cfg)) == BmOK && cfg) {
 
-      header = (BCMPHeader *)PACKET.cb.data(payload);
+      header = (BcmpHeader *)PACKET.cb.data(payload);
       header->flags = 0;       // Unused
       header->reserved = 0;    // Unused
       header->frag_total = 0;  // Unused
@@ -513,11 +513,11 @@ BmErr serialize(void *payload, void *data, BCMPMessageType type, uint32_t seq_nu
       }
 
       // Format header in little endian format and append data onto payload
-      check_endianness(header, BCMPHeaderMessage);
+      check_endianness(header, BcmpHeaderMessage);
       printf("Size :%d\n", cfg->size);
-      memcpy(((uint8_t *)header) + sizeof(BCMPHeader), data, cfg->size);
+      memcpy(((uint8_t *)header) + sizeof(BcmpHeader), data, cfg->size);
 
-      header->checksum = PACKET.cb.checksum(payload, cfg->size + sizeof(BCMPHeader));
+      header->checksum = PACKET.cb.checksum(payload, cfg->size + sizeof(BcmpHeader));
     }
   }
 

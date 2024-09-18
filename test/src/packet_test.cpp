@@ -21,8 +21,8 @@ extern "C" {
 #define GEN_RND_U16 ((uint16_t)RND.rnd_int(UINT16_MAX, 0))
 #define GEN_RND_U8 ((uint8_t)RND.rnd_int(UINT8_MAX, 0))
 
-DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BCMPParserData);
-DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BCMPParserData);
+DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpParserData);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpParserData);
 
 static rnd_gen RND;
 
@@ -87,16 +87,16 @@ protected:
     bm_timer_start_fake.return_val = BmOK;
     ASSERT_EQ(packet_init(src_ip, dst_ip, get_data, calc_checksum), BmOK);
 
-    static BCMPPacketCfg heartbeat_packet = {
-        sizeof(BCMPHeartbeat),
+    static BcmpPacketCfg heartbeat_packet = {
+        sizeof(BcmpHeartbeat),
         false,
         NULL,
         bcmp_process_heartbeat,
     };
-    ASSERT_EQ(packet_add(&heartbeat_packet, BCMPHeartbeatMessage), BmOK);
+    ASSERT_EQ(packet_add(&heartbeat_packet, BcmpHeartbeatMessage), BmOK);
   }
   void TearDown() override {
-    packet_remove(BCMPHeartbeatMessage);
+    packet_remove(BcmpHeartbeatMessage);
     free(test_payload);
   }
 };
@@ -108,15 +108,15 @@ TEST_F(packet_test, serialize) {
   RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
 
   // Test a normal message
-  BCMPHeartbeat hb = {
+  BcmpHeartbeat hb = {
       GEN_RND_U64,
       GEN_RND_U32,
   };
 
-  ASSERT_EQ(serialize((void *)&data, (void *)&hb, BCMPHeartbeatMessage, 0), 0);
-  ASSERT_EQ(((BCMPHeader *)data.payload)->type, BCMPHeartbeatMessage);
+  ASSERT_EQ(serialize((void *)&data, (void *)&hb, BcmpHeartbeatMessage, 0), 0);
+  ASSERT_EQ(((BcmpHeader *)data.payload)->type, BcmpHeartbeatMessage);
   ASSERT_EQ(
-      memcmp((void *)(data.payload + sizeof(BCMPHeader)), (void *)&hb, sizeof(BCMPHeartbeat)),
+      memcmp((void *)(data.payload + sizeof(BcmpHeader)), (void *)&hb, sizeof(BcmpHeartbeat)),
       0);
 
   // Test sequence reply
@@ -128,25 +128,25 @@ TEST_F(packet_test, parse) {
   data.payload = test_payload;
   RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
   RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
-  BCMPHeader header = {
+  BcmpHeader header = {
       GEN_RND_U16, GEN_RND_U16, GEN_RND_U8, GEN_RND_U8,
       GEN_RND_U32, GEN_RND_U8,  GEN_RND_U8, GEN_RND_U8,
   };
 
   // Test a normal message
   RESET_FAKE(bcmp_process_heartbeat);
-  BCMPHeartbeat hb = {
+  BcmpHeartbeat hb = {
       GEN_RND_U64,
       GEN_RND_U32,
   };
 
-  header.type = BCMPHeartbeatMessage;
-  memcpy((void *)data.payload, (void *)&header, sizeof(BCMPHeader));
-  memcpy((void *)(data.payload + sizeof(BCMPHeader)), (void *)&hb, sizeof(BCMPHeartbeat));
+  header.type = BcmpHeartbeatMessage;
+  memcpy((void *)data.payload, (void *)&header, sizeof(BcmpHeader));
+  memcpy((void *)(data.payload + sizeof(BcmpHeader)), (void *)&hb, sizeof(BcmpHeartbeat));
   bcmp_process_heartbeat_fake.return_val = BmOK;
   ASSERT_EQ(parse((void *)&data), BmOK);
   ASSERT_EQ(bcmp_process_heartbeat_fake.call_count, 1);
   ASSERT_EQ(memcmp((void *)(bcmp_process_heartbeat_fake.arg0_val.header), (void *)&header,
-                   sizeof(BCMPHeader)),
+                   sizeof(BcmpHeader)),
             0);
 }

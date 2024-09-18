@@ -10,7 +10,7 @@ typedef struct {
   uint8_t frag_total;
   uint8_t frag_id;
   uint8_t next_header;
-} __attribute__((packed)) BCMPHeader;
+} __attribute__((packed)) BcmpHeader;
 
 typedef struct {
   // Microseconds since system has last reset/powered on.
@@ -18,7 +18,7 @@ typedef struct {
 
   // How long to consider this node alive. 0 can mean indefinite, which could be useful for certain applications.
   uint32_t liveliness_lease_dur_s;
-} __attribute__((packed)) BCMPHeartbeat;
+} __attribute__((packed)) BcmpHeartbeat;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -35,7 +35,7 @@ typedef struct {
 
   // Optional payload. If used, the reply to this request must send a matching payload to be considered valid
   uint8_t payload[0];
-} __attribute__((packed)) BCMPEchoRequest;
+} __attribute__((packed)) BcmpEchoRequest;
 
 typedef struct {
   // Node ID of the responding node
@@ -52,12 +52,12 @@ typedef struct {
 
   // Optional payload. Must match with original request payload to be considered valid.
   uint8_t payload[0];
-} __attribute__((packed)) BCMPEchoReply;
+} __attribute__((packed)) BcmpEchoReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
-} __attribute__((packed)) BCMPDeviceInfoRequest;
+} __attribute__((packed)) BcmpDeviceInfoRequest;
 
 typedef struct {
   // Node ID of the responding node
@@ -86,10 +86,10 @@ typedef struct {
 
   // Version of the product hardware (0 for don't care)
   uint8_t ver_hw;
-} __attribute__((packed)) BCMPDeviceInfo;
+} __attribute__((packed)) BcmpDeviceInfo;
 
 typedef struct {
-  BCMPDeviceInfo info;
+  BcmpDeviceInfo info;
 
   // Length of the full version string
   uint8_t ver_str_len;
@@ -99,7 +99,7 @@ typedef struct {
 
   // ver_str is immediately followed by dev_name_len
   char strings[0];
-} __attribute__((packed)) BCMPDeviceInfoReply;
+} __attribute__((packed)) BcmpDeviceInfoReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -110,7 +110,7 @@ typedef struct {
 
   // List of Capability IDs requested from target node(s)
   uint16_t caps_list[0];
-} __attribute__((packed)) BCMPProtocolCapsRequest;
+} __attribute__((packed)) BcmpProtocolCapsRequest;
 
 typedef struct {
   // Node ID of the responding node
@@ -125,12 +125,12 @@ typedef struct {
   // Sequence of capability TLVs (type, length, value). Points to bcmp_cap_tlv* elements. Each TLV value has a defined structure (defined separately)
   // TODO - Switch to bcmp_cap_tlv caps[0]; when implemented
   uint8_t caps[0];
-} __attribute__((packed)) BCMPProtocolCapsReply;
+} __attribute__((packed)) BcmpProtocolCapsReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
-} __attribute__((packed)) BCMPNeighborTableRequest;
+} __attribute__((packed)) BcmpNeighborTableRequest;
 
 typedef struct {
   // Port state up/down
@@ -139,7 +139,7 @@ typedef struct {
   // What type of port is this?
   // Maps to bm_port_type_e
   uint8_t type;
-} __attribute__((packed)) BCMPPortInfo;
+} __attribute__((packed)) BcmpPortInfo;
 
 typedef struct {
   // Node ID of the responding node
@@ -152,11 +152,11 @@ typedef struct {
   uint16_t neighbor_len;
 
   // List of local BM ports and basic status information about them
-  BCMPPortInfo port_list[0];
+  BcmpPortInfo port_list[0];
 
   // Followed by neighbor list
   // bcmp_neighbor_info_t
-} __attribute__((packed)) BCMPNeighborTableReply;
+} __attribute__((packed)) BcmpNeighborTableReply;
 
 typedef struct {
   // Neighbor's node_id
@@ -167,19 +167,19 @@ typedef struct {
 
   // Is this neighbor online or not?
   uint8_t online;
-} __attribute__((packed)) BCMPNeighborInfo;
+} __attribute__((packed)) BcmpNeighborInfo;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
-} __attribute__((packed)) BCMPResourceTableRequest;
+} __attribute__((packed)) BcmpResourceTableRequest;
 
 typedef struct {
   // Length of resource name
   uint16_t resource_len;
   // Name of resource
   char resource[0];
-} __attribute__((packed)) BCMPResource;
+} __attribute__((packed)) BcmpResource;
 
 typedef struct {
   // Node ID of the responding node
@@ -197,7 +197,7 @@ typedef struct {
   // The list can be traversed using 0 to (num_pubs - 1) to access the published resources,
   // and num_pubs to (num_pubs + num_subs - 1) to access the subscribed resources.
   uint8_t resource_list[0];
-} __attribute__((packed)) BCMPResourceTableReply;
+} __attribute__((packed)) BcmpResourceTableReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -208,7 +208,7 @@ typedef struct {
 
   // TODO - switch to bcmp_proto_opt_tlv options[0]; when defined
   uint8_t options[0];
-} __attribute__((packed)) BCMPNeighborProtoRequest;
+} __attribute__((packed)) BcmpNeighborProtoRequest;
 
 typedef struct {
   // Node ID of the responding node
@@ -219,7 +219,7 @@ typedef struct {
 
   // TODO - switch to bcmp_proto_opt_tlv option_list[0]; when defined
   uint8_t option_list[0];
-} __attribute__((packed)) BCMPNeighborProtoReply;
+} __attribute__((packed)) BcmpNeighborProtoReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made.
@@ -228,40 +228,40 @@ typedef struct {
   uint64_t source_node_id;
   // message payload
   uint8_t payload[0];
-} __attribute__((packed)) BCMPSystemTimeHeader;
+} __attribute__((packed)) BcmpSystemTimeHeader;
 
 typedef struct {
-  BCMPSystemTimeHeader header;
-} __attribute__((packed)) BCMPSystemTimeRequest;
+  BcmpSystemTimeHeader header;
+} __attribute__((packed)) BcmpSystemTimeRequest;
 
 typedef struct {
-  BCMPSystemTimeHeader header;
+  BcmpSystemTimeHeader header;
   // time
   uint64_t utc_time_us;
-} __attribute__((packed)) BCMPSystemTimeResponse;
+} __attribute__((packed)) BcmpSystemTimeResponse;
 
 typedef struct {
-  BCMPSystemTimeHeader header;
+  BcmpSystemTimeHeader header;
   // time
   uint64_t utc_time_us;
-} __attribute__((packed)) BCMPSystemTimeSet;
+} __attribute__((packed)) BcmpSystemTimeSet;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
-} __attribute__((packed)) BCMPNetStateRequest;
+} __attribute__((packed)) BcmpNetStateRequest;
 
 typedef struct {
   // Node ID of the responding node
   uint64_t node_id;
 
   // TODO - add node info here
-} __attribute__((packed)) BCMPNetStateReply;
+} __attribute__((packed)) BcmpNetStateReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
-} __attribute__((packed)) BCMPPowerStateRequest;
+} __attribute__((packed)) BcmpPowerStateRequest;
 
 typedef struct {
   // Node ID of the responding node
@@ -273,7 +273,7 @@ typedef struct {
   // List containing power state and information for each port.
   // TODO - switch to  bcmp_port_power port_list[0];
   uint8_t port_list[0];
-} __attribute__((packed)) BCMPPowerStateReply;
+} __attribute__((packed)) BcmpPowerStateReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
@@ -281,7 +281,7 @@ typedef struct {
 
   // Bypass preventative measures to trigger a reboot (use with caution)
   uint8_t force;
-} __attribute__((packed)) BCMPRebootRequest;
+} __attribute__((packed)) BcmpRebootRequest;
 
 typedef struct {
   // Node ID of the responding node
@@ -290,12 +290,12 @@ typedef struct {
   // Request accepted or rejected
   uint8_t ack_nack;
 
-} __attribute__((packed)) BCMPRebootReply;
+} __attribute__((packed)) BcmpRebootReply;
 
 typedef struct {
   // Node ID of the target node for which the request is being made. (Zeroed = all nodes)
   uint64_t target_node_id;
-} __attribute__((packed)) BCMPNetAssertQuiet;
+} __attribute__((packed)) BcmpNetAssertQuiet;
 
 // TODO move this to DFU specific stuff
 // DFU stuff goes below
@@ -350,55 +350,55 @@ typedef struct {
 //} __attribute__((packed)) bcmp_dfu_boot_complete_t;
 
 typedef enum {
-  BCMPAckMessage = 0x00,
-  BCMPHeartbeatMessage = 0x01,
+  BcmpAckMessage = 0x00,
+  BcmpHeartbeatMessage = 0x01,
 
-  BCMPEchoRequestMessage = 0x02,
-  BCMPEchoReplyMessage = 0x03,
-  BCMPDeviceInfoRequestMessage = 0x04,
-  BCMPDeviceInfoReplyMessage = 0x05,
-  BCMPProtocolCapsRequestMessage = 0x06,
-  BCMPProtocolCapsReplyMessage = 0x07,
-  BCMPNeighborTableRequestMessage = 0x08,
-  BCMPNeighborTableReplyMessage = 0x09,
-  BCMPResourceTableRequestMessage = 0x0A,
-  BCMPResourceTableReplyMessage = 0x0B,
-  BCMPNeighborProtoRequestMessage = 0x0C,
-  BCMPNeighborProtoReplyMessage = 0x0D,
+  BcmpEchoRequestMessage = 0x02,
+  BcmpEchoReplyMessage = 0x03,
+  BcmpDeviceInfoRequestMessage = 0x04,
+  BcmpDeviceInfoReplyMessage = 0x05,
+  BcmpProtocolCapsRequestMessage = 0x06,
+  BcmpProtocolCapsReplyMessage = 0x07,
+  BcmpNeighborTableRequestMessage = 0x08,
+  BcmpNeighborTableReplyMessage = 0x09,
+  BcmpResourceTableRequestMessage = 0x0A,
+  BcmpResourceTableReplyMessage = 0x0B,
+  BcmpNeighborProtoRequestMessage = 0x0C,
+  BcmpNeighborProtoReplyMessage = 0x0D,
 
-  BCMPSystemTimeRequestMessage = 0x10,
-  BCMPSystemTimeResponseMessage = 0x11,
-  BCMPSystemTimeSetMessage = 0x12,
+  BcmpSystemTimeRequestMessage = 0x10,
+  BcmpSystemTimeResponseMessage = 0x11,
+  BcmpSystemTimeSetMessage = 0x12,
 
-  BCMPNetStateRequestMessage = 0xB0,
-  BCMPNetStateReplyMessage = 0xB1,
-  BCMPPowerStateRequestMessage = 0xB2,
-  BCMPPowerStateReplyMessage = 0xB3,
+  BcmpNetStateRequestMessage = 0xB0,
+  BcmpNetStateReplyMessage = 0xB1,
+  BcmpPowerStateRequestMessage = 0xB2,
+  BcmpPowerStateReplyMessage = 0xB3,
 
-  BCMPRebootRequestMessage = 0xC0,
-  BCMPRebootReplyMessage = 0xC1,
-  BCMPNetAssertQuietMessage = 0xC2,
+  BcmpRebootRequestMessage = 0xC0,
+  BcmpRebootReplyMessage = 0xC1,
+  BcmpNetAssertQuietMessage = 0xC2,
 
-  BCMPConfigGetMessage = 0xA0,
-  BCMPConfigValueMessage = 0xA1,
-  BCMPConfigSetMessage = 0xA2,
-  BCMPConfigCommitMessage = 0xA3,
-  BCMPConfigStatusRequestMessage = 0xA4,
-  BCMPConfigStatusResponseMessage = 0xA5,
-  BCMPConfigDeleteRequestMessage = 0xA6,
-  BCMPConfigDeleteResponseMessage = 0xA7,
+  BcmpConfigGetMessage = 0xA0,
+  BcmpConfigValueMessage = 0xA1,
+  BcmpConfigSetMessage = 0xA2,
+  BcmpConfigCommitMessage = 0xA3,
+  BcmpConfigStatusRequestMessage = 0xA4,
+  BcmpConfigStatusResponseMessage = 0xA5,
+  BcmpConfigDeleteRequestMessage = 0xA6,
+  BcmpConfigDeleteResponseMessage = 0xA7,
 
-  BCMPDFUStartMessage = 0xD0,
-  BCMPDFUPayloadReqMessage = 0xD1,
-  BCMPDFUPayloadMessage = 0xD2,
-  BCMPDFUEndMessage = 0xD3,
-  BCMPDFUAckMessage = 0xD4,
-  BCMPDFUAbortMessage = 0xD5,
-  BCMPDFUHeartbeatMessage = 0xD6,
-  BCMPDFURebootReqMessage = 0xD7,
-  BCMPDFURebootMessage = 0xD8,
-  BCMPDFUBootCompleteMessage = 0xD9,
-  BCMPDFULastMessageMessage = BCMPDFUBootCompleteMessage,
+  BcmpDFUStartMessage = 0xD0,
+  BcmpDFUPayloadReqMessage = 0xD1,
+  BcmpDFUPayloadMessage = 0xD2,
+  BcmpDFUEndMessage = 0xD3,
+  BcmpDFUAckMessage = 0xD4,
+  BcmpDFUAbortMessage = 0xD5,
+  BcmpDFUHeartbeatMessage = 0xD6,
+  BcmpDFURebootReqMessage = 0xD7,
+  BcmpDFURebootMessage = 0xD8,
+  BcmpDFUBootCompleteMessage = 0xD9,
+  BcmpDFULastMessageMessage = BcmpDFUBootCompleteMessage,
 
-  BCMPHeaderMessage = 0xFFFF
-} BCMPMessageType;
+  BcmpHeaderMessage = 0xFFFF
+} BcmpMessageType;
