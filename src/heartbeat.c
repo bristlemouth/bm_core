@@ -60,7 +60,7 @@ BmErr bcmp_heartbeat_init(void) {
   static BcmpPacketCfg heartbeat_packet = {
       sizeof(BcmpHeartbeat),
       false,
-      NULL,
+      false,
       bcmp_process_heartbeat,
   };
 

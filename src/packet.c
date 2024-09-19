@@ -10,12 +10,11 @@
 #define message_timer_expiry_period_ms 12
 
 typedef struct BcmpRequestElement {
-  uint32_t seq_num;
   uint16_t type;
   uint32_t timestamp_ms;
   uint32_t timeout_ms;
+  uint32_t seq_num;
   BcmpSequencedRequestCb cb;
-  struct BcmpRequestElement *next;
 } BcmpRequestElement;
 
 struct PacketInfo {
@@ -28,7 +27,7 @@ struct PacketInfo {
   bool initialized;
   BmSemaphore sequence_list_semaphore;
   BmTimer timer;
-  BcmpRequestElement *sequence_list;
+  LL sequence_list;
   LL packet_list;
 };
 
@@ -199,23 +198,20 @@ static void check_endianness(void *buf, BcmpMessageType type) {
  @return true if message is added successfully
  @return false if message is not added successfully
  */
-static bool sequence_list_add_message(BcmpRequestElement *message) {
-  bool rval = false;
-  if (message &&
-      bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) == BmOK) {
-    if (PACKET.sequence_list == NULL) {
-      PACKET.sequence_list = message;
-    } else {
-      BcmpRequestElement *current = PACKET.sequence_list;
-      while (current->next != NULL) {
-        current = current->next;
-      }
-      current->next = message;
+static bool sequence_list_add_message(BcmpRequestElement message,
+                                      uint32_t seq_num) {
+  bool ret = false;
+  LLItem *item = NULL;
+  if (bm_semaphore_take(PACKET.sequence_list_semaphore,
+                        default_message_timeout_ms) == BmOK) {
+    item = ll_create_item(item, &message, sizeof(BcmpRequestElement), seq_num);
+    if (item) {
+      ll_item_add(&PACKET.sequence_list, item);
+      ret = true;
     }
-    rval = true;
     bm_semaphore_give(PACKET.sequence_list_semaphore);
   }
-  return rval;
+  return ret;
 }
 
 /*!
@@ -226,29 +222,12 @@ static bool sequence_list_add_message(BcmpRequestElement *message) {
  @return true if message is removed successfully
  @return false if message is not removed successfully
  */
-static bool sequence_list_remove_message(BcmpRequestElement *message) {
-  bool rval = false;
-  BcmpRequestElement *element_to_delete = NULL;
-  if (message) {
-    if (PACKET.sequence_list == message) {
-      element_to_delete = PACKET.sequence_list;
-      PACKET.sequence_list = PACKET.sequence_list->next;
-    } else {
-      BcmpRequestElement *current = PACKET.sequence_list;
-      while (current && current->next != message) {
-        current = current->next;
-      }
-      if (current) {
-        element_to_delete = current->next;
-        current->next = current->next->next;
-      }
-    }
-    if (element_to_delete) {
-      bm_free(element_to_delete);
-      rval = true;
-    }
+static bool sequence_list_remove_message(uint32_t seq_num) {
+  bool ret = false;
+  if (ll_remove(&PACKET.sequence_list, seq_num) == BmOK) {
+    ret = true;
   }
-  return rval;
+  return ret;
 }
 
 /*!
@@ -262,19 +241,37 @@ static bool sequence_list_remove_message(BcmpRequestElement *message) {
  @return new item that has been added
  @return NULL if item is not able to be created
  */
-static BcmpRequestElement *new_sequence_list_item(uint16_t seq_num, BcmpMessageType type,
-                                                  uint32_t timeout_ms,
-                                                  BcmpSequencedRequestCb cb) {
-  BcmpRequestElement *element = (BcmpRequestElement *)bm_malloc(sizeof(BcmpRequestElement));
-  if (element != NULL) {
-    element->seq_num = seq_num;
-    element->type = type;
-    element->timestamp_ms = bm_ticks_to_ms(bm_get_tick_count());
-    element->timeout_ms = timeout_ms;
-    element->cb = cb;
-    element->next = NULL;
-  }
+static BcmpRequestElement new_sequence_list_item(BcmpMessageType type,
+                                                 uint32_t timeout_ms,
+                                                 uint32_t seq_num,
+                                                 BcmpSequencedRequestCb cb) {
+  BcmpRequestElement element;
+  element.type = type;
+  element.timestamp_ms = bm_ticks_to_ms(bm_get_tick_count());
+  element.timeout_ms = timeout_ms;
+  element.cb = cb;
+  element.seq_num = seq_num;
   return element;
+}
+
+static BmErr timer_traverse_cb(void *data, void *arg) {
+  BmErr err = BmEINVAL;
+  BcmpRequestElement *element = NULL;
+  (void)arg;
+
+  if (data) {
+    err = BmOK;
+    element = (BcmpRequestElement *)data;
+    if (bm_ticks_to_ms(bm_get_tick_count()) - element->timestamp_ms >
+        element->timeout_ms) {
+      if (element->cb) {
+        element->cb(NULL);
+      }
+      err = ll_remove(&PACKET.sequence_list, element->seq_num);
+    }
+  }
+
+  return err;
 }
 
 /*!
@@ -287,20 +284,9 @@ static BcmpRequestElement *new_sequence_list_item(uint16_t seq_num, BcmpMessageT
  */
 static void sequence_list_timer_callback(BmTimer tmr) {
   (void)tmr;
-  if (bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) == BmOK) {
-    BcmpRequestElement *current = PACKET.sequence_list;
-    while (current) {
-      if (bm_ticks_to_ms(bm_get_tick_count()) - current->timestamp_ms > current->timeout_ms) {
-        printf("Bcmp message with seq_num %d timed out\n", current->seq_num);
-        if (current->cb) {
-          current->cb(NULL);
-        }
-        sequence_list_remove_message(current);
-        current = PACKET.sequence_list;
-        continue;
-      }
-      current = current->next;
-    }
+  if (bm_semaphore_take(PACKET.sequence_list_semaphore,
+                        default_message_timeout_ms) == BmOK) {
+    ll_traverse(&PACKET.sequence_list, timer_traverse_cb, NULL);
     bm_semaphore_give(PACKET.sequence_list_semaphore);
   }
 }
@@ -314,20 +300,17 @@ static void sequence_list_timer_callback(BmTimer tmr) {
  @return NULL if item is not able to found
  */
 static BcmpRequestElement *sequence_list_find_message(uint16_t seq_num) {
-  BcmpRequestElement *rval = NULL;
-  if (bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) == BmOK) {
-    BcmpRequestElement *current = PACKET.sequence_list;
-    while (current) {
-      if (current->seq_num == seq_num) {
-        printf("Bcmp message with seq_num %d found\n", current->seq_num);
-        rval = current;
-        break;
-      }
-      current = current->next;
+  BmErr err = BmEINPROGRESS;
+  BcmpRequestElement *element = NULL;
+  if (bm_semaphore_take(PACKET.sequence_list_semaphore,
+                        default_message_timeout_ms) == BmOK) {
+    err = ll_get_item(&PACKET.sequence_list, seq_num, (void *)&element);
+    if (err == BmOK && element) {
+      printf("Bcmp message with seq_num %d\n", seq_num);
     }
     bm_semaphore_give(PACKET.sequence_list_semaphore);
   }
-  return rval;
+  return element;
 }
 
 /*!
@@ -355,7 +338,8 @@ BmErr packet_init(BcmpGetIPAddr src_ip, BcmpGetIPAddr dst_ip, BcmpGetData data,
     err = BmENOMEM;
     PACKET.sequence_list_semaphore = bm_semaphore_create();
     if (PACKET.sequence_list_semaphore) {
-      PACKET.timer = bm_timer_create(sequence_list_timer_callback, "bcmp_message_expiration",
+      PACKET.timer = bm_timer_create(sequence_list_timer_callback,
+                                     "bcmp_message_expiration",
                                      message_timer_expiry_period_ms, NULL);
       err = PACKET.timer != NULL ? bm_timer_start(PACKET.timer, 10) : err;
     }
@@ -377,7 +361,7 @@ BmErr packet_add(BcmpPacketCfg *cfg, BcmpMessageType type) {
   LLItem *item = NULL;
 
   if (cfg) {
-    item = ll_create_item(item, cfg, type);
+    item = ll_create_item(item, cfg, sizeof(BcmpPacketCfg), type);
     err = item ? ll_item_add(&PACKET.packet_list, item) : err;
   }
 
@@ -392,7 +376,9 @@ BmErr packet_add(BcmpPacketCfg *cfg, BcmpMessageType type) {
  @return BmOK on success
  @return BmError on failure
  */
-BmErr packet_remove(BcmpMessageType type) { return ll_remove(&PACKET.packet_list, type); }
+BmErr packet_remove(BcmpMessageType type) {
+  return ll_remove(&PACKET.packet_list, type);
+}
 
 /*!
  @brief Update Function To Parse And Handle Incoming Message
@@ -427,20 +413,23 @@ BmErr parse(void *payload) {
     check_endianness(data.header, BcmpHeaderMessage);
 
     // Handle parsed message type
-    if ((err = ll_get_item(&PACKET.packet_list, data.header->type, (void *)&cfg)) == BmOK &&
+    if ((err = ll_get_item(&PACKET.packet_list, data.header->type,
+                           (void *)&cfg)) == BmOK &&
         cfg) {
       check_endianness(data.payload, data.header->type);
 
       // Check if this message is a reply to a message we sent
       if (cfg->sequenced_reply && !cfg->sequenced_request) {
+        printf("sequence request\n");
         request_message = sequence_list_find_message(data.header->seq_num);
         if (request_message) {
-          printf("BCMP - Received reply to our request message with seq_num %d\n",
-                 data.header->seq_num);
-          if (bm_semaphore_take(PACKET.sequence_list_semaphore, default_message_timeout_ms) ==
-              BmOK) {
+          printf(
+              "BCMP - Received reply to our request message with seq_num %d\n",
+              data.header->seq_num);
+          if (bm_semaphore_take(PACKET.sequence_list_semaphore,
+                                default_message_timeout_ms) == BmOK) {
             cb = request_message->cb;
-            sequence_list_remove_message(request_message);
+            sequence_list_remove_message(data.header->seq_num);
             bm_semaphore_give(PACKET.sequence_list_semaphore);
           }
         }
@@ -476,19 +465,21 @@ BmErr parse(void *payload) {
  @return BmOK on success
  @return BmError on failure
  */
-BmErr serialize(void *payload, void *data, BcmpMessageType type, uint32_t seq_num) {
+BmErr serialize(void *payload, void *data, BcmpMessageType type,
+                uint32_t seq_num, BcmpSequencedRequestCb cb) {
   static uint32_t message_count = 0;
   BmErr err = BmEINVAL;
   BcmpHeader *header = NULL;
   BcmpPacketCfg *cfg = NULL;
-  BcmpRequestElement *request_message = NULL;
+  BcmpRequestElement request_message;
 
   if (payload && data && PACKET.initialized) {
     // Check endianness of type and place into little endian form
     check_endianness(data, type);
 
     // Determine size of message type and if there is a sequenced reply/request
-    if ((err = ll_get_item(&PACKET.packet_list, type, (void *)&cfg)) == BmOK && cfg) {
+    if ((err = ll_get_item(&PACKET.packet_list, type, (void *)&cfg)) == BmOK &&
+        cfg) {
 
       header = (BcmpHeader *)PACKET.cb.data(payload);
       header->flags = 0;       // Unused
@@ -504,8 +495,8 @@ BmErr serialize(void *payload, void *data, BcmpMessageType type, uint32_t seq_nu
         // If we are sending a new request, use our own sequence number
         header->seq_num = message_count++;
         request_message = new_sequence_list_item(
-            header->seq_num, header->type, default_message_timeout_ms, cfg->sequenced_request);
-        sequence_list_add_message(request_message);
+            header->type, default_message_timeout_ms, header->seq_num, cb);
+        sequence_list_add_message(request_message, header->seq_num);
         printf("BCMP - Serializing message with seq_num %d\n", header->seq_num);
       } else {
         // If the message doesn't use sequence numbers, set it to 0
@@ -514,10 +505,10 @@ BmErr serialize(void *payload, void *data, BcmpMessageType type, uint32_t seq_nu
 
       // Format header in little endian format and append data onto payload
       check_endianness(header, BcmpHeaderMessage);
-      printf("Size :%d\n", cfg->size);
       memcpy(((uint8_t *)header) + sizeof(BcmpHeader), data, cfg->size);
 
-      header->checksum = PACKET.cb.checksum(payload, cfg->size + sizeof(BcmpHeader));
+      header->checksum =
+          PACKET.cb.checksum(payload, cfg->size + sizeof(BcmpHeader));
     }
   }
 

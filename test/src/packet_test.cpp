@@ -82,15 +82,17 @@ protected:
     RESET_FAKE(bm_semaphore_create);
     RESET_FAKE(bm_timer_create);
     RESET_FAKE(bm_timer_start);
-    bm_semaphore_create_fake.return_val = (BmSemaphore)RND.rnd_int(UINT32_MAX, UINT16_MAX);
-    bm_timer_create_fake.return_val = (BmTimer)RND.rnd_int(UINT32_MAX, UINT16_MAX);
+    bm_semaphore_create_fake.return_val =
+        (BmSemaphore)RND.rnd_int(UINT32_MAX, UINT16_MAX);
+    bm_timer_create_fake.return_val =
+        (BmTimer)RND.rnd_int(UINT32_MAX, UINT16_MAX);
     bm_timer_start_fake.return_val = BmOK;
     ASSERT_EQ(packet_init(src_ip, dst_ip, get_data, calc_checksum), BmOK);
 
     static BcmpPacketCfg heartbeat_packet = {
         sizeof(BcmpHeartbeat),
         false,
-        NULL,
+        false,
         bcmp_process_heartbeat,
     };
     ASSERT_EQ(packet_add(&heartbeat_packet, BcmpHeartbeatMessage), BmOK);
@@ -98,6 +100,18 @@ protected:
   void TearDown() override {
     packet_remove(BcmpHeartbeatMessage);
     free(test_payload);
+  }
+  BcmpHeader payload_stuffer(uint8_t *data, void *payload, uint32_t size,
+                             BcmpMessageType type, uint32_t seq_req) {
+    BcmpHeader header = {
+        GEN_RND_U16, GEN_RND_U16, GEN_RND_U8, GEN_RND_U8,
+        GEN_RND_U32, GEN_RND_U8,  GEN_RND_U8, GEN_RND_U8,
+    };
+    header.type = type;
+    header.seq_num = seq_req;
+    memcpy(data, (void *)&header, sizeof(BcmpHeader));
+    memcpy((void *)(data + sizeof(BcmpHeader)), payload, sizeof(BcmpHeartbeat));
+    return header;
   }
 };
 
@@ -113,11 +127,13 @@ TEST_F(packet_test, serialize) {
       GEN_RND_U32,
   };
 
-  ASSERT_EQ(serialize((void *)&data, (void *)&hb, BcmpHeartbeatMessage, 0), 0);
-  ASSERT_EQ(((BcmpHeader *)data.payload)->type, BcmpHeartbeatMessage);
   ASSERT_EQ(
-      memcmp((void *)(data.payload + sizeof(BcmpHeader)), (void *)&hb, sizeof(BcmpHeartbeat)),
-      0);
+      serialize((void *)&data, (void *)&hb, BcmpHeartbeatMessage, 0, NULL),
+      BmOK);
+  ASSERT_EQ(((BcmpHeader *)data.payload)->type, BcmpHeartbeatMessage);
+  ASSERT_EQ(memcmp((void *)(data.payload + sizeof(BcmpHeader)), (void *)&hb,
+                   sizeof(BcmpHeartbeat)),
+            BmOK);
 
   // Test sequence reply
   memset(data.payload, 0, test_payload_size);
@@ -125,13 +141,10 @@ TEST_F(packet_test, serialize) {
 
 TEST_F(packet_test, parse) {
   PacketTestData data;
+  BcmpHeader header;
   data.payload = test_payload;
   RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
   RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
-  BcmpHeader header = {
-      GEN_RND_U16, GEN_RND_U16, GEN_RND_U8, GEN_RND_U8,
-      GEN_RND_U32, GEN_RND_U8,  GEN_RND_U8, GEN_RND_U8,
-  };
 
   // Test a normal message
   RESET_FAKE(bcmp_process_heartbeat);
@@ -140,13 +153,73 @@ TEST_F(packet_test, parse) {
       GEN_RND_U32,
   };
 
-  header.type = BcmpHeartbeatMessage;
-  memcpy((void *)data.payload, (void *)&header, sizeof(BcmpHeader));
-  memcpy((void *)(data.payload + sizeof(BcmpHeader)), (void *)&hb, sizeof(BcmpHeartbeat));
+  header = payload_stuffer(data.payload, (void *)&hb, sizeof(hb),
+                           BcmpHeartbeatMessage, 0);
   bcmp_process_heartbeat_fake.return_val = BmOK;
   ASSERT_EQ(parse((void *)&data), BmOK);
   ASSERT_EQ(bcmp_process_heartbeat_fake.call_count, 1);
-  ASSERT_EQ(memcmp((void *)(bcmp_process_heartbeat_fake.arg0_val.header), (void *)&header,
-                   sizeof(BcmpHeader)),
-            0);
+  ASSERT_EQ(memcmp((void *)(bcmp_process_heartbeat_fake.arg0_val.header),
+                   (void *)&header, sizeof(BcmpHeader)),
+            BmOK);
+}
+
+DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_sequence_request, uint8_t *);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_sequence_request, uint8_t *);
+
+TEST_F(packet_test, sequence_request) {
+  BcmpPacketCfg request_neighbor_info_packet = {
+      sizeof(BcmpNeighborInfo),
+      false,
+      true,
+      NULL,
+  };
+  BcmpPacketCfg reply_neighbor_info_packet = {
+      sizeof(BcmpNeighborInfo),
+      true,
+      false,
+      NULL,
+  };
+  BcmpNeighborInfo request_neighbor_info = {
+      GEN_RND_U64,
+      GEN_RND_U8,
+      GEN_RND_U8,
+  };
+  BcmpNeighborInfo reply_neighbor_info = {
+      GEN_RND_U64,
+      GEN_RND_U8,
+      GEN_RND_U8,
+  };
+  PacketTestData data;
+  BcmpHeader header;
+  size_t iterations = RND.rnd_int(UINT16_MAX, UINT8_MAX);
+
+  data.payload = test_payload;
+  RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
+  RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
+  RESET_FAKE(bcmp_sequence_request);
+
+  ASSERT_EQ(packet_add(&request_neighbor_info_packet,
+                       BcmpNeighborProtoRequestMessage),
+            BmOK);
+  ASSERT_EQ(
+      packet_add(&reply_neighbor_info_packet, BcmpNeighborProtoReplyMessage),
+      BmOK);
+
+  bm_semaphore_take_fake.return_val = BmOK;
+  bm_semaphore_give_fake.return_val = BmOK;
+  for (size_t i = 0; i < iterations; i++) {
+    ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
+                        BcmpNeighborProtoRequestMessage, 0,
+                        bcmp_sequence_request),
+              0);
+  }
+
+  for (size_t i = 0; i < iterations; i++) {
+    header = payload_stuffer(data.payload, (void *)&reply_neighbor_info,
+                             sizeof(reply_neighbor_info),
+                             BcmpNeighborProtoReplyMessage, i);
+    bcmp_sequence_request_fake.return_val = BmOK;
+    ASSERT_EQ(parse((void *)&data), BmOK);
+    ASSERT_EQ(bcmp_sequence_request_fake.call_count, i + 1);
+  }
 }
