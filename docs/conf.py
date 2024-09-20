@@ -34,11 +34,13 @@ html_theme_options = {
     'logo_only': True,
     'display_version': True,
     'prev_next_buttons_location': 'bottom',
-    'style_external_links': False,
+    'style_external_links': True,
     'collapse_navigation': True,
     'sticky_navigation': True,
     'navigation_depth': 4,
     'includehidden': True,
     'titles_only': False,
 }
-html_logo = 'https://global.discourse-cdn.com/standard17/uploads/bristlemouth/original/1X/7f7c25cb6f75217f8eb21508bb2a2229d2adbfbb.png'
+html_logo = 'logo.png'
+html_scaled_image_link = False
+html_favicon = 'favicon.ico'

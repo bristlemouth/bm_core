@@ -63,7 +63,7 @@ protected:
       }
     }
 
-    // If the length is odd, add the remaining byte as a 16-bit word with zero padding
+    // If the length is odd, add the remaining byte as a 16-bit word
     if (size % 2 != 0) {
       uint16_t word = data[size - 1];
       sum += word;
@@ -101,7 +101,19 @@ protected:
     packet_remove(BcmpHeartbeatMessage);
     free(test_payload);
   }
-  BcmpHeader payload_stuffer(uint8_t *data, void *payload, uint32_t size,
+
+  /*!
+   @brief Stuffs A Payload With Header Information And Data
+
+   @param payload payload to be stuffed
+   @param data data to stuff in the payload
+   @param size size of the data to stuff into the payload
+   @param type type of message that is to be stuffed
+   @param seq_req sequence request of a message (if applicable)
+
+   @return The header of the stuffed payload
+   */
+  BcmpHeader payload_stuffer(uint8_t *payload, void *data, uint32_t size,
                              BcmpMessageType type, uint32_t seq_req) {
     BcmpHeader header = {
         GEN_RND_U16, GEN_RND_U16, GEN_RND_U8, GEN_RND_U8,
@@ -109,12 +121,20 @@ protected:
     };
     header.type = type;
     header.seq_num = seq_req;
-    memcpy(data, (void *)&header, sizeof(BcmpHeader));
-    memcpy((void *)(data + sizeof(BcmpHeader)), payload, sizeof(BcmpHeartbeat));
+    memcpy(payload, (void *)&header, sizeof(BcmpHeader));
+    memcpy((void *)(payload + sizeof(BcmpHeader)), data, sizeof(BcmpHeartbeat));
     return header;
   }
 };
 
+/*!
+ @brief Test Serialize Functionality Of Packet Module
+
+ @details This is responsible for testing the serialization of messages from
+          BCMP. This test specifically generates a random heartbeat message,
+          serializes the message, ensures the payload matches this random
+          message and the header populates the correct type of message
+ */
 TEST_F(packet_test, serialize) {
   PacketTestData data;
   data.payload = test_payload;
@@ -139,6 +159,14 @@ TEST_F(packet_test, serialize) {
   memset(data.payload, 0, test_payload_size);
 }
 
+/*!
+ @brief Test Parsing Functionality Of Packet Module
+
+ @details This is responsible for creating a fake heartbeat message
+          with header, parsing the message, and ensuring the callback has
+          actually been called, as well as ensuring the data to the
+          callback message is what was generated
+ */
 TEST_F(packet_test, parse) {
   PacketTestData data;
   BcmpHeader header;
@@ -165,19 +193,30 @@ TEST_F(packet_test, parse) {
 
 DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_sequence_request, uint8_t *);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_sequence_request, uint8_t *);
+DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_info, BcmpParserData);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_info, BcmpParserData);
 
+/*!
+ @brief Test Sequence Requests
+ 
+ @details Tests a sequence request of a message with and without a
+          callback function to ensure that items are added to the
+          linked list properly and removed from the linked list.
+          This ensures the callback function is getting called the
+          expected number of times for both cases mentioned above.
+ */
 TEST_F(packet_test, sequence_request) {
   BcmpPacketCfg request_neighbor_info_packet = {
       sizeof(BcmpNeighborInfo),
       false,
       true,
-      NULL,
+      bcmp_neighbor_info,
   };
   BcmpPacketCfg reply_neighbor_info_packet = {
       sizeof(BcmpNeighborInfo),
       true,
       false,
-      NULL,
+      bcmp_neighbor_info,
   };
   BcmpNeighborInfo request_neighbor_info = {
       GEN_RND_U64,
@@ -196,8 +235,10 @@ TEST_F(packet_test, sequence_request) {
   data.payload = test_payload;
   RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
   RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
-  RESET_FAKE(bcmp_sequence_request);
 
+  // Test with callback
+  RESET_FAKE(bcmp_sequence_request);
+  RESET_FAKE(bcmp_neighbor_info);
   ASSERT_EQ(packet_add(&request_neighbor_info_packet,
                        BcmpNeighborProtoRequestMessage),
             BmOK);
@@ -212,6 +253,7 @@ TEST_F(packet_test, sequence_request) {
                         BcmpNeighborProtoRequestMessage, 0,
                         bcmp_sequence_request),
               0);
+    ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, i);
   }
 
   for (size_t i = 0; i < iterations; i++) {
@@ -221,5 +263,64 @@ TEST_F(packet_test, sequence_request) {
     bcmp_sequence_request_fake.return_val = BmOK;
     ASSERT_EQ(parse((void *)&data), BmOK);
     ASSERT_EQ(bcmp_sequence_request_fake.call_count, i + 1);
+    ASSERT_EQ(bcmp_neighbor_info_fake.call_count, 0);
   }
+
+  // Test without callback
+  RESET_FAKE(bcmp_sequence_request);
+  RESET_FAKE(bcmp_neighbor_info);
+  ASSERT_EQ(packet_add(&request_neighbor_info_packet,
+                       BcmpNeighborProtoRequestMessage),
+            BmOK);
+  ASSERT_EQ(
+      packet_add(&reply_neighbor_info_packet, BcmpNeighborProtoReplyMessage),
+      BmOK);
+
+  bm_semaphore_take_fake.return_val = BmOK;
+  bm_semaphore_give_fake.return_val = BmOK;
+  for (size_t i = 0; i < iterations; i++) {
+    ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
+                        BcmpNeighborProtoRequestMessage, 0, NULL),
+              0);
+    ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, i + iterations);
+  }
+
+  for (size_t i = 0; i < iterations; i++) {
+    header = payload_stuffer(data.payload, (void *)&reply_neighbor_info,
+                             sizeof(reply_neighbor_info),
+                             BcmpNeighborProtoReplyMessage, i + iterations);
+    ASSERT_EQ(parse((void *)&data), BmOK);
+    ASSERT_EQ(bcmp_sequence_request_fake.call_count, 0);
+    ASSERT_EQ(bcmp_neighbor_info_fake.call_count, i + 1);
+  }
+
+  packet_remove(BcmpNeighborProtoRequestMessage);
+  packet_remove(BcmpNeighborProtoReplyMessage);
+}
+
+TEST_F(packet_test, sequence_reply) {
+  BcmpPacketCfg reply_neighbor_info_packet = {
+      sizeof(BcmpNeighborInfo),
+      false,
+      true,
+      bcmp_neighbor_info,
+  };
+  BcmpNeighborInfo reply_neighbor_info = {
+      GEN_RND_U64,
+      GEN_RND_U8,
+      GEN_RND_U8,
+  };
+  PacketTestData data;
+  data.payload = test_payload;
+  RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
+  RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
+
+  ASSERT_EQ(
+      packet_add(&reply_neighbor_info_packet, BcmpNeighborProtoReplyMessage),
+      BmOK);
+
+  ASSERT_EQ(serialize((void *)&data, (void *)&reply_neighbor_info,
+                      BcmpNeighborProtoReplyMessage, 0, NULL),
+            0);
+  ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, 0);
 }

@@ -1,4 +1,4 @@
-# API Reference
+# API
 
 Minimal API for the integrator is the philosophy behind Bristlemouth.
 The API required is as follows.

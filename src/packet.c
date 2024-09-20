@@ -299,7 +299,7 @@ static void sequence_list_timer_callback(BmTimer tmr) {
  @return item if it is found in linked list
  @return NULL if item is not able to found
  */
-static BcmpRequestElement *sequence_list_find_message(uint16_t seq_num) {
+static BcmpRequestElement *sequence_list_find_message(uint32_t seq_num) {
   BmErr err = BmEINPROGRESS;
   BcmpRequestElement *element = NULL;
   if (bm_semaphore_take(PACKET.sequence_list_semaphore,
@@ -420,7 +420,6 @@ BmErr parse(void *payload) {
 
       // Check if this message is a reply to a message we sent
       if (cfg->sequenced_reply && !cfg->sequenced_request) {
-        printf("sequence request\n");
         request_message = sequence_list_find_message(data.header->seq_num);
         if (request_message) {
           printf(
