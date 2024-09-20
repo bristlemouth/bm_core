@@ -25,12 +25,14 @@ include(GoogleTest)
 set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../src)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
 set(BM_COMMON_MOCK_DIR ${bm_common_SOURCE_DIR}/test/mocks)
+set(BM_COMMON_TEST_DIR ${bm_common_SOURCE_DIR}/test)
 set(BM_COMMON_SOURCE_DIR ${bm_common_SOURCE_DIR}/src)
 
 include_directories(
     ${MOCK_DIR}
     ${fff_SOURCE_DIR}
     ${BM_COMMON_MOCK_DIR}
+    ${BM_COMMON_TEST_DIR}
     .
 )
 

@@ -18,6 +18,7 @@ jobs:
     - name: configure
       run: |
         cmake -S. -Bbuild -G "Unix Makefiles" -DENABLE_TESTING=ON
+        mkdir -p coverage
     - name: build
       working-directory: ./build
       run: |
@@ -26,18 +27,22 @@ jobs:
       working-directory: ./build
       run: |
         ctest -C --output-on-failure --verbose
-    - name: setup_lcov
+    - name: setup python
       if: contains(matrix.os, 'ubuntu')
-      uses: hrishikesh-kadam/setup-lcov@v1
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: install gcovr
+      if: contains(matrix.os, 'ubuntu')
+      run: |
+        pip install gcovr==7.2
     - name: coverage
       if: contains(matrix.os, 'ubuntu')
-      working-directory: ./build
-      run: |
-        lcov --directory . --capture --output-file ./code_coverage.info --rc lcov_branch_coverage=1
-        genhtml code_coverage.info --branch-coverage --output-directory ./coverage/
+      run:
+        gcovr -r ./src --html-details ./coverage/report.html --html-theme github.dark-green build/test
     - name: artifacts
       if: contains(matrix.os, 'ubuntu')
       uses: actions/upload-artifact@v4
       with:
         name: coverage_report
-        path: ./build/coverage/
+        path: ./coverage
