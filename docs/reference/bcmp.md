@@ -25,12 +25,12 @@ The section of code that handles this has the following hierarchy:
     - A callback function for incoming messages that match this message type
   - The available messages structures can be found under `include/messages.h`
 - Packet Module
-  - Used to parse (incoming) and serialize (outgoing) messages
+  - Used to process (incoming) and serialize (outgoing) messages
   - All data sent over Bristlemouth is sent in little endian format
   (contrary to network byte order which is big endian),
   this module is also responsible for ensuring the data sent and received is in the correct endianness
     - Outgoing messages will always be little-endian
-    - Incoming messages will be little-endian until the parse callback is handled,
+    - Incoming messages will be little-endian until the process callback is handled,
     then the message will be in the endianness of the system
   - Logic that handles when messages require sequenced replies and requests
   - IP stack related functions are passed into the initialization of this module,

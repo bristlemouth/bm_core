@@ -32,7 +32,7 @@ static BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
   \param *heartbeat - hearteat data
   \return ERR_OK if successful
 */
-static BmErr bcmp_process_heartbeat(BcmpParserData data) {
+static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
   BcmpHeartbeat hb = *(BcmpHeartbeat *)data.payload;
   //bm_neighbor_t *neighbor = bcmp_update_neighbor(ip_to_nodeid(src), dst_port);
   //if (neighbor) {

@@ -348,7 +348,7 @@ BmErr packet_init(BcmpGetIPAddr src_ip, BcmpGetIPAddr dst_ip, BcmpGetData data,
 }
 
 /*!
- @brief Add Packet Item To Parser/Serializer
+ @brief Add Packet Item To Packet Processor/Serializer
 
  @param cfg statically allocated configuration of packet
  @param type type of packet to add, this will be ll item ID
@@ -369,7 +369,7 @@ BmErr packet_add(BcmpPacketCfg *cfg, BcmpMessageType type) {
 }
 
 /*!
- @brief Remove Packet Item From Parser/Serializer
+ @brief Remove Packet Item From Packet Processor/Serializer
 
  @param type type of packet to remove, this will be ll item ID
 
@@ -381,23 +381,21 @@ BmErr packet_remove(BcmpMessageType type) {
 }
 
 /*!
- @brief Update Function To Parse And Handle Incoming Message
+ @brief Update Function To Parse And Process And Handle Incoming Message
 
  @details This is to be ran on incoming messages, the function
           serializes the header from the received message and then
-          reports the payload to the associated parser item. The parser
-          is then responsible for serializing the payload.
+          reports the payload to the associated packet processor item.
+          The packet processor is then responsible for serializing the payload.
 
- @param pbuf lwip pbuf incoming message
- @param src ip address of source message
- @param dst ip address of destination message
+ @param payload incoming data to be parsed and processed
 
  @return BmOK on success
  @return BmError on failure
  */
-BmErr parse(void *payload) {
+BmErr process_received_message(void *payload) {
   BmErr err = BmEINVAL;
-  BcmpParserData data;
+  BcmpProcessData data;
   BcmpSequencedRequestCb cb = NULL;
   BcmpRequestElement *request_message = NULL;
   BcmpPacketCfg *cfg = NULL;
@@ -412,7 +410,7 @@ BmErr parse(void *payload) {
     data.ingress_port = (((uint32_t *)(data.src))[1] >> 8) & 0xFF;
     check_endianness(data.header, BcmpHeaderMessage);
 
-    // Handle parsed message type
+    // Process parsed message type
     if ((err = ll_get_item(&PACKET.packet_list, data.header->type,
                            (void *)&cfg)) == BmOK &&
         cfg) {
@@ -439,8 +437,8 @@ BmErr parse(void *payload) {
         err = cb(data.payload);
       } else {
         // Utilize parsing callback
-        if (cfg->parse && (err = cfg->parse(data)) != BmOK) {
-          printf("Error completing parse cb: 0x%X\n", err);
+        if (cfg->process && (err = cfg->process(data)) != BmOK) {
+          printf("Error processing parsed cb: 0x%X\n", err);
         }
       }
     }
@@ -460,6 +458,7 @@ BmErr parse(void *payload) {
  @param data passed in formatted data structure cast to a void pointer
  @param type type of message to serialize
  @param seq_num number of sequence reply
+ @param cb callback of message that is to be sequenced upon a sequenced reply
 
  @return BmOK on success
  @return BmError on failure
