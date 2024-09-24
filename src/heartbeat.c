@@ -18,7 +18,8 @@
   \return ERR_OK if successful
 */
 
-static BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
+BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
+  (void)lease_duration_s;
   //bcmp_heartbeat_t heartbeat = {.time_since_boot_us = uptimeGetMicroSeconds(),
   //                              .liveliness_lease_dur_s = lease_duration_s};
   //return bcmp_tx(&multicast_ll_addr, BCMP_HEARTBEAT, (uint8_t *)&heartbeat, sizeof(heartbeat));
@@ -34,6 +35,7 @@ static BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
 */
 static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
   BcmpHeartbeat hb = *(BcmpHeartbeat *)data.payload;
+  (void)hb;
   //bm_neighbor_t *neighbor = bcmp_update_neighbor(ip_to_nodeid(src), dst_port);
   //if (neighbor) {
 
@@ -58,7 +60,6 @@ static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
 
 BmErr bcmp_heartbeat_init(void) {
   static BcmpPacketCfg heartbeat_packet = {
-      sizeof(BcmpHeartbeat),
       false,
       false,
       bcmp_process_heartbeat,

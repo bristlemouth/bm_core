@@ -389,11 +389,12 @@ BmErr packet_remove(BcmpMessageType type) {
           The packet processor is then responsible for serializing the payload.
 
  @param payload incoming data to be parsed and processed
+ @param size size of incoming payload
 
  @return BmOK on success
  @return BmError on failure
  */
-BmErr process_received_message(void *payload) {
+BmErr process_received_message(void *payload, uint32_t size) {
   BmErr err = BmEINVAL;
   BcmpProcessData data;
   BcmpSequencedRequestCb cb = NULL;
@@ -407,6 +408,7 @@ BmErr process_received_message(void *payload) {
     data.payload = (uint8_t *)(buf + sizeof(BcmpHeader));
     data.src = PACKET.cb.src_ip(payload);
     data.dst = PACKET.cb.dst_ip(payload);
+    data.size = size;
     data.ingress_port = (((uint32_t *)(data.src))[1] >> 8) & 0xFF;
     check_endianness(data.header, BcmpHeaderMessage);
 
@@ -456,6 +458,7 @@ BmErr process_received_message(void *payload) {
 
  @param payload buffer to be formatted and serialized
  @param data passed in formatted data structure cast to a void pointer
+ @param size size in bytes of data to be serialized
  @param type type of message to serialize
  @param seq_num number of sequence reply
  @param cb callback of message that is to be sequenced upon a sequenced reply
@@ -463,7 +466,7 @@ BmErr process_received_message(void *payload) {
  @return BmOK on success
  @return BmError on failure
  */
-BmErr serialize(void *payload, void *data, BcmpMessageType type,
+BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
                 uint32_t seq_num, BcmpSequencedRequestCb cb) {
   static uint32_t message_count = 0;
   BmErr err = BmEINVAL;
@@ -475,11 +478,12 @@ BmErr serialize(void *payload, void *data, BcmpMessageType type,
     // Check endianness of type and place into little endian form
     check_endianness(data, type);
 
-    // Determine size of message type and if there is a sequenced reply/request
+    // Determine if there is a sequenced reply/request and if packet exists
     if ((err = ll_get_item(&PACKET.packet_list, type, (void *)&cfg)) == BmOK &&
         cfg) {
 
       header = (BcmpHeader *)PACKET.cb.data(payload);
+      header->checksum = 0;
       header->flags = 0;       // Unused
       header->reserved = 0;    // Unused
       header->frag_total = 0;  // Unused
@@ -503,10 +507,9 @@ BmErr serialize(void *payload, void *data, BcmpMessageType type,
 
       // Format header in little endian format and append data onto payload
       check_endianness(header, BcmpHeaderMessage);
-      memcpy(((uint8_t *)header) + sizeof(BcmpHeader), data, cfg->size);
+      memcpy(((uint8_t *)header) + sizeof(BcmpHeader), data, size);
 
-      header->checksum =
-          PACKET.cb.checksum(payload, cfg->size + sizeof(BcmpHeader));
+      header->checksum = PACKET.cb.checksum(payload, size + sizeof(BcmpHeader));
     }
   }
 

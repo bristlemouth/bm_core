@@ -90,7 +90,6 @@ protected:
     ASSERT_EQ(packet_init(src_ip, dst_ip, get_data, calc_checksum), BmOK);
 
     static BcmpPacketCfg heartbeat_packet = {
-        sizeof(BcmpHeartbeat),
         false,
         false,
         bcmp_process_heartbeat,
@@ -147,9 +146,9 @@ TEST_F(packet_test, serialize) {
       GEN_RND_U32,
   };
 
-  ASSERT_EQ(
-      serialize((void *)&data, (void *)&hb, BcmpHeartbeatMessage, 0, NULL),
-      BmOK);
+  ASSERT_EQ(serialize((void *)&data, (void *)&hb, sizeof(hb),
+                      BcmpHeartbeatMessage, 0, NULL),
+            BmOK);
   ASSERT_EQ(((BcmpHeader *)data.payload)->type, BcmpHeartbeatMessage);
   ASSERT_EQ(memcmp((void *)(data.payload + sizeof(BcmpHeader)), (void *)&hb,
                    sizeof(BcmpHeartbeat)),
@@ -184,7 +183,7 @@ TEST_F(packet_test, process) {
   header = payload_stuffer(data.payload, (void *)&hb, sizeof(hb),
                            BcmpHeartbeatMessage, 0);
   bcmp_process_heartbeat_fake.return_val = BmOK;
-  ASSERT_EQ(process_received_message((void *)&data), BmOK);
+  ASSERT_EQ(process_received_message((void *)&data, sizeof(hb)), BmOK);
   ASSERT_EQ(bcmp_process_heartbeat_fake.call_count, 1);
   ASSERT_EQ(memcmp((void *)(bcmp_process_heartbeat_fake.arg0_val.header),
                    (void *)&header, sizeof(BcmpHeader)),
@@ -207,13 +206,11 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_info, BcmpProcessData);
  */
 TEST_F(packet_test, sequence_request) {
   BcmpPacketCfg request_neighbor_info_packet = {
-      sizeof(BcmpNeighborInfo),
       false,
       true,
       bcmp_neighbor_info,
   };
   BcmpPacketCfg reply_neighbor_info_packet = {
-      sizeof(BcmpNeighborInfo),
       true,
       false,
       bcmp_neighbor_info,
@@ -250,6 +247,7 @@ TEST_F(packet_test, sequence_request) {
   bm_semaphore_give_fake.return_val = BmOK;
   for (size_t i = 0; i < iterations; i++) {
     ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
+                        sizeof(request_neighbor_info),
                         BcmpNeighborProtoRequestMessage, 0,
                         bcmp_sequence_request),
               0);
@@ -261,7 +259,9 @@ TEST_F(packet_test, sequence_request) {
                              sizeof(reply_neighbor_info),
                              BcmpNeighborProtoReplyMessage, i);
     bcmp_sequence_request_fake.return_val = BmOK;
-    ASSERT_EQ(process_received_message((void *)&data), BmOK);
+    ASSERT_EQ(
+        process_received_message((void *)&data, sizeof(reply_neighbor_info)),
+        BmOK);
     ASSERT_EQ(bcmp_sequence_request_fake.call_count, i + 1);
     ASSERT_EQ(bcmp_neighbor_info_fake.call_count, 0);
   }
@@ -269,17 +269,12 @@ TEST_F(packet_test, sequence_request) {
   // Test without callback
   RESET_FAKE(bcmp_sequence_request);
   RESET_FAKE(bcmp_neighbor_info);
-  ASSERT_EQ(packet_add(&request_neighbor_info_packet,
-                       BcmpNeighborProtoRequestMessage),
-            BmOK);
-  ASSERT_EQ(
-      packet_add(&reply_neighbor_info_packet, BcmpNeighborProtoReplyMessage),
-      BmOK);
 
   bm_semaphore_take_fake.return_val = BmOK;
   bm_semaphore_give_fake.return_val = BmOK;
   for (size_t i = 0; i < iterations; i++) {
     ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
+                        sizeof(request_neighbor_info),
                         BcmpNeighborProtoRequestMessage, 0, NULL),
               0);
     ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, i + iterations);
@@ -289,7 +284,9 @@ TEST_F(packet_test, sequence_request) {
     header = payload_stuffer(data.payload, (void *)&reply_neighbor_info,
                              sizeof(reply_neighbor_info),
                              BcmpNeighborProtoReplyMessage, i + iterations);
-    ASSERT_EQ(process_received_message((void *)&data), BmOK);
+    ASSERT_EQ(
+        process_received_message((void *)&data, sizeof(reply_neighbor_info)),
+        BmOK);
     ASSERT_EQ(bcmp_sequence_request_fake.call_count, 0);
     ASSERT_EQ(bcmp_neighbor_info_fake.call_count, i + 1);
   }
@@ -300,7 +297,6 @@ TEST_F(packet_test, sequence_request) {
 
 TEST_F(packet_test, sequence_reply) {
   BcmpPacketCfg reply_neighbor_info_packet = {
-      sizeof(BcmpNeighborInfo),
       false,
       true,
       bcmp_neighbor_info,
@@ -320,6 +316,7 @@ TEST_F(packet_test, sequence_reply) {
       BmOK);
 
   ASSERT_EQ(serialize((void *)&data, (void *)&reply_neighbor_info,
+                      sizeof(reply_neighbor_info),
                       BcmpNeighborProtoReplyMessage, 0, NULL),
             0);
   ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, 0);
