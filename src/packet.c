@@ -299,6 +299,7 @@ static void sequence_list_timer_callback(BmTimer tmr) {
  @return item if it is found in linked list
  @return NULL if item is not able to found
  */
+//TODO: this should be offloaded to another task
 static BcmpRequestElement *sequence_list_find_message(uint32_t seq_num) {
   BmErr err = BmEINPROGRESS;
   BcmpRequestElement *element = NULL;
@@ -409,6 +410,7 @@ BmErr process_received_message(void *payload, uint32_t size) {
     data.src = PACKET.cb.src_ip(payload);
     data.dst = PACKET.cb.dst_ip(payload);
     data.size = size;
+    // TODO: make me endian agnostic look up the spec
     data.ingress_port = (((uint32_t *)(data.src))[1] >> 8) & 0xFF;
     check_endianness(data.header, BcmpHeaderMessage);
 
