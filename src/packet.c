@@ -370,6 +370,24 @@ BmErr packet_add(BcmpPacketCfg *cfg, BcmpMessageType type) {
 }
 
 /*!
+ @brief Calculate Checksum Of Packet
+
+ @param payload abstract payload packet
+ @param size size of data for the checksum
+
+ @return checksum calculation
+ */
+uint16_t packet_checksum(void *payload, uint32_t size) {
+  uint16_t ret = 0;
+
+  if (payload) {
+    ret = PACKET.cb.checksum(payload, size);
+  }
+
+  return ret;
+}
+
+/*!
  @brief Remove Packet Item From Packet Processor/Serializer
 
  @param type type of packet to remove, this will be ll item ID
@@ -511,7 +529,7 @@ BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
       check_endianness(header, BcmpHeaderMessage);
       memcpy(((uint8_t *)header) + sizeof(BcmpHeader), data, size);
 
-      header->checksum = PACKET.cb.checksum(payload, size + sizeof(BcmpHeader));
+      header->checksum = packet_checksum(payload, size + sizeof(BcmpHeader));
     }
   }
 

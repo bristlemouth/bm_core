@@ -32,23 +32,52 @@ typedef struct {
   const ip_addr_t *dst;
 } LwipLayout;
 
-struct LwipCtx CTX;
+static struct LwipCtx CTX;
 
+/*!
+ @brief Obtain Data From LwipLayout Abstraction
+
+ @param payload abstract payload handled by packet interface
+
+ @return pointer to payload
+ */
 static void *message_get_data(void *payload) {
   LwipLayout *ret = (LwipLayout *)payload;
   return (void *)ret->pbuf->payload;
 }
 
+/*!
+ @brief Get Src IP Address From LwipLayout Abstraction
+
+ @param payload
+
+ @return pointer to source ip address
+ */
 static void *message_get_src_ip(void *payload) {
   LwipLayout *ret = (LwipLayout *)payload;
   return (void *)ret->src;
 }
 
+/*!
+ @brief Get Src IP Address From LwipLayout Abstraction
+
+ @param payload abstract payload handled by packet interface
+
+ @return pointer to destination ip address
+ */
 static void *message_get_dst_ip(void *payload) {
   LwipLayout *ret = (LwipLayout *)payload;
   return (void *)ret->dst;
 }
 
+/*!
+ @brief Obtain Checksum From Payload Of LwipLayout Item
+
+ @param payload abstract payload handled by packet interface
+ @param size size of the payload
+
+ @return calculated checksum of message
+ */
 static uint16_t message_get_checksum(void *payload, uint32_t size) {
   uint16_t ret = UINT16_MAX;
   LwipLayout *data = (LwipLayout *)payload;
@@ -61,8 +90,9 @@ static uint16_t message_get_checksum(void *payload, uint32_t size) {
 }
 
 /*!
-  lwip raw recv callback for BCMP packets. Called from lwip task.
-  Packet is added to main BCMP queue for processing
+  @brief LWIP raw_recv Callback For BCMP Packets
+
+  @details Packet is added to main BCMP queue for processing
 
   \param *arg unused
   \param *pcb unused
@@ -75,7 +105,7 @@ static uint8_t bcmp_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
   (void)arg;
   (void)pcb;
 
-  // don't eat the packet unless we process it
+  // Don't eat the packet unless we process it
   uint8_t rval = 0;
   BmQueue queue = (BmQueue)arg;
 
@@ -84,7 +114,7 @@ static uint8_t bcmp_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
     struct ip6_hdr *ip6_hdr = (struct ip6_hdr *)pbuf->payload;
 
     if (pbuf_remove_header(pbuf, PBUF_IP_HLEN) != 0) {
-      //  restore original packet
+      //  Restore original packet
       pbuf_add_header(pbuf, PBUF_IP_HLEN);
     } else {
 
@@ -106,7 +136,7 @@ static uint8_t bcmp_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
         pbuf_free(pbuf);
       }
 
-      // eat the packet
+      // Eat the packet
       rval = 1;
     }
   }
@@ -114,6 +144,14 @@ static uint8_t bcmp_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
   return rval;
 }
 
+/*!
+ @brief Initialize Network Layer For Bristlemouth Stack
+
+ @param queue BCMP queue the received messages will enqueue
+
+ @return BmOK on success
+ @return BmErr on failure
+ */
 BmErr bm_ip_init(void *queue) {
   BmErr err = BmENOMEM;
   CTX.netif = &netif;
@@ -129,6 +167,14 @@ BmErr bm_ip_init(void *queue) {
   return err;
 }
 
+/*!
+ @brief Cleanup Data From A Received Message
+
+ @details This should be called after the queued message has been handled and
+          processed.
+
+ @param payload abstracted payload object to be handled
+ */
 void bm_ip_rx_cleanup(void *payload) {
   LwipLayout *layout = NULL;
   if (payload) {
@@ -146,6 +192,19 @@ void bm_ip_rx_cleanup(void *payload) {
   }
 }
 
+/*!
+ @brief Create A New Network Layer Object
+
+ @details A destination address is passed into this API because there may be
+          some operations that require this before sending the packet.
+          The abstraction is responsible for determining the source IP address
+          and assigning it here to its associated abstraction object
+
+ @param dst destination IP address
+ @param size sizeo of object to create
+
+ @return pointer to created abstraction object
+ */
 void *bm_ip_tx_new(const void *dst, uint32_t size) {
   struct pbuf *pbuf = NULL;
   LwipLayout *layout = NULL;
@@ -160,11 +219,48 @@ void *bm_ip_tx_new(const void *dst, uint32_t size) {
   return (void *)layout;
 }
 
-BmErr bm_ip_tx_perform(void *payload) {
+/*!
+ @brief Copy Data To Payload
+
+ @param payload created object from bm_ip_tx_new
+ @param data data to be copied
+ @param size size of data to be copied
+ @param offset offset from beginning of buffer to copy data
+
+ @return BmOK on success
+ @return BmErr on failure
+ */
+BmErr bm_ip_tx_copy(void *payload, const void *data, uint32_t size,
+                    uint32_t offset) {
+  BmErr err = BmEINVAL;
+  LwipLayout *layout = NULL;
+
+  if (payload && data) {
+    err = BmOK;
+    layout = (LwipLayout *)payload;
+    memcpy(layout->pbuf->payload + offset, data, size);
+  }
+
+  return err;
+}
+
+/*!
+ @brief Perform A Network Layer Transmission
+
+ @details The destination address is optional, if NULL the address for passed
+          into bm_ip_tx_new will be utilized
+
+ @param payload abstracted payload to be 
+ @param dst destination IP address to send the message to
+
+ @return 
+ */
+BmErr bm_ip_tx_perform(void *payload, const void *dst) {
   BmErr err = BmEINVAL;
   LwipLayout *layout = NULL;
   if (payload) {
     layout = (LwipLayout *)payload;
+    layout->dst = dst == NULL ? layout->dst : (const ip_addr_t *)dst;
     err = raw_sendto_if_src(CTX.pcb, layout->pbuf, layout->dst, CTX.netif,
                             layout->src) == ERR_OK
               ? BmOK
@@ -173,6 +269,11 @@ BmErr bm_ip_tx_perform(void *payload) {
   return err;
 }
 
+/*!
+ @brief Cleanup Abstraction Object After A Transmission
+
+ @param payload abstracted payload object to be handled
+ */
 void bm_ip_tx_cleanup(void *payload) {
   LwipLayout *layout = NULL;
   if (payload) {
