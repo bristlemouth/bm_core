@@ -9,7 +9,6 @@ typedef struct {
   void *src;
   void *dst;
   uint8_t ingress_port;
-  uint32_t seq_num;
 } BcmpProcessData;
 
 typedef void *(*BcmpGetData)(void *payload);
