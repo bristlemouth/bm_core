@@ -247,7 +247,7 @@ BmErr bm_ip_tx_copy(void *payload, const void *data, uint32_t size,
 /*!
  @brief Perform A Network Layer Transmission
 
- @details The destination address is optional, if NULL the address for passed
+ @details The destination address is optional, if NULL the address passed
           into bm_ip_tx_new will be utilized
 
  @param payload abstracted payload to be 

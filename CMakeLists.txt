@@ -39,6 +39,7 @@ if(ENABLE_TESTING)
     add_subdirectory("test")
 else()
     set(SOURCES
+        src/device.c
         src/packet.c
         src/service.c
         src/heartbeat.c
