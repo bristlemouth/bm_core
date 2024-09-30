@@ -66,6 +66,13 @@ uint16_t vendor_id(void) { return CFG.vendor_id; }
 uint16_t product_id(void) { return CFG.product_id; }
 
 /*!
+  @brief Get The Product Hardware Revision
+
+  @return User configured hardware revision
+ */
+uint8_t hardware_revision(void) { return CFG.hw_ver; }
+
+/*!
   @brief Get The Device Name Of This Node
 
   @details This must be NULL terminated
@@ -81,7 +88,7 @@ const char *device_name(void) { return CFG.device_name; }
 
   @return user configured device version string
  */
-const char *vers_str(void) { return CFG.vers_str; }
+const char *version_string(void) { return CFG.version_string; }
 
 /*!
   @brief Get The Device's Version Information
@@ -93,7 +100,7 @@ const char *vers_str(void) { return CFG.vers_str; }
   @return BmOK on success
   @return BmErr on failure
  */
-BmErr vers(uint8_t *major, uint8_t *minor, uint8_t *patch) {
+BmErr firmware_version(uint8_t *major, uint8_t *minor, uint8_t *patch) {
   BmErr err = BmEINVAL;
 
   if (major && minor && patch) {
@@ -117,7 +124,7 @@ BmErr vers(uint8_t *major, uint8_t *minor, uint8_t *patch) {
   @return BmOK on success
   @return BmErr on failure
  */
-BmErr sn(uint8_t *sn, uint32_t size) {
+BmErr serial_number(uint8_t *sn, uint32_t size) {
   BmErr err = BmEINVAL;
 
   if (sn && size >= member_size(DeviceCfg, sn)) {
