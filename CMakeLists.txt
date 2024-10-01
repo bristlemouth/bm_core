@@ -39,11 +39,15 @@ if(ENABLE_TESTING)
     add_subdirectory("test")
 else()
     set(SOURCES
-        src/device.c
-        src/packet.c
-        src/service.c
-        src/heartbeat.c
         src/bcmp.c
+        src/device.c
+        src/heartbeat.c
+        src/info.c
+        src/neighbors.c
+        src/packet.c
+        src/ping.c
+        src/resource_discovery.c
+        src/topology.c
     )
     add_library(bmcore ${SOURCES})
 
