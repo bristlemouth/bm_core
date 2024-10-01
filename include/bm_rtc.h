@@ -12,6 +12,6 @@ typedef struct {
 	uint16_t ms;
 } RtcTimeAndDate;
 
-BmErr rtcSet(const RtcTimeAndDate *timeAndDate);
-BmErr rtcGet(RtcTimeAndDate *timeAndDate);
-uint64_t rtcGetMicroSeconds(RtcTimeAndDate *timeAndDate);
+BmErr bm_rtc_set(const RtcTimeAndDate *time_and_date);
+BmErr bm_rtc_get(RtcTimeAndDate *time_and_date);
+uint64_t bm_rtc_get_micro_seconds(RtcTimeAndDate *time_and_date);
