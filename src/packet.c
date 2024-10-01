@@ -460,7 +460,8 @@ BmErr process_received_message(void *payload, uint32_t size) {
       } else {
         // Utilize parsing callback
         if (cfg->process && (err = cfg->process(data)) != BmOK) {
-          printf("Error processing parsed cb: 0x%X\n", err);
+          printf("Error processing parsed cb: %d of message %d\n", err,
+                 data.header->type);
         }
       }
     }
