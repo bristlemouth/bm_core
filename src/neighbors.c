@@ -87,7 +87,7 @@ static void neighbor_check(BcmpNeighbor *neighbor) {
 
   \return none
 */
-void bcmp_check_neighbors() { bcmp_neighbor_foreach(neighbor_check); }
+void bcmp_check_neighbors(void) { bcmp_neighbor_foreach(neighbor_check); }
 
 /*!
   @brief Add neighbor to neighbor table

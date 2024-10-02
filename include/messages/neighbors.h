@@ -41,7 +41,7 @@ typedef void (*NeighborDiscoveryCallback)(bool discovered,
                                           BcmpNeighbor *neighbor);
 
 BcmpNeighbor *bcmp_get_neighbors(uint8_t *num_neighbors);
-void bcmp_check_neighbors();
+void bcmp_check_neighbors(void);
 void bcmp_print_neighbor_info(BcmpNeighbor *neighbor);
 bool bcmp_remove_neighbor_from_table(BcmpNeighbor *neighbor);
 bool bcmp_free_neighbor(BcmpNeighbor *neighbor);
