@@ -49,3 +49,4 @@ BcmpNeighbor *bcmp_find_neighbor(uint64_t node_id);
 BcmpNeighbor *bcmp_update_neighbor(uint64_t node_id, uint8_t port);
 void bcmp_neighbor_foreach(NeighborCallback cb);
 void bcmp_neighbor_register_discovery_callback(NeighborDiscoveryCallback cb);
+void bcmp_neighbor_invoke_discovery_cb(bool discovered, BcmpNeighbor *neighbor);

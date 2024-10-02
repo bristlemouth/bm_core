@@ -69,6 +69,7 @@ function(create_gtest test_name test_src srcs)
         "${TEST_STUBS}"
         "${TEST_STUBS_BM_COMMON}"
         src/${test_name}_test.cpp
+        ${BM_COMMON_SOURCE_DIR}/ll.c
     )
     gtest_discover_tests(${GTEST_NAME})
     # Generate artifacts for coverage report using lcov
@@ -83,11 +84,7 @@ set(DUMMY src)
 
 set (SRCS
     ${BM_COMMON_SOURCE_DIR}/util.c
-    ${BM_COMMON_SOURCE_DIR}/ll.c
 )
 create_gtest("packet" "${SRC_DIR}/packet.c" "${SRCS}")
-
-set (SRCS
-    ${BM_COMMON_SOURCE_DIR}/util.c
-)
 create_gtest("bcmp" "${SRC_DIR}/bcmp.c" "${SRCS}")
+create_gtest("heartbeat" "${SRC_DIR}/heartbeat.c" "${SRCS}")

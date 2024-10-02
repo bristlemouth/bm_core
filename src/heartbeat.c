@@ -6,14 +6,13 @@
 #include "packet.h"
 #include <inttypes.h>
 
-extern NeighborDiscoveryCallback
-    NEIGHBOR_DISCOVERY_CB; // FIXME - https://github.com/wavespotter/bristlemouth/issues/384
-
 /*!
-  Send heartbeat to neighbors
+  @brief Send heartbeat to neighbors
 
-  \param lease_duration_s - liveliness lease duration
-  \return ERR_OK if successful
+  @param lease_duration_s - liveliness lease duration
+
+  @return BmOk on success
+  @return BmErr on failure
 */
 BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
   // TODO: abstract time since boot microseconds?
@@ -25,11 +24,15 @@ BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
 }
 
 /*!
-  Process incoming heartbeat. Update neighbor tables if necessary.
-  If a device is not in our neighbor tables, add it, and request it's info.
+  @brief Process Incoming Heartbeat
 
-  \param *heartbeat - hearteat data
-  \return ERR_OK if successful
+  @details Update neighbor tables if necessary, if a device is not in our
+           neighbor tables, add it, and request it's info
+
+  @param *data - heartbeat data
+
+  @return BmOK on success
+  @return BmErr on failure
 */
 static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
   BmErr err = BmEINVAL;
@@ -42,9 +45,7 @@ static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
 
     // Neighbor restarted, let's get additional info
     if (heartbeat->time_since_boot_us < neighbor->last_time_since_boot_us) {
-      if (NEIGHBOR_DISCOVERY_CB) {
-        NEIGHBOR_DISCOVERY_CB(true, neighbor);
-      }
+      bcmp_neighbor_invoke_discovery_cb(true, neighbor);
       printf("🏘📡 Updating neighbor info! %016" PRIx64 "\n",
              neighbor->node_id);
       bcmp_request_info(neighbor->info.node_id, &multicast_ll_addr, NULL);
@@ -60,6 +61,12 @@ static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
   return err;
 }
 
+/*!
+  @brief Initialize Heartbeat Module
+
+  @return BmOK on success
+  @return BmErr on failure
+*/
 BmErr bcmp_heartbeat_init(void) {
   BcmpPacketCfg heartbeat_packet = {
       false,
