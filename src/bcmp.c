@@ -4,7 +4,6 @@
 //#include "bcmp_time.h"
 #include "bm_ip.h"
 #include "bm_os.h"
-#include "device.h"
 #include "messages/heartbeat.h"
 #include "messages/info.h"
 #include "messages/neighbors.h"
@@ -19,34 +18,12 @@
 // Send heartbeats every 10 seconds (and check for expired links)
 #define bcmp_heartbeat_s 10
 
-#define ipv6_header_length (40)
-
-// 1500 MTU minus ipv6 header
-#define max_payload_len (1500 - ipv6_header_length)
-
 typedef struct {
   BmQueue queue;
   BmTimer heartbeat_timer;
 } BcmpContext;
 
 static BcmpContext CTX;
-
-/*!
-  BCMP link change event callback
-
-  \param port - system port in which the link change occurred
-  \param state - 0 for down 1 for up
-  \return none
-*/
-void bcmp_link_change(uint8_t port, bool state) {
-  (void)port; // Not using the port for now
-  if (state) {
-    // Send heartbeat since we just connected to someone and (re)start the
-    // heartbeat timer
-    bcmp_send_heartbeat(bcmp_heartbeat_s);
-    bm_timer_start(CTX.heartbeat_timer, 10);
-  }
-}
 
 //TODO implemnent with updated packet module
 ///*!
@@ -63,11 +40,12 @@ void bcmp_link_change(uint8_t port, bool state) {
 //}
 
 /*!
-  FreeRTOS timer handler for sending out heartbeats. No work is done in the timer
-  handler, but instead an event is queued up to be handled in the BCMP task.
+  @brief Timer handler for sending out heartbeats
 
-  \param tmr unused
-  \return none
+  @details No work is done in the timer handler, but instead an event is
+           queued up to be handled in the BCMP task.
+
+  @param tmr unused
 */
 static void heartbeat_timer_handler(BmTimer tmr) {
   (void)tmr;
@@ -78,10 +56,9 @@ static void heartbeat_timer_handler(BmTimer tmr) {
 }
 
 /*!
-  BCMP task. All BCMP events are handled here.
+  @brief BCMP task. All BCMP events are handled here.
 
-  \param parameters unused
-  \return none
+  @param parameters unused
 */
 static void bcmp_thread(void *parameters) {
   (void)parameters;
@@ -123,16 +100,40 @@ static void bcmp_thread(void *parameters) {
 }
 
 /*!
-  BCMP packet transmit function. Header and checksum added and computer within
+  @brief BCMP initialization
 
-  \param *dst destination ip
-  \param type message type
-  \param *buff message buffer
-  \param len message length
-  \param seq_num The sequence number of the message.
-  \param reply_cb A callback function to handle reply messages.
-  \param request_timeout_ms The timeout for the request in milliseconds.
-  \return ERR_OK on success, something else otherwise
+  @param *netif lwip network interface to use
+  @return none
+*/
+BmErr bcmp_init(void) {
+
+  CTX.queue = bm_queue_create(bcmp_evt_queue_len, sizeof(BcmpQueueItem));
+
+  bm_ip_init(CTX.queue);
+
+  bcmp_heartbeat_init();
+  ping_init();
+  //time_init();
+  bcmp_topology_init();
+  bcmp_device_info_init();
+  bcmp_resource_discovery_init();
+
+  return bm_task_create(bcmp_thread, "BCMP", 1024, NULL, bcmp_task_priority,
+                        NULL);
+}
+
+/*!
+  @brief BCMP packet transmit function. Header and checksum added and computer within
+
+  @param *dst destination ip
+  @param type message type
+  @param *data message buffer
+  @param size message length in bytes
+  @param seq_num The sequence number of the message
+  @param reply_cb A callback function to handle reply messages
+
+  @return BmOK on success
+  @return BmErr on failure
 */
 BmErr bcmp_tx(const void *dst, BcmpMessageType type, uint8_t *data,
               uint16_t size, uint32_t seq_num,
@@ -165,66 +166,65 @@ BmErr bcmp_tx(const void *dst, BcmpMessageType type, uint8_t *data,
 }
 
 /*!
-  \brief Forward the payload to all ports other than the ingress port.
+  @brief Forward the payload to all ports other than the ingress port.
 
-  \details See section 5.4.4.2 of the Bristlemouth spec for details.
+  @details See section 5.4.4.2 of the Bristlemouth spec for details.
 
-  \param[in] pbuf Packet buffer to forward.
-  \param[in] ingress_port Port on which the packet was received.
-  \return ERR_OK on success, or an error that occurred.
+  @param header header message buffer to forward
+  @param payload payload to be forwarded
+  @param size payload size
+  @param ingress_port Port on which the packet was received.
+
+  @return BmOK on success
+  @return BmErr on failure
 */
 BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
                       uint8_t ingress_port) {
   uint8_t port_specific_dst[sizeof(multicast_ll_addr)];
   BmErr err = BmEINVAL;
   void *forward = NULL;
-  memcpy(port_specific_dst, &multicast_ll_addr, sizeof(multicast_ll_addr));
-
   // TODO: Make more generic. This is specifically for a 2-port device.
   uint8_t egress_port = ingress_port == 1 ? 2 : 1;
-  ((uint32_t *)port_specific_dst)[3] = 0x1000000 | (egress_port << 8);
 
-  // L2 will clear the egress port from the destination address,
-  // so calculate the checksum on the link-local multicast address.
-  forward = bm_ip_tx_new(&multicast_ll_addr, size + sizeof(BcmpHeader));
-  if (forward) {
-    header->checksum = 0;
-    header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
+  if (header && payload) {
+    memcpy(port_specific_dst, &multicast_ll_addr, sizeof(multicast_ll_addr));
+    ((uint32_t *)port_specific_dst)[3] = 0x1000000 | (egress_port << 8);
 
-    // Copy data to be forwarded
-    bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
-    bm_ip_tx_copy(forward, payload, size, sizeof(BcmpHeader));
+    // L2 will clear the egress port from the destination address,
+    // so calculate the checksum on the link-local multicast address.
+    forward = bm_ip_tx_new(&multicast_ll_addr, size + sizeof(BcmpHeader));
+    if (forward) {
+      header->checksum = 0;
+      header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
 
-    err = bm_ip_tx_perform(forward, &port_specific_dst);
-    if (err != BmOK) {
-      printf("Error forwarding BMCP packet link-locally: %d\n", err);
+      // Copy data to be forwarded
+      bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
+      bm_ip_tx_copy(forward, payload, size, sizeof(BcmpHeader));
+
+      err = bm_ip_tx_perform(forward, &port_specific_dst);
+      if (err != BmOK) {
+        printf("Error forwarding BMCP packet link-locally: %d\n", err);
+      }
+      bm_ip_tx_cleanup(forward);
+    } else {
+      err = BmENOMEM;
     }
-    bm_ip_tx_cleanup(forward);
-  } else {
-    err = BmENOMEM;
   }
   return err;
 }
 
 /*!
-  BCMP initialization
+  @brief BCMP link change event callback
 
-  \param *netif lwip network interface to use
-  \return none
+  @param port - system port in which the link change occurred
+  @param state - 0 for down 1 for up
 */
-BmErr bcmp_init(void) {
-
-  CTX.queue = bm_queue_create(bcmp_evt_queue_len, sizeof(BcmpQueueItem));
-
-  bm_ip_init(CTX.queue);
-
-  bcmp_heartbeat_init();
-  ping_init();
-  //time_init();
-  bcmp_topology_init();
-  bcmp_device_info_init();
-  bcmp_resource_discovery_init();
-
-  return bm_task_create(bcmp_thread, "BCMP", 1024, NULL, bcmp_task_priority,
-                        NULL);
+void bcmp_link_change(uint8_t port, bool state) {
+  (void)port; // Not using the port for now
+  if (state) {
+    // Send heartbeat since we just connected to someone and (re)start the
+    // heartbeat timer
+    bcmp_send_heartbeat(bcmp_heartbeat_s);
+    bm_timer_start(CTX.heartbeat_timer, 10);
+  }
 }

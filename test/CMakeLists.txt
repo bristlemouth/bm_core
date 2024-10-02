@@ -41,7 +41,6 @@ link_libraries(
     gtest_main
 )
 
-file(GLOB TEST_STUBS stubs/*.c)
 file(GLOB TEST_STUBS_BM_COMMON ${bm_common_SOURCE_DIR}/test/stubs/*.c)
 
 # - Create Unit Test
@@ -56,6 +55,8 @@ file(GLOB TEST_STUBS_BM_COMMON ${bm_common_SOURCE_DIR}/test/stubs/*.c)
 
 function(create_gtest test_name test_src srcs)
     set(GTEST_NAME ${test_name}_test)
+    file(GLOB TEST_STUBS stubs/*.c)
+    list(FILTER TEST_STUBS EXCLUDE REGEX "${test_name}")
     add_executable(${GTEST_NAME})
     target_include_directories(${GTEST_NAME}
         PRIVATE
@@ -85,3 +86,8 @@ set (SRCS
     ${BM_COMMON_SOURCE_DIR}/ll.c
 )
 create_gtest("packet" "${SRC_DIR}/packet.c" "${SRCS}")
+
+set (SRCS
+    ${BM_COMMON_SOURCE_DIR}/util.c
+)
+create_gtest("bcmp" "${SRC_DIR}/bcmp.c" "${SRCS}")
