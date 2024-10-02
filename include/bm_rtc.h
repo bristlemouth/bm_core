@@ -1,15 +1,14 @@
-#include <stdint.h>
 #include "util.h"
-
+#include <stdint.h>
 
 typedef struct {
-	uint16_t year;
-	uint8_t month;
-	uint8_t day;
-	uint8_t hour;
-	uint8_t minute;
-	uint8_t second;
-	uint16_t ms;
+  uint16_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+  uint16_t ms;
 } RtcTimeAndDate;
 
 BmErr bm_rtc_set(const RtcTimeAndDate *time_and_date);
