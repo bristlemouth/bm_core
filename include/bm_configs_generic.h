@@ -1,3 +1,7 @@
+#ifndef __BM_CONFIGS_GENERIC_H__
+#define __BM_CONFIGS_GENERIC_H__
+
+
 #include "util.h"
 #include "messages.h"
 #include <stdint.h>
@@ -27,3 +31,5 @@ bool bcmp_set_config(const char *key, size_t key_len, uint8_t *value,
                      size_t value_len, BmConfigPartition partition);
 bool bcmp_get_config(const char *key, size_t key_len, uint8_t *value,
                      size_t &value_len, BmConfigPartition partition);
+
+#endif // __BM_CONFIGS_GENERIC_H__
