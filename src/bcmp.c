@@ -27,20 +27,9 @@
 typedef struct {
   BmQueue queue;
   BmTimer heartbeat_timer;
-} bcmpContext_t;
+} BcmpContext;
 
-typedef enum {
-  BCMP_EVT_RX,
-  BCMP_EVT_HEARTBEAT,
-} BcmpQueueType;
-
-typedef struct {
-  BcmpQueueType type;
-  void *data;
-  uint32_t size;
-} BcmpQueueItem;
-
-static bcmpContext_t CTX;
+static BcmpContext CTX;
 
 /*!
   BCMP link change event callback
@@ -83,7 +72,7 @@ void bcmp_link_change(uint8_t port, bool state) {
 static void heartbeat_timer_handler(BmTimer tmr) {
   (void)tmr;
 
-  BcmpQueueItem item = {BCMP_EVT_HEARTBEAT, NULL, 0};
+  BcmpQueueItem item = {BcmpEventHeartbeat, NULL, 0};
 
   bm_queue_send(CTX.queue, &item, 0);
 }
@@ -97,7 +86,6 @@ static void heartbeat_timer_handler(BmTimer tmr) {
 static void bcmp_thread(void *parameters) {
   (void)parameters;
 
-  // Start listening for BCMP packets
   CTX.heartbeat_timer = bm_timer_create(
       heartbeat_timer_handler, "bcmp_heartbeat", bcmp_heartbeat_s * 1000, NULL);
 
@@ -109,12 +97,12 @@ static void bcmp_thread(void *parameters) {
 
     if (err == BmOK) {
       switch (item.type) {
-      case BCMP_EVT_RX: {
+      case BcmpEventRx: {
         process_received_message(item.data, item.size - sizeof(BcmpHeader));
         break;
       }
 
-      case BCMP_EVT_HEARTBEAT: {
+      case BcmpEventHeartbeat: {
         // Should we check neighbors on a differnt timer?
         // Check neighbor status to see if any dropped
         bcmp_check_neighbors();
@@ -168,6 +156,7 @@ BmErr bcmp_tx(const void *dst, BcmpMessageType type, uint8_t *data,
 
       bm_ip_tx_cleanup(buf);
     } else {
+      err = BmENOMEM;
       printf("Could not allocate memory for bcmp message\n");
     }
   }
@@ -233,7 +222,7 @@ BmErr bcmp_init(void) {
   ping_init();
   //time_init();
   bcmp_topology_init();
-  bcmp_process_info_init();
+  bcmp_device_info_init();
   bcmp_resource_discovery_init();
 
   return bm_task_create(bcmp_thread, "BCMP", 1024, NULL, bcmp_task_priority,
