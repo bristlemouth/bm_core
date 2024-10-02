@@ -75,9 +75,7 @@ static void neighbor_check(BcmpNeighbor *neighbor) {
           neighbor->last_heartbeat_ticks, bm_get_tick_count(),
           bm_ms_to_ticks(2 * neighbor->heartbeat_period_s * 1000))) {
     printf("🏚  Neighbor offline :'( %016" PRIx64 "\n", neighbor->node_id);
-    if (NEIGHBOR_DISCOVERY_CB) {
-      NEIGHBOR_DISCOVERY_CB(false, neighbor);
-    }
+    bcmp_neighbor_invoke_discovery_cb(false, neighbor);
     neighbor->online = false;
   }
 }
@@ -260,4 +258,17 @@ void bcmp_print_neighbor_info(BcmpNeighbor *neighbor) {
 */
 void bcmp_neighbor_register_discovery_callback(NeighborDiscoveryCallback cb) {
   NEIGHBOR_DISCOVERY_CB = cb;
+}
+
+/*!
+  @brief Invoke Registered Neighbor Discovery Callback
+
+  @param discovered has the neighbor been discovered
+  @param neighbor pointer to the neighbor
+*/
+void bcmp_neighbor_invoke_discovery_cb(bool discovered,
+                                       BcmpNeighbor *neighbor) {
+  if (NEIGHBOR_DISCOVERY_CB) {
+    NEIGHBOR_DISCOVERY_CB(discovered, neighbor);
+  }
 }
