@@ -16,15 +16,15 @@ typedef enum {
   STR,
   BYTES,
   ARRAY,
-} ConfigDataTypes;
+} GenericConfigDataTypes;
 
 typedef struct {
   char keyBuffer[BM_MAX_KEY_LEN_BYTES];
   size_t keyLen;
   ConfigDataTypes valueType;
-} __attribute__((packed, aligned(1))) ConfigKey;
+} __attribute__((packed, aligned(1))) GenericConfigKey;
 
-const ConfigKey *bcmp_config_get_stored_keys(uint8_t &num_stored_keys, BmConfigPartition partition);
+const GenericConfigKey *bcmp_config_get_stored_keys(uint8_t &num_stored_keys, BmConfigPartition partition);
 bool bcmp_remove_key(const char *key, size_t key_len, BmConfigPartition partition);
 bool bcmp_config_needs_commit(void);
 bool bcmp_commit_config(BmConfigPartition partition);
