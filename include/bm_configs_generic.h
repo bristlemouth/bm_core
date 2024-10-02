@@ -21,7 +21,7 @@ typedef enum {
 typedef struct {
   char keyBuffer[BM_MAX_KEY_LEN_BYTES];
   size_t keyLen;
-  ConfigDataTypes valueType;
+  GenericConfigDataTypes valueType;
 } __attribute__((packed, aligned(1))) GenericConfigKey;
 
 const GenericConfigKey *bcmp_config_get_stored_keys(uint8_t &num_stored_keys, BmConfigPartition partition);
