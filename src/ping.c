@@ -12,7 +12,7 @@ static uint8_t *EXPECTED_PAYLOAD = NULL;
 static uint16_t EXPECTED_PAYLOAD_LEN = 0;
 
 /*!
-  @Brief Send ping to node(s)
+  @brief Send ping to node(s)
 
   @param node - node id to send ping to (0 for all nodes)
   @param *addr - ip address to send to send ping request to
@@ -51,7 +51,7 @@ BmErr bcmp_send_ping_request(uint64_t node, const void *addr,
       EXPECTED_PAYLOAD_LEN = 0;
     }
 
-    // Lets only copy the paylaod if it isn't NULL just in case
+    // Lets only copy the payload if it isn't NULL just in case
     if (payload != NULL && payload_len > 0) {
       memcpy(&echo_req->payload[0], payload, payload_len);
       EXPECTED_PAYLOAD = (uint8_t *)bm_malloc(payload_len);
@@ -74,7 +74,7 @@ BmErr bcmp_send_ping_request(uint64_t node, const void *addr,
 }
 
 /*!
-  @breif Send ping reply
+  @brief Send ping reply
 
   @param *echo_reply echo reply message
   @param *addr ip address to send ping reply to

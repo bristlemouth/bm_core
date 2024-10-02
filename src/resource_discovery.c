@@ -35,7 +35,7 @@ static bool bcmp_resource_compute_list_size(ResourceType type,
                                             size_t *msg_len) {
   bool rval = false;
   BcmpResourceList *res_list = (type == SUB) ? &SUB_LIST : &PUB_LIST;
-  if (bm_semaphore_take(res_list->lock, DEFAULT_RESOURCE_ADD_TIMEOUT_MS) ==
+  if (bm_semaphore_take(res_list->lock, default_resource_add_timeout_ms) ==
       BmOK) {
     do {
       BcmpResourceNode *cur = res_list->start;
@@ -55,7 +55,7 @@ static bool bcmp_resource_populate_msg_data(ResourceType type,
                                             uint32_t *data_offset) {
   bool rval = false;
   BcmpResourceList *res_list = (type == SUB) ? &SUB_LIST : &PUB_LIST;
-  if (bm_semaphore_take(res_list->lock, DEFAULT_RESOURCE_ADD_TIMEOUT_MS) ==
+  if (bm_semaphore_take(res_list->lock, default_resource_add_timeout_ms) ==
       BmOK) {
     do {
       if (type == PUB) {
@@ -342,7 +342,7 @@ bool bcmp_resource_discovery_send_request(uint64_t target_node_id,
 void bcmp_resource_discovery_print_resources(void) {
   printf("Resource table:\n");
   if (PUB_LIST.num_resources &&
-      bm_semaphore_take(PUB_LIST.lock, DEFAULT_RESOURCE_ADD_TIMEOUT_MS) ==
+      bm_semaphore_take(PUB_LIST.lock, default_resource_add_timeout_ms) ==
           BmOK) {
     printf("\tPubs:\n");
     uint16_t num_items = PUB_LIST.num_resources;
@@ -356,7 +356,7 @@ void bcmp_resource_discovery_print_resources(void) {
     bm_semaphore_give(PUB_LIST.lock);
   }
   if (SUB_LIST.num_resources &&
-      bm_semaphore_take(SUB_LIST.lock, DEFAULT_RESOURCE_ADD_TIMEOUT_MS) ==
+      bm_semaphore_take(SUB_LIST.lock, default_resource_add_timeout_ms) ==
           BmOK) {
     printf("\tSubs:\n");
     uint16_t num_items = SUB_LIST.num_resources;

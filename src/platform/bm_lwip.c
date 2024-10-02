@@ -1,27 +1,15 @@
+#include "bcmp.h"
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "lwip/inet_chksum.h"
 #include "lwip/raw.h"
-#include "messages.h"
 #include "packet.h"
 #include "util.h"
 #include <string.h>
 
-//TODO: this will have to be placed in a header somewhere
-#define IP_PROTO_BCMP (0xBC)
-
-typedef enum {
-  BCMP_EVT_RX,
-  BCMP_EVT_HEARTBEAT,
-} BcmpQueueType;
-typedef struct {
-  BcmpQueueType type;
-  void *data;
-  uint32_t size;
-} BcmpQueueItem;
-
 //TODO: this will have to be moved as we go along
 extern struct netif netif;
+
 struct LwipCtx {
   struct netif *netif;
   struct raw_pcb *pcb;
@@ -82,7 +70,7 @@ static uint16_t message_get_checksum(void *payload, uint32_t size) {
   uint16_t ret = UINT16_MAX;
   LwipLayout *data = (LwipLayout *)payload;
 
-  ret = ip6_chksum_pseudo(data->pbuf, IP_PROTO_BCMP, size,
+  ret = ip6_chksum_pseudo(data->pbuf, IpProtoBcmp, size,
                           (ip_addr_t *)message_get_src_ip(payload),
                           (ip_addr_t *)message_get_dst_ip(payload));
 
@@ -130,7 +118,7 @@ static uint8_t bcmp_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
       memcpy(src_ref, src, sizeof(ip_addr_t));
       *layout = (LwipLayout){p_ref, src_ref, dst_ref};
 
-      BcmpQueueItem item = {BCMP_EVT_RX, (void *)layout, p_ref->len};
+      BcmpQueueItem item = {BcmpEventRx, (void *)layout, p_ref->len};
       if (bm_queue_send(queue, &item, 0) != BmOK) {
         printf("Error sending to Queue\n");
         pbuf_free(pbuf);
@@ -155,7 +143,7 @@ static uint8_t bcmp_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
 BmErr bm_ip_init(void *queue) {
   BmErr err = BmENOMEM;
   CTX.netif = &netif;
-  CTX.pcb = raw_new(IP_PROTO_BCMP);
+  CTX.pcb = raw_new(IpProtoBcmp);
   if (CTX.pcb) {
     raw_recv(CTX.pcb, bcmp_recv, queue);
     err = raw_bind(CTX.pcb, IP_ADDR_ANY) == ERR_OK ? BmOK : BmEACCES;

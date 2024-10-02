@@ -2,7 +2,7 @@
 #include "util.h"
 #include <stdint.h>
 
-#define DEFAULT_RESOURCE_ADD_TIMEOUT_MS (100)
+#define default_resource_add_timeout_ms (100)
 
 typedef enum { PUB, SUB } ResourceType;
 

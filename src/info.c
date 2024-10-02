@@ -58,7 +58,7 @@ static BmErr bcmp_send_info(void *dst) {
 }
 
 /*!
-  Handle device information request (if any or addressed to this node id)
+  @brief Handle device information request (if any or addressed to this node id)
 
   @param *info_req - info request data
   @param *src - source ip of requester
@@ -69,18 +69,20 @@ static BmErr bcmp_send_info(void *dst) {
 */
 static BmErr bcmp_process_info_request(BcmpProcessData data) {
   BcmpDeviceInfoRequest *request = (BcmpDeviceInfoRequest *)data.payload;
+  BmErr err = BmOK;
 
   if ((request->target_node_id == 0) ||
       (node_id() == request->target_node_id)) {
     // Send info back on the same address we received it on
     // TODO - add unicast support, this will only work with multicast dst
-    bcmp_send_info(data.dst);
+    err = bcmp_send_info(data.dst);
   }
-  return BmOK;
+
+  return err;
 }
 
 /*!
-  Fill out device information in neigbhor structure
+  @brief Fill out device information in neigbhor structure
 
   @param *neighbor - neighbor structure to populate
   @param *dev_info - device info to populate with
@@ -222,7 +224,7 @@ BmErr bcmp_request_info(uint64_t target_node_id, const void *addr,
   @return BmOK on success
   @return BmErr on fail
  */
-BmErr bcmp_process_info_init(void) {
+BmErr bcmp_device_info_init(void) {
   BmErr err = BmOK;
   BcmpPacketCfg device_info_request = {
       false,

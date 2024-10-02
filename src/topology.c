@@ -33,7 +33,7 @@ typedef struct {
   BcmpTopoQueueType type;
   neighborTableEntry_t *neighbor_entry;
   BcmpTopoCb callback;
-} BcmpQueueItem;
+} BcmpTopoQueueItem;
 
 typedef struct {
   BmQueue evt_queue;
@@ -145,7 +145,7 @@ static void process_start_topology_event(void) {
     network_topology_append(CTX.network_topology, neighbor_entry);
     network_topology_move_to_front(CTX.network_topology);
 
-    BcmpQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+    BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
     bm_queue_send(CTX.evt_queue, &check_item, 0);
   }
 }
@@ -153,7 +153,7 @@ static void process_start_topology_event(void) {
 static void process_check_node_event(void) {
   if (network_topology_check_all_ports_explored(CTX.network_topology)) {
     if (network_topology_is_root(CTX.network_topology)) {
-      BcmpQueueItem end_item = {BCMP_TOPO_EVT_END, NULL, NULL};
+      BcmpTopoQueueItem end_item = {BCMP_TOPO_EVT_END, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &end_item, 0);
     } else {
       if (INSERT_BEFORE) {
@@ -161,7 +161,7 @@ static void process_check_node_event(void) {
       } else {
         network_topology_move_prev(CTX.network_topology);
       }
-      BcmpQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+      BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
     }
   } else {
@@ -180,7 +180,7 @@ static void process_check_node_event(void) {
       } else {
         network_topology_move_prev(CTX.network_topology);
       }
-      BcmpQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+      BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
     }
   }
@@ -218,7 +218,6 @@ static BmErr bcmp_send_neighbor_table(void *addr) {
   // Check our neighbors
   uint8_t num_neighbors = 0;
   BcmpNeighbor *neighbor = bcmp_get_neighbors(&num_neighbors);
-
   uint16_t neighbor_table_len = sizeof(BcmpNeighborTableReply) +
                                 sizeof(BcmpPortInfo) * num_ports +
                                 sizeof(BcmpNeighborInfo) * num_neighbors;
@@ -307,9 +306,9 @@ static BmErr bcmp_process_neighbor_table_reply(BcmpProcessData data) {
 
       memcpy(neighbor_entry->neighbor_table_reply, reply, neighbor_table_len);
 
-      BcmpQueueItem item = {.type = BCMP_TOPO_EVT_ADD_NODE,
-                            .neighbor_entry = neighbor_entry,
-                            .callback = NULL};
+      BcmpTopoQueueItem item = {.type = BCMP_TOPO_EVT_ADD_NODE,
+                                .neighbor_entry = neighbor_entry,
+                                .callback = NULL};
 
       bm_queue_send(CTX.evt_queue, &item, 0);
     } else if (!neighbor_entry_buff) {
@@ -332,7 +331,7 @@ static BmErr bcmp_process_neighbor_table_reply(BcmpProcessData data) {
 static void topology_timer_handler(BmTimer tmr) {
   (void)tmr;
 
-  BcmpQueueItem item = {BCMP_TOPO_EVT_TIMEOUT, NULL, NULL};
+  BcmpTopoQueueItem item = {BCMP_TOPO_EVT_TIMEOUT, NULL, NULL};
 
   bm_queue_send(CTX.evt_queue, &item, 0);
 }
@@ -354,7 +353,7 @@ static void bcmp_topology_thread(void *parameters) {
                                    bcmp_topo_timeout_s * 1000, NULL);
 
   for (;;) {
-    BcmpQueueItem item;
+    BcmpTopoQueueItem item;
 
     bm_queue_receive(CTX.evt_queue, &item, UINT32_MAX);
 
@@ -389,7 +388,7 @@ static void bcmp_topology_thread(void *parameters) {
               CTX.network_topology); // we have come from one of the ports so it must have been checked
         }
       }
-      BcmpQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+      BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
       break;
     }
@@ -417,7 +416,7 @@ static void bcmp_topology_thread(void *parameters) {
       } else {
         network_topology_move_prev(CTX.network_topology);
       }
-      BcmpQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+      BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
       break;
     }
@@ -460,7 +459,7 @@ BmErr bcmp_topology_start(BcmpTopoCb callback) {
   // create the task if it is not already created
   if (!BCMP_TOPOLOGY_TASK) {
     CTX.evt_queue =
-        bm_queue_create(bcmp_topo_evt_queue_len, sizeof(BcmpQueueItem));
+        bm_queue_create(bcmp_topo_evt_queue_len, sizeof(BcmpTopoQueueItem));
 
     bm_err_check(err,
                  bm_task_create(bcmp_topology_thread, "BCMP_TOPO", 1024, NULL,
@@ -468,7 +467,7 @@ BmErr bcmp_topology_start(BcmpTopoCb callback) {
   }
 
   // send the first request out
-  BcmpQueueItem item = {BCMP_TOPO_EVT_START, NULL, callback};
+  BcmpTopoQueueItem item = {BCMP_TOPO_EVT_START, NULL, callback};
   bm_err_check(err, bm_queue_send(CTX.evt_queue, &item, 0));
 
   return err;
