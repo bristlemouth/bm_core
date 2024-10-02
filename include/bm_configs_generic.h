@@ -27,7 +27,7 @@ typedef struct ConfigKey {
 const ConfigKey *bcmp_config_get_stored_keys(uint8_t &num_stored_keys, BmConfigPartition partition);
 bool bcmp_remove_key(const char *key, size_t key_len, BmConfigPartition partition);
 bool bcmp_config_needs_commit(void);
-bool bcmp_commit_config(bool restart, BmConfigPartition partition);
+bool bcmp_commit_config(BmConfigPartition partition);
 bool bcmp_set_config(const char *key, size_t key_len, uint8_t *value,
                      size_t value_len, BmConfigPartition partition);
 bool bcmp_get_config(const char *key, size_t key_len, uint8_t *value,
