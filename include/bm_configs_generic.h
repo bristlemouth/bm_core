@@ -1,13 +1,8 @@
 #include "util.h"
+#include "messages.h"
 #include <stdint.h>
 
 #define BM_MAX_KEY_LEN_BYTES 32
-
-typedef enum {
-  BM_CFG_PARTITION_USER,
-  BM_CFG_PARTITION_SYSTEM,
-  BM_CFG_PARTITION_HARDWARE,
-} BmConfigPartition;
 
 typedef enum {
   UINT32,
