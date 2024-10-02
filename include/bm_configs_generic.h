@@ -9,7 +9,7 @@ typedef enum {
   BM_CFG_PARTITION_HARDWARE,
 } BmConfigPartition;
 
-typedef enum ConfigDataTypes {
+typedef enum {
   UINT32,
   INT32,
   FLOAT,
@@ -18,7 +18,7 @@ typedef enum ConfigDataTypes {
   ARRAY,
 } ConfigDataTypes;
 
-typedef struct ConfigKey {
+typedef struct {
   char keyBuffer[BM_MAX_KEY_LEN_BYTES];
   size_t keyLen;
   ConfigDataTypes valueType;
