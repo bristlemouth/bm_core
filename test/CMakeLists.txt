@@ -88,3 +88,4 @@ set (SRCS
 create_gtest("packet" "${SRC_DIR}/packet.c" "${SRCS}")
 create_gtest("bcmp" "${SRC_DIR}/bcmp.c" "${SRCS}")
 create_gtest("heartbeat" "${SRC_DIR}/heartbeat.c" "${SRCS}")
+create_gtest("info" "${SRC_DIR}/info.c" "${SRCS}")
