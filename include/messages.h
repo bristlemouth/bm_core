@@ -352,6 +352,110 @@ typedef struct {
 //  bm_dfu_event_address_t addr;
 //} __attribute__((packed)) bcmp_dfu_boot_complete_t;
 
+/////////////////////////////
+/* CONFIGURATION*/
+/////////////////////////////
+typedef enum {
+  BM_CFG_PARTITION_USER,
+  BM_CFG_PARTITION_SYSTEM,
+  BM_CFG_PARTITION_HARDWARE,
+} BmConfigPartition;
+
+typedef struct {
+  // Node ID of the target node for which the request is being made.
+  uint64_t target_node_id;
+  // Node ID of the source node
+  uint64_t source_node_id;
+  // message payload
+  uint8_t payload[0];
+} __attribute__((packed)) BmConfigHeader;
+
+typedef struct {
+  BmConfigHeader header;
+  // Partition id
+  BmConfigPartition partition;
+  // String length of the key (without terminator)
+  uint8_t key_length;
+  // Key string
+  char key[0];
+} __attribute__((packed)) BmConfigGet;
+
+typedef struct {
+  BmConfigHeader header;
+  // Partition id
+  BmConfigPartition partition;
+  // Length of cbor buffer
+  uint32_t data_length;
+  // cbor buffer
+  uint8_t data[0];
+} __attribute__((packed)) BmConfigValue;
+
+typedef struct {
+  BmConfigHeader header;
+  // Partition id
+  BmConfigPartition partition;
+  // String length of the key (without terminator)
+  uint8_t key_length;
+  // Length of cbor encoded data buffer
+  uint32_t data_length;
+  // cbor encoded data
+  uint8_t keyAndData[0];
+} __attribute__((packed)) BmConfigSet;
+
+typedef struct {
+  BmConfigHeader header;
+  // Partition id
+  BmConfigPartition partition;
+} __attribute__((packed)) BmConfigCommit;
+
+typedef struct {
+  BmConfigHeader header;
+  // Partition id
+  BmConfigPartition partition;
+} __attribute__((packed)) BmConfigStatusRequest;
+
+typedef struct {
+  // String length of the key (without terminator)
+  uint8_t key_length;
+  // Key string
+  char key[0];
+} __attribute__((packed)) BmConfigStatusKeyData;
+
+typedef struct {
+  BmConfigHeader header;
+  // Partition id
+  BmConfigPartition partition;
+  // True if there are changes to be committed, false otherwise.
+  bool committed;
+  // Number of keys
+  uint8_t num_keys;
+  // Key Data
+  uint8_t keyData[0];
+} __attribute__((packed)) BmConfigStatusResponse;
+
+typedef struct {
+  BmConfigHeader header;
+  // Partition id
+  BmConfigPartition partition;
+  // String length of the key (without terminator)
+  uint8_t key_length;
+  // Key string
+  char key[0];
+} __attribute__((packed)) BmConfigDeleteKeyRequest;
+
+typedef struct {
+  BmConfigHeader header;
+  // success
+  bool success;
+  // Partition id
+  BmConfigPartition partition;
+  // String length of the key (without terminator)
+  uint8_t key_length;
+  // Key string
+  char key[0];
+} __attribute__((packed)) BmConfigDeleteKeyResponse;
+
+
 typedef enum {
   BcmpAckMessage = 0x00,
   BcmpHeartbeatMessage = 0x01,
