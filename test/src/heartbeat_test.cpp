@@ -3,6 +3,8 @@
 
 #include "fff.h"
 
+DEFINE_FFF_GLOBALS;
+
 extern "C" {
 #include "messages/heartbeat.h"
 #include "mock_bcmp.h"

@@ -5,6 +5,8 @@
 
 #include "fff.h"
 
+DEFINE_FFF_GLOBALS;
+
 extern "C" {
 #include "mock_bm_os.h"
 #include "packet.h"

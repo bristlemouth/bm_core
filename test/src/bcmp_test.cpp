@@ -3,6 +3,8 @@
 
 #include "fff.h"
 
+DEFINE_FFF_GLOBALS;
+
 extern "C" {
 #include "bcmp.h"
 #include "mock_bm_ip.h"
