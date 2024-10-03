@@ -1,5 +1,5 @@
 #include "util.h"
-
+#include <stdint.h>
 
 // TODO - add the dfu functions that we will need... need to reference the dfu code to see what we need
 // write
@@ -25,3 +25,4 @@ BmErr bm_dfu_flash_area_erase(const void *flash_area, uint32_t off, uint32_t len
 BmErr bm_dfu_flash_area_get_size(const void *flash_area, uint32_t *size);
 BmErr bm_dfu_flash_area_open(const void **flash_area);
 BmErr bm_dfu_flash_area_write(const void *flash_area, uint32_t off, const void *src, uint32_t len);
+BmErr bm_dfu_flash_area_big_enough(const void *flash_area, uint32_t new_image_size);
