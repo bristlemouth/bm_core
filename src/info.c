@@ -7,13 +7,15 @@
 #include "packet.h"
 #include <string.h>
 
-#define ver_str_max_len (255)
+typedef struct {
+  void (*cb)(void *);
+} InfoCb;
 
 static uint64_t INFO_EXPECT_NODE_ID;
 static LL INFO_REQUEST_LIST;
 
 /*!
-  Send current device information over the network
+  @brief Send current device information over the network
 
   @param dst - ip address to send the information to
 
@@ -21,15 +23,31 @@ static LL INFO_REQUEST_LIST;
   @return BmErr if unsuccessful
 */
 static BmErr bcmp_send_info(void *dst) {
-
   BmErr err = BmENOMEM;
-  uint8_t version_string_len = strlen(version_string());
-  uint8_t device_name_len = strlen(device_name());
-  uint16_t info_len =
-      sizeof(BcmpDeviceInfoReply) + version_string_len + device_name_len;
-  BcmpDeviceInfoReply *dev_info = (BcmpDeviceInfoReply *)bm_malloc(info_len);
+  uint8_t version_string_len = 0;
+  uint8_t device_name_len = 0;
+  uint16_t info_len = 0;
+  BcmpDeviceInfoReply *dev_info = NULL;
+  const char *version = version_string();
+  const char *device = device_name();
+
+  if (version) {
+    version_string_len = strlen(version);
+  }
+  if (device) {
+    device_name_len = strlen(device);
+  }
+
+  info_len = sizeof(BcmpDeviceInfoReply) + version_string_len + device_name_len;
+  dev_info = (BcmpDeviceInfoReply *)bm_malloc(info_len);
 
   if (dev_info) {
+    if (version) {
+      memcpy(&dev_info->strings[0], version, version_string_len);
+    }
+    if (device) {
+      memcpy(&dev_info->strings[version_string_len], device, device_name_len);
+    }
     memset(dev_info, 0, info_len);
     dev_info->info.node_id = node_id();
     dev_info->info.vendor_id = vendor_id();
@@ -38,10 +56,6 @@ static BmErr bcmp_send_info(void *dst) {
     dev_info->info.ver_hw = hardware_revision();
     dev_info->ver_str_len = version_string_len;
     dev_info->dev_name_len = device_name_len;
-
-    memcpy(&dev_info->strings[0], version_string(), version_string_len);
-    memcpy(&dev_info->strings[version_string_len], device_name(),
-           device_name_len);
 
     err = serial_number(dev_info->info.serial_num,
                         member_size(BcmpDeviceInfo, serial_num));
@@ -86,7 +100,9 @@ static BmErr bcmp_process_info_request(BcmpProcessData data) {
 
   @param *neighbor - neighbor structure to populate
   @param *dev_info - device info to populate with
-  @return true if successful, false otherwise
+
+  @return true if successful
+  @return false otherwise
 */
 static bool populate_neighbor_info(BcmpNeighbor *neighbor,
                                    BcmpDeviceInfoReply *dev_info) {
@@ -141,16 +157,14 @@ static bool populate_neighbor_info(BcmpNeighbor *neighbor,
 static BmErr bcmp_process_info_reply(BcmpProcessData data) {
   BcmpDeviceInfoReply *info = (BcmpDeviceInfoReply *)data.payload;
   BmErr err = BmEBADMSG;
-  void (*cb)(void *);
+  InfoCb *cb;
 
   err = ll_get_item(&INFO_REQUEST_LIST, info->info.node_id, (void **)&cb);
-  if (err == BmOK && cb != NULL) {
-    cb(info);
+  if (err == BmOK && cb->cb != NULL) {
+    cb->cb(info);
   } else if (err == BmOK) {
-    //
     // Find neighbor and add info to table if present
     // Only add neighbor info when received to link local multicast address
-    //
     BcmpNeighbor *neighbor = bcmp_find_neighbor(info->info.node_id);
     if (neighbor) {
       // Update neighbor info
@@ -170,7 +184,7 @@ static BmErr bcmp_process_info_reply(BcmpProcessData data) {
         bcmp_print_neighbor_info(tmp_neighbor);
 
         // Clean up
-        err = bcmp_free_neighbor(tmp_neighbor) ? BmOK : err;
+        err = bcmp_free_neighbor(tmp_neighbor) ? BmOK : BmEINVAL;
       }
     }
   }
@@ -180,11 +194,12 @@ static BmErr bcmp_process_info_reply(BcmpProcessData data) {
 }
 
 /*!
-  Set node id to expect information from. Will print out the information
-  when it is received.
+  @brief Set node id to expect information from
 
-  \param node_id node id to expect device information from
-  \return none
+  @details Will print out the information
+           when it is received.
+
+  @param node_id node id to expect device information from
 */
 void bcmp_expect_info_from_node_id(uint64_t node_id) {
   // TODO - add expiration and/or callback?
@@ -192,7 +207,7 @@ void bcmp_expect_info_from_node_id(uint64_t node_id) {
 }
 
 /*!
-  Send a request for device information.
+  @brief Send a request for device information.
 
   @param target_node_id - node id of the target we want the information from (0 for all targets)
   @param *addr - ip address to send request to
@@ -204,8 +219,9 @@ BmErr bcmp_request_info(uint64_t target_node_id, const void *addr,
                         void (*cb)(void *)) {
   BmErr err = BmENOMEM;
   LLItem *item = NULL;
+  InfoCb info_cb = {cb};
 
-  item = ll_create_item(item, cb, sizeof(cb), target_node_id);
+  item = ll_create_item(item, &info_cb, sizeof(info_cb), target_node_id);
   if (item) {
     err = ll_item_add(&INFO_REQUEST_LIST, item);
 
@@ -213,6 +229,9 @@ BmErr bcmp_request_info(uint64_t target_node_id, const void *addr,
 
     bm_err_check(err, bcmp_tx(addr, BcmpDeviceInfoRequestMessage,
                               (uint8_t *)&info_req, sizeof(info_req), 0, NULL));
+    if (err != BmOK) {
+      ll_remove(&INFO_REQUEST_LIST, target_node_id);
+    }
   }
 
   return err;

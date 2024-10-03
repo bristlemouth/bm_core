@@ -20,6 +20,10 @@ typedef struct BcmpResourceList {
   BmSemaphore lock;
 } BcmpResourceList;
 
+typedef struct {
+  void (*cb)(void *);
+} ResourceCb;
+
 static BcmpResourceList PUB_LIST;
 static BcmpResourceList SUB_LIST;
 static LL RESOURCE_REQUEST_LIST;
@@ -137,11 +141,11 @@ static BmErr bcmp_process_resource_discovery_reply(BcmpProcessData data) {
   BmErr err = BmEBADMSG;
   BcmpResourceTableReply *repl = (BcmpResourceTableReply *)data.payload;
   uint64_t src_node_id = ip_to_nodeid(data.src);
-  void (*cb)(void *) = NULL;
+  ResourceCb *cb = NULL;
   if (repl->node_id == src_node_id) {
     err = ll_get_item(&RESOURCE_REQUEST_LIST, src_node_id, (void **)&cb);
-    if (err == BmOK && cb != NULL) {
-      cb(repl);
+    if (err == BmOK && cb->cb != NULL) {
+      cb->cb(repl);
     } else if (err == BmOK) {
       printf("Node Id %016" PRIx64 " resource table:\n", src_node_id);
       uint16_t num_pubs = repl->num_pubs;
@@ -316,6 +320,7 @@ bool bcmp_resource_discovery_send_request(uint64_t target_node_id,
                                           void (*fp)(void *)) {
   bool rval = false;
   LLItem *item = NULL;
+  ResourceCb cb = {fp};
   do {
     BcmpResourceTableRequest req = {
         .target_node_id = target_node_id,
@@ -325,7 +330,7 @@ bool bcmp_resource_discovery_send_request(uint64_t target_node_id,
       printf("Failed to send bcmp resource table request\n");
       break;
     } else {
-      item = ll_create_item(item, fp, sizeof(fp), target_node_id);
+      item = ll_create_item(item, &cb, sizeof(cb), target_node_id);
       if (item && ll_item_add(&RESOURCE_REQUEST_LIST, item)) {
         rval = true;
       }
