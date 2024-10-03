@@ -18,7 +18,7 @@ FetchContent_Declare(
   bm_common
   GIT_REPOSITORY https://github.com/bristlemouth/bm_common.git
   #TODO: This must be set by configuration somehow
-  GIT_TAG        victor/adding_more_abstractions
+  GIT_TAG        main
 )
 FetchContent_MakeAvailable(bm_common)
 
