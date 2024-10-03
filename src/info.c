@@ -157,7 +157,7 @@ static bool populate_neighbor_info(BcmpNeighbor *neighbor,
 static BmErr bcmp_process_info_reply(BcmpProcessData data) {
   BcmpDeviceInfoReply *info = (BcmpDeviceInfoReply *)data.payload;
   BmErr err = BmEBADMSG;
-  InfoCb *cb;
+  InfoCb *cb = NULL;
 
   err = ll_get_item(&INFO_REQUEST_LIST, info->info.node_id, (void **)&cb);
   if (err == BmOK && cb->cb != NULL) {

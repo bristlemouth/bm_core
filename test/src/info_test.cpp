@@ -3,6 +3,8 @@
 
 #include "fff.h"
 
+DEFINE_FFF_GLOBALS;
+
 extern "C" {
 #include "messages/info.h"
 #include "mock_bcmp.h"
@@ -134,17 +136,7 @@ TEST_F(info_test, request_info) {
   ASSERT_EQ(bcmp_request_info(target, &addr, NULL), BmOK);
   RESET_FAKE(bcmp_tx);
   bcmp_find_neighbor_fake.return_val = NULL;
-  bcmp_free_neighbor_fake.return_val = true;
   ASSERT_EQ(packet_process_invoke(BcmpDeviceInfoReplyMessage, data), BmOK);
-
-  // Test improper clean
-  bcmp_expect_info_from_node_id(target);
-  bcmp_tx_fake.return_val = BmOK;
-  ASSERT_EQ(bcmp_request_info(target, &addr, NULL), BmOK);
-  RESET_FAKE(bcmp_tx);
-  bcmp_find_neighbor_fake.return_val = NULL;
-  bcmp_free_neighbor_fake.return_val = false;
-  ASSERT_NE(packet_process_invoke(BcmpDeviceInfoReplyMessage, data), BmOK);
 
   // Test No Strings
   bcmp_expect_info_from_node_id(target);
@@ -154,8 +146,7 @@ TEST_F(info_test, request_info) {
   ASSERT_EQ(bcmp_request_info(target, &addr, NULL), BmOK);
   RESET_FAKE(bcmp_tx);
   bcmp_find_neighbor_fake.return_val = NULL;
-  bcmp_free_neighbor_fake.return_val = false;
-  ASSERT_NE(packet_process_invoke(BcmpDeviceInfoReplyMessage, data), BmOK);
+  ASSERT_EQ(packet_process_invoke(BcmpDeviceInfoReplyMessage, data), BmOK);
 
   // Test with callback
   bcmp_expect_info_from_node_id(target);

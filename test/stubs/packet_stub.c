@@ -9,8 +9,6 @@ struct PacketMeta {
 
 static struct PacketMeta PACKET_META = {0};
 
-DEFINE_FFF_GLOBALS;
-
 DEFINE_FAKE_VALUE_FUNC(BmErr, packet_init, BcmpGetIPAddr, BcmpGetIPAddr,
                        BcmpGetData, BcmpGetChecksum);
 DEFINE_FAKE_VALUE_FUNC(uint16_t, packet_checksum, void *, uint32_t);

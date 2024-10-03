@@ -28,12 +28,22 @@ static BcmpResourceList PUB_LIST;
 static BcmpResourceList SUB_LIST;
 static LL RESOURCE_REQUEST_LIST;
 
+// TODO: Make this a table for faster lookup.
 static bool bcmp_resource_discovery_find_resource_priv(
-    const char *resource, const uint16_t resource_len, ResourceType type);
-static bool bcmp_resource_compute_list_size(ResourceType type, size_t *msg_len);
-static bool bcmp_resource_populate_msg_data(ResourceType type,
-                                            BcmpResourceTableReply *repl,
-                                            uint32_t *data_offset);
+    const char *resource, const uint16_t resource_len, ResourceType type) {
+  bool rval = false;
+  BcmpResourceList *res_list = (type == SUB) ? &SUB_LIST : &PUB_LIST;
+  do {
+    BcmpResourceNode *cur = res_list->start;
+    while (cur) {
+      if (memcmp(resource, cur->resource->resource, resource_len) == 0) {
+        return true;
+      }
+      cur = cur->next;
+    }
+  } while (0);
+  return rval;
+}
 
 static bool bcmp_resource_compute_list_size(ResourceType type,
                                             size_t *msg_len) {
@@ -104,25 +114,23 @@ static BmErr bcmp_process_resource_discovery_request(BcmpProcessData data) {
     // Create and fill the reply
     uint8_t *reply_buf = (uint8_t *)bm_malloc(msg_len);
     if (reply_buf) {
-      do {
-        BcmpResourceTableReply *repl = (BcmpResourceTableReply *)reply_buf;
-        repl->node_id = node_id();
-        uint32_t data_offset = 0;
-        if (!bcmp_resource_populate_msg_data(PUB, repl, &data_offset)) {
-          printf("Failed to get publishers list\n.");
-          break;
-        }
-        if (!bcmp_resource_populate_msg_data(SUB, repl, &data_offset)) {
-          printf("Failed to get publishers list\n.");
-          break;
-        }
-        if (bcmp_tx(data.dst, BcmpResourceTableReplyMessage, reply_buf, msg_len,
-                    0, NULL) != BmOK) {
-          printf("Failed to send bcmp resource table reply\n");
-        } else {
-          err = BmOK;
-        }
-      } while (0);
+      BcmpResourceTableReply *repl = (BcmpResourceTableReply *)reply_buf;
+      repl->node_id = node_id();
+      uint32_t data_offset = 0;
+      if (!bcmp_resource_populate_msg_data(PUB, repl, &data_offset)) {
+        printf("Failed to get publishers list\n.");
+        return err;
+      }
+      if (!bcmp_resource_populate_msg_data(SUB, repl, &data_offset)) {
+        printf("Failed to get publishers list\n.");
+        return err;
+      }
+      if (bcmp_tx(data.dst, BcmpResourceTableReplyMessage, reply_buf, msg_len,
+                  0, NULL) != BmOK) {
+        printf("Failed to send bcmp resource table reply\n");
+      } else {
+        err = BmOK;
+      };
       bm_free(reply_buf);
     }
   }
@@ -131,18 +139,22 @@ static BmErr bcmp_process_resource_discovery_request(BcmpProcessData data) {
 }
 
 /*!
-  Process the resource discovery reply message.
+  @brief Process the resource discovery reply message.
 
-  \param in *repl - reply
-  \param in src_node_id - node ID of the source.
-  \return - None
+  @param in *repl - reply
+  @param in src_node_id - node ID of the source.
+
+  @return BmOK if message found or this message is not for us
+  @return BmErr if unsuccessful
 */
 static BmErr bcmp_process_resource_discovery_reply(BcmpProcessData data) {
-  BmErr err = BmEBADMSG;
+  BmErr err = BmOK;
   BcmpResourceTableReply *repl = (BcmpResourceTableReply *)data.payload;
   uint64_t src_node_id = ip_to_nodeid(data.src);
   ResourceCb *cb = NULL;
+
   if (repl->node_id == src_node_id) {
+    err = BmEBADMSG;
     err = ll_get_item(&RESOURCE_REQUEST_LIST, src_node_id, (void **)&cb);
     if (err == BmOK && cb->cb != NULL) {
       cb->cb(repl);
@@ -169,7 +181,6 @@ static BmErr bcmp_process_resource_discovery_reply(BcmpProcessData data) {
         offset += (sizeof(BcmpResource) + cur_resource->resource_len);
         num_subs--;
       }
-      err = BmOK;
     }
     ll_remove(&RESOURCE_REQUEST_LIST, src_node_id);
   }
@@ -178,9 +189,7 @@ static BmErr bcmp_process_resource_discovery_reply(BcmpProcessData data) {
 }
 
 /*!
-  Init the bcmp resource discovery module.
-
-  \return - None
+  @brief Init the bcmp resource discovery module.
 */
 BmErr bcmp_resource_discovery_init(void) {
   BmErr err = BmENOMEM;
@@ -213,14 +222,18 @@ BmErr bcmp_resource_discovery_init(void) {
 }
 
 /*!
-  Add a resource to the resource discovery module. Note that you can add this for a topic you intend to publish data
-  to ahead of actually publishing the data.
+  @brief Add a resource to the resource discovery module
 
-  \param in *res - resource name
-  \param in resource_len - length of the resource name
-  \param in type - publishers or subscribers
-  \param in timeoutMs - how long to wait to add resource in milliseconds.
-  \return - true on success, false otherwise
+  @details Note that you can add this for a topic you intend to publish data
+           to ahead of actually publishing the data
+
+  @param *res - resource name
+  @param resource_len - length of the resource name
+  @param type - publishers or subscribers
+  @param timeoutMs - how long to wait to add resource in milliseconds.
+
+  @return true on success
+  @return false otherwise
 */
 bool bcmp_resource_discovery_add_resource(const char *res,
                                           const uint16_t resource_len,
@@ -265,12 +278,14 @@ bool bcmp_resource_discovery_add_resource(const char *res,
 }
 
 /*!
-  Get number of resources in the table.
+  @brief Get number of resources in the table.
 
-  \param out &num_resources - number of resources in the table.
-  \param in type - publishers or subscribers
-  \param in timeoutMs - how long to wait to add resource in milliseconds.
-  \return - true on success, false otherwise
+  @param out &num_resources - number of resources in the table.
+  @param in type - publishers or subscribers
+  @param in timeoutMs - how long to wait to add resource in milliseconds.
+
+  @return true on success
+  @return false otherwise
 */
 bool bcmp_resource_discovery_get_num_resources(uint16_t *num_resources,
                                                ResourceType type,
@@ -286,14 +301,16 @@ bool bcmp_resource_discovery_get_num_resources(uint16_t *num_resources,
 }
 
 /*!
-  Check if a given resource is in the table.
+  @brief Check if a given resource is in the table.
 
-  \param in *res - resource name
-  \param in resource_len - length of the resource name
-  \param out &found - whether or not the resource was found in the table
-  \param in type - publishers or subscribers
-  \param in timeoutMs - how long to wait to add resource in milliseconds.
-  \return - true on success, false otherwise
+  @param in *res - resource name
+  @param in resource_len - length of the resource name
+  @param out &found - whether or not the resource was found in the table
+  @param in type - publishers or subscribers
+  @param in timeoutMs - how long to wait to add resource in milliseconds.
+
+  @return true on success
+  @return false otherwise
 */
 bool bcmp_resource_discovery_find_resource(const char *res,
                                            const uint16_t resource_len,
@@ -311,38 +328,35 @@ bool bcmp_resource_discovery_find_resource(const char *res,
 }
 
 /*!
-  Send a bcmp resource discovery request to a node.
+  @brief Send a bcmp resource discovery request to a node.
 
-  \param in target_node_id - requested node id
-  \return - true on success, false otherwise
+  @param in target_node_id - requested node id
+
+  @return true on success
+  @return false otherwise
 */
 bool bcmp_resource_discovery_send_request(uint64_t target_node_id,
                                           void (*fp)(void *)) {
   bool rval = false;
   LLItem *item = NULL;
   ResourceCb cb = {fp};
-  do {
-    BcmpResourceTableRequest req = {
-        .target_node_id = target_node_id,
-    };
-    if (bcmp_tx(&multicast_ll_addr, BcmpResourceTableRequestMessage,
-                (uint8_t *)&req, sizeof(req), 0, NULL) != BmOK) {
-      printf("Failed to send bcmp resource table request\n");
-      break;
-    } else {
-      item = ll_create_item(item, &cb, sizeof(cb), target_node_id);
-      if (item && ll_item_add(&RESOURCE_REQUEST_LIST, item)) {
-        rval = true;
-      }
+  BcmpResourceTableRequest req = {
+      .target_node_id = target_node_id,
+  };
+  if (bcmp_tx(&multicast_ll_addr, BcmpResourceTableRequestMessage,
+              (uint8_t *)&req, sizeof(req), 0, NULL) != BmOK) {
+    printf("Failed to send bcmp resource table request\n");
+  } else {
+    item = ll_create_item(item, &cb, sizeof(cb), target_node_id);
+    if (item && ll_item_add(&RESOURCE_REQUEST_LIST, item) == BmOK) {
+      rval = true;
     }
-  } while (0);
+  }
   return rval;
 }
 
 /*!
-  Print the resources in the table.
-
-  \return - None
+  @brief Print the resources in the table.
 */
 void bcmp_resource_discovery_print_resources(void) {
   printf("Resource table:\n");
@@ -376,27 +390,10 @@ void bcmp_resource_discovery_print_resources(void) {
   }
 }
 
-// TODO: Make this a table for faster lookup.
-static bool bcmp_resource_discovery_find_resource_priv(
-    const char *resource, const uint16_t resource_len, ResourceType type) {
-  bool rval = false;
-  BcmpResourceList *res_list = (type == SUB) ? &SUB_LIST : &PUB_LIST;
-  do {
-    BcmpResourceNode *cur = res_list->start;
-    while (cur) {
-      if (memcmp(resource, cur->resource->resource, resource_len) == 0) {
-        return true;
-      }
-      cur = cur->next;
-    }
-  } while (0);
-  return rval;
-}
-
 /*!
-  Get the resources in the table.
+  @brief Get the resources in the table.
 
-  \return - pointer to the resource table reply, caller is responsible for freeing the memory.
+  @return pointer to the resource table reply, caller is responsible for freeing the memory.
 */
 BcmpResourceTableReply *bcmp_resource_discovery_get_local_resources(void) {
   bool success = false;
