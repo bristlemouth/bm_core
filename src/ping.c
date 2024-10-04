@@ -6,10 +6,10 @@
 #include <inttypes.h>
 #include <string.h>
 
-static uint64_t ping_request_timeout;
-static uint32_t bcmp_seq;
-static uint8_t *expected_payload = NULL;
-static uint16_t expected_payload_len = 0;
+static uint64_t PING_REQUEST_TIMEOUT;
+static uint32_t BCMP_SEQ;
+static uint8_t *EXPECTED_PAYLOAD = NULL;
+static uint16_t EXPECTED_PAYLOAD_LEN = 0;
 
 /*!
   @brief Send ping to node(s)
@@ -39,22 +39,22 @@ BmErr bcmp_send_ping_request(uint64_t node, const void *addr,
     echo_req->target_node_id = node;
     echo_req->id =
         (uint16_t)node_id(); // TODO - make this a randomly generated number
-    echo_req->seq_num = bcmp_seq++;
+    echo_req->seq_num = BCMP_SEQ++;
     echo_req->payload_len = payload_len;
 
     // clear the expected payload
-    if (expected_payload != NULL) {
-      bm_free(expected_payload);
-      expected_payload = NULL;
-      expected_payload_len = 0;
+    if (EXPECTED_PAYLOAD != NULL) {
+      bm_free(EXPECTED_PAYLOAD);
+      EXPECTED_PAYLOAD = NULL;
+      EXPECTED_PAYLOAD_LEN = 0;
     }
 
     // Lets only copy the payload if it isn't NULL just in case
     if (payload != NULL && payload_len > 0) {
       memcpy(&echo_req->payload[0], payload, payload_len);
-      expected_payload = (uint8_t *)bm_malloc(payload_len);
-      memcpy(expected_payload, payload, payload_len);
-      expected_payload_len = payload_len;
+      EXPECTED_PAYLOAD = (uint8_t *)bm_malloc(payload_len);
+      memcpy(EXPECTED_PAYLOAD, payload, payload_len);
+      EXPECTED_PAYLOAD_LEN = payload_len;
     }
 
     printf("PING (%016" PRIx64 "): %" PRIu16 " data bytes\n",
@@ -63,7 +63,7 @@ BmErr bcmp_send_ping_request(uint64_t node, const void *addr,
     err = bcmp_tx(addr, BcmpEchoRequestMessage, (uint8_t *)echo_req, echo_len,
                   0, NULL);
 
-    ping_request_timeout = bm_ticks_to_ms(bm_get_tick_count());
+    PING_REQUEST_TIMEOUT = bm_ticks_to_ms(bm_get_tick_count());
 
     bm_free(echo_req);
   }
@@ -126,16 +126,16 @@ static BmErr bcmp_process_ping_reply(BcmpProcessData data) {
   BcmpEchoReply *echo_reply = (BcmpEchoReply *)data.payload;
 
   // TODO - once we have random numbers working we can then use a static number to check
-  if (expected_payload_len == echo_reply->payload_len &&
+  if (EXPECTED_PAYLOAD_LEN == echo_reply->payload_len &&
       ((uint16_t)node_id() == echo_reply->id)) {
-    if (expected_payload != NULL) {
-      if (memcmp(expected_payload, echo_reply->payload,
+    if (EXPECTED_PAYLOAD != NULL) {
+      if (memcmp(EXPECTED_PAYLOAD, echo_reply->payload,
                  echo_reply->payload_len) != 0) {
         return err;
       }
     }
 
-    uint64_t diff = bm_ticks_to_ms(bm_get_tick_count()) - ping_request_timeout;
+    uint64_t diff = bm_ticks_to_ms(bm_get_tick_count()) - PING_REQUEST_TIMEOUT;
     printf("🏓 %" PRIu16 " bytes from %016" PRIx64 " bcmp_seq=%" PRIu32
            " time=%" PRIu64 " ms\n",
            echo_reply->payload_len, echo_reply->node_id, echo_reply->seq_num,

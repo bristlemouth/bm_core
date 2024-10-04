@@ -94,19 +94,21 @@ TEST_F(ping_test, reply_ping) {
   ASSERT_EQ(bcmp_send_ping_request(request.target_node_id, NULL,
                                    (const uint8_t *)str, strlen(str)),
             BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
+  RESET_FAKE(bcmp_tx);
   bm_ticks_to_ms_fake.return_val = 100;
   ASSERT_EQ(packet_process_invoke(BcmpEchoReplyMessage, data), BmOK);
   RESET_FAKE(bm_ticks_to_ms)
 
-  // Run again to free mem
+  // Run again to test replacment of expected payload
   ASSERT_EQ(bcmp_send_ping_request(request.target_node_id, NULL,
                                    (const uint8_t *)str, strlen(str)),
             BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
+  RESET_FAKE(bcmp_tx);
   bm_ticks_to_ms_fake.return_val = 100;
   ASSERT_EQ(packet_process_invoke(BcmpEchoReplyMessage, data), BmOK);
   RESET_FAKE(bm_ticks_to_ms)
-
-  //
 
   free(reply);
 }
