@@ -12,6 +12,7 @@ NeighborDiscoveryCallback NEIGHBOR_DISCOVERY_CB = NULL;
   @brief Accessor to latest the neighbor linked-list and nieghbor count
 
   @param[out] &num_neighbors - number of neighbors
+
   @return - pointer to neighbors linked-list
 */
 BcmpNeighbor *bcmp_get_neighbors(uint8_t *num_neighbors) {
@@ -24,7 +25,9 @@ BcmpNeighbor *bcmp_get_neighbors(uint8_t *num_neighbors) {
   @bried Find neighbor entry in neighbor table
 
   @param node_id - neighbor's node_id
-  @return pointer to neighbor if successful, NULL otherwise
+
+  @return pointer to neighbor if successful
+  @return NULL if unsuccessful
 */
 BcmpNeighbor *bcmp_find_neighbor(uint64_t node_id) {
   BcmpNeighbor *neighbor = NEIGHBORS;
@@ -46,7 +49,6 @@ BcmpNeighbor *bcmp_find_neighbor(uint64_t node_id) {
   @brief Iterate through all neighbors and call callback function for each
 
   @param *callback - callback function to call for each neighbor
-  @return none
 */
 void bcmp_neighbor_foreach(NeighborCallback cb) {
   BcmpNeighbor *neighbor = NEIGHBORS;
@@ -81,9 +83,7 @@ static void neighbor_check(BcmpNeighbor *neighbor) {
 }
 
 /*!
-  Check neighbor livelyness status for all neighbors
-
-  \return none
+  @brief Check neighbor livelyness status for all neighbors
 */
 void bcmp_check_neighbors(void) { bcmp_neighbor_foreach(neighbor_check); }
 
@@ -182,7 +182,9 @@ bool bcmp_free_neighbor(BcmpNeighbor *neighbor) {
   @brief Delete neighbor from neighbor table
 
   @param *neighbor - pointer to neighbor to remove
-  @return true if successful, false otherwise
+
+  @return true if successful
+  @return false otherwise
 */
 bool bcmp_remove_neighbor_from_table(BcmpNeighbor *neighbor) {
   bool rval = false;
@@ -208,7 +210,7 @@ bool bcmp_remove_neighbor_from_table(BcmpNeighbor *neighbor) {
         }
 
         // Go to the next one
-        next_neighbor = neighbor->next;
+        next_neighbor = next_neighbor->next;
       }
     }
 

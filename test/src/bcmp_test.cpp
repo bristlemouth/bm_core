@@ -61,7 +61,7 @@ TEST_F(bcmp_test, init) {
 }
 
 TEST_F(bcmp_test, bcmp_tx) {
-  const uint32_t dst = RND.rnd_int(UINT32_MAX, 0);
+  const uint32_t dst = RND.rnd_int(UINT32_MAX, 1);
   const uint16_t size = RND.rnd_int(max_payload_len, UINT8_MAX);
   BcmpMessageType type = (BcmpMessageType)RND.rnd_int(UINT8_MAX, 0);
   uint8_t seq_num = RND.rnd_int(UINT8_MAX, 0);

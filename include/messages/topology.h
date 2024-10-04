@@ -3,9 +3,9 @@
 #include "messages.h"
 #include "util.h"
 
-typedef struct neighborTableEntry_t {
-  struct neighborTableEntry_t *prevNode;
-  struct neighborTableEntry_t *nextNode;
+typedef struct NeighborTableEntry {
+  struct NeighborTableEntry *prevNode;
+  struct NeighborTableEntry *nextNode;
 
   // increment this each time a port's path has been explored
   // when this is equal to the number of ports we can say
@@ -17,12 +17,12 @@ typedef struct neighborTableEntry_t {
 
   BcmpNeighborTableReply *neighbor_table_reply;
 
-} neighborTableEntry_t;
+} NeighborTableEntry;
 
 typedef struct {
-  neighborTableEntry_t *front;
-  neighborTableEntry_t *back;
-  neighborTableEntry_t *cursor;
+  NeighborTableEntry *front;
+  NeighborTableEntry *back;
+  NeighborTableEntry *cursor;
   uint8_t length;
   int16_t index;
 } networkTopology_t;
