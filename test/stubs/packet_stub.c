@@ -78,6 +78,7 @@ void packet_cleanup(void) {
   while (item != NULL) {
     item = item->next;
     ll_delete_item(prev);
+    prev = item;
   }
   PACKET_META.ll.head = NULL;
   PACKET_META.ll.tail = NULL;
