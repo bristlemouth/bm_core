@@ -232,22 +232,20 @@ BmErr bcmp_resource_discovery_init(void) {
   @param type - publishers or subscribers
   @param timeoutMs - how long to wait to add resource in milliseconds.
 
-  @return true on success
-  @return false otherwise
+  @return BmOK on success
+  @return BmErr otherwise
 */
-bool bcmp_resource_discovery_add_resource(const char *res,
-                                          const uint16_t resource_len,
-                                          ResourceType type,
-                                          uint32_t timeoutMs) {
-  bool rval = false;
+BmErr bcmp_resource_discovery_add_resource(const char *res,
+                                           const uint16_t resource_len,
+                                           ResourceType type,
+                                           uint32_t timeoutMs) {
+  BmErr err = BmETIMEDOUT;
   BcmpResourceList *res_list = (type == SUB) ? &SUB_LIST : &PUB_LIST;
   if (bm_semaphore_take(res_list->lock, timeoutMs) == BmOK) {
-    do {
-      // Check for resource
-      if (bcmp_resource_discovery_find_resource_priv(res, resource_len, type)) {
-        // Already in list.
-        break;
-      }
+    // Check for resource
+    if (bcmp_resource_discovery_find_resource_priv(res, resource_len, type)) {
+      err = BmEAGAIN;
+    } else {
       // Build resouce
       size_t resource_size = sizeof(BcmpResource) + resource_len;
       uint8_t *resource_buffer = (uint8_t *)bm_malloc(resource_size);
@@ -269,12 +267,14 @@ bool bcmp_resource_discovery_add_resource(const char *res,
         }
         res_list->end = resource_node;
         res_list->num_resources++;
-        rval = true;
+        err = BmOK;
+      } else {
+        err = BmENOMEM;
       }
-    } while (0);
+    }
     bm_semaphore_give(res_list->lock);
   }
-  return rval;
+  return err;
 }
 
 /*!
@@ -287,17 +287,17 @@ bool bcmp_resource_discovery_add_resource(const char *res,
   @return true on success
   @return false otherwise
 */
-bool bcmp_resource_discovery_get_num_resources(uint16_t *num_resources,
-                                               ResourceType type,
-                                               uint32_t timeoutMs) {
-  bool rval = false;
+BmErr bcmp_resource_discovery_get_num_resources(uint16_t *num_resources,
+                                                ResourceType type,
+                                                uint32_t timeoutMs) {
+  BmErr err = BmETIMEDOUT;
   BcmpResourceList *res_list = (type == SUB) ? &SUB_LIST : &PUB_LIST;
   if (bm_semaphore_take(res_list->lock, timeoutMs) == BmOK) {
     *num_resources = res_list->num_resources;
-    rval = true;
+    err = BmOK;
     bm_semaphore_give(res_list->lock);
   }
-  return rval;
+  return err;
 }
 
 /*!
@@ -312,19 +312,19 @@ bool bcmp_resource_discovery_get_num_resources(uint16_t *num_resources,
   @return true on success
   @return false otherwise
 */
-bool bcmp_resource_discovery_find_resource(const char *res,
-                                           const uint16_t resource_len,
-                                           bool *found, ResourceType type,
-                                           uint32_t timeoutMs) {
-  bool rval = false;
+BmErr bcmp_resource_discovery_find_resource(const char *res,
+                                            const uint16_t resource_len,
+                                            bool *found, ResourceType type,
+                                            uint32_t timeoutMs) {
+  BmErr err = BmETIMEDOUT;
   BcmpResourceList *res_list = (type == SUB) ? &SUB_LIST : &PUB_LIST;
   if (bm_semaphore_take(res_list->lock, timeoutMs) == BmOK) {
     *found =
         bcmp_resource_discovery_find_resource_priv(res, resource_len, type);
-    rval = true;
+    err = BmOK;
     bm_semaphore_give(res_list->lock);
   }
-  return rval;
+  return err;
 }
 
 /*!
@@ -332,12 +332,12 @@ bool bcmp_resource_discovery_find_resource(const char *res,
 
   @param in target_node_id - requested node id
 
-  @return true on success
-  @return false otherwise
+  @return BmOK on success
+  @return BmErr otherwise
 */
-bool bcmp_resource_discovery_send_request(uint64_t target_node_id,
-                                          void (*fp)(void *)) {
-  bool rval = false;
+BmErr bcmp_resource_discovery_send_request(uint64_t target_node_id,
+                                           void (*fp)(void *)) {
+  BmErr err = BmEBADMSG;
   LLItem *item = NULL;
   ResourceCb cb = {fp};
   BcmpResourceTableRequest req = {
@@ -349,10 +349,12 @@ bool bcmp_resource_discovery_send_request(uint64_t target_node_id,
   } else {
     item = ll_create_item(item, &cb, sizeof(cb), target_node_id);
     if (item && ll_item_add(&RESOURCE_REQUEST_LIST, item) == BmOK) {
-      rval = true;
+      err = BmOK;
+    } else {
+      err = BmENOMEM;
     }
   }
-  return rval;
+  return err;
 }
 
 /*!
