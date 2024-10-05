@@ -58,29 +58,32 @@ TEST_F(resource_discovery_test, resource_process_request) {
     ASSERT_EQ(bcmp_resource_discovery_add_resource(
                   resources_pub[i], strlen(resources_pub[i]), PUB,
                   default_resource_add_timeout_ms),
-              true);
+              BmOK);
   }
   for (size_t i = 0; i < array_size(resources_sub); i++) {
     ASSERT_EQ(bcmp_resource_discovery_add_resource(
                   resources_sub[i], strlen(resources_sub[i]), SUB,
                   default_resource_add_timeout_ms),
-              true);
+              BmOK);
   }
 
   // Test successful process request
   bcmp_tx_fake.return_val = BmOK;
   node_id_fake.return_val = request.target_node_id;
   ASSERT_EQ(packet_process_invoke(BcmpResourceTableRequestMessage, data), BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
   RESET_FAKE(bcmp_tx);
 
   // Test wrong node for request
   node_id_fake.return_val = 0;
   ASSERT_NE(packet_process_invoke(BcmpResourceTableRequestMessage, data), BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 0);
 
   // Test failure to transmit
   bcmp_tx_fake.return_val = BmEBADMSG;
   node_id_fake.return_val = request.target_node_id;
   ASSERT_NE(packet_process_invoke(BcmpResourceTableRequestMessage, data), BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
   RESET_FAKE(bcmp_tx);
 
   // Initialize to cleanup list
@@ -145,27 +148,32 @@ TEST_F(resource_discovery_test, resource_process_reply) {
 
   // Test successful process reply
   bcmp_tx_fake.return_val = BmOK;
-  ASSERT_EQ(bcmp_resource_discovery_send_request(target_node_id, NULL), true);
+  ASSERT_EQ(bcmp_resource_discovery_send_request(target_node_id, NULL), BmOK);
   ASSERT_EQ(packet_process_invoke(BcmpResourceTableReplyMessage, data), BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
   RESET_FAKE(bcmp_tx);
 
   // Test unsuccessful send request
   bcmp_tx_fake.return_val = BmEBADMSG;
-  ASSERT_EQ(bcmp_resource_discovery_send_request(target_node_id, NULL), false);
+  ASSERT_NE(bcmp_resource_discovery_send_request(target_node_id, NULL), BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
   RESET_FAKE(bcmp_tx);
 
   // Test wrong node ID (reset and run at the end to clear ll item)
   reply->node_id = 0xff;
-  ASSERT_EQ(bcmp_resource_discovery_send_request(target_node_id, NULL), true);
+  ASSERT_EQ(bcmp_resource_discovery_send_request(target_node_id, NULL), BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
   ASSERT_EQ(packet_process_invoke(BcmpResourceTableReplyMessage, data), BmOK);
   reply->node_id = 0;
   ASSERT_EQ(packet_process_invoke(BcmpResourceTableReplyMessage, data), BmOK);
+  RESET_FAKE(bcmp_tx);
 
   // Test 0 pubs and 0 subs
   reply->num_pubs = array_size(resources_pub);
   reply->num_subs = array_size(resources_sub);
   bcmp_tx_fake.return_val = BmOK;
-  ASSERT_EQ(bcmp_resource_discovery_send_request(target_node_id, NULL), true);
+  ASSERT_EQ(bcmp_resource_discovery_send_request(target_node_id, NULL), BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
   ASSERT_EQ(packet_process_invoke(BcmpResourceTableReplyMessage, data), BmOK);
   RESET_FAKE(bcmp_tx);
 
@@ -173,7 +181,8 @@ TEST_F(resource_discovery_test, resource_process_reply) {
   bcmp_tx_fake.return_val = BmOK;
   ASSERT_EQ(bcmp_resource_discovery_send_request(target_node_id,
                                                  resource_discovery_cb),
-            true);
+            BmOK);
+  ASSERT_EQ(bcmp_tx_fake.call_count, 1);
   ASSERT_EQ(packet_process_invoke(BcmpResourceTableReplyMessage, data), BmOK);
   RESET_FAKE(bcmp_tx);
   ASSERT_EQ(CALL_COUNT, 1);
@@ -210,39 +219,39 @@ TEST_F(resource_discovery_test, resource_adding_getting) {
     ASSERT_EQ(bcmp_resource_discovery_add_resource(
                   resources_pub[i], strlen(resources_pub[i]), PUB,
                   default_resource_add_timeout_ms),
-              true);
+              BmOK);
   }
   for (size_t i = 0; i < array_size(resources_sub); i++) {
     ASSERT_EQ(bcmp_resource_discovery_add_resource(
                   resources_sub[i], strlen(resources_sub[i]), SUB,
                   default_resource_add_timeout_ms),
-              true);
+              BmOK);
   }
   ASSERT_EQ(bcmp_resource_discovery_add_resource(
                 resources_sub[0], strlen(resources_sub[0]), SUB,
                 default_resource_add_timeout_ms),
-            false);
+            BmEAGAIN);
 
   // Test finding resources
   ASSERT_EQ(bcmp_resource_discovery_find_resource(
                 resources_pub[0], strlen(resources_pub[0]), &found, PUB,
                 default_resource_add_timeout_ms),
-            true);
+            BmOK);
   ASSERT_EQ(found, true);
   ASSERT_EQ(bcmp_resource_discovery_find_resource(
                 resources_not, strlen(resources_not), &found, PUB,
                 default_resource_add_timeout_ms),
-            true);
+            BmOK);
   ASSERT_EQ(found, false);
 
   // Get number of resources
   ASSERT_EQ(bcmp_resource_discovery_get_num_resources(
                 &num_resources, PUB, default_resource_add_timeout_ms),
-            true);
+            BmOK);
   ASSERT_EQ(num_resources, array_size(resources_pub));
   ASSERT_EQ(bcmp_resource_discovery_get_num_resources(
                 &num_resources, SUB, default_resource_add_timeout_ms),
-            true);
+            BmOK);
   ASSERT_EQ(num_resources, array_size(resources_sub));
 
   bcmp_resource_discovery_print_resources();
