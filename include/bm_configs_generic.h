@@ -3,6 +3,7 @@
 
 
 #include "util.h"
+#include "cbor.h"
 #include "messages.h"
 #include <stdint.h>
 
