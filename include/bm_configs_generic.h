@@ -36,6 +36,6 @@ bool bcmp_set_config(const char *key, size_t key_len, uint8_t *value,
                      size_t value_len, BmConfigPartition partition);
 bool bcmp_get_config(const char *key, size_t key_len, uint8_t *value,
                      size_t &value_len, BmConfigPartition partition);
-bool bm_cbor_type_to_config_type(const CborValue *value, ConfigDataTypes &configType);
+bool bm_cbor_type_to_config_type(const CborValue *value, GenericConfigDataTypes *configType);
 
 #endif // __BM_CONFIGS_GENERIC_H__
