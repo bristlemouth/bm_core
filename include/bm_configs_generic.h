@@ -7,6 +7,20 @@
 #include <stdint.h>
 
 #define BM_MAX_KEY_LEN_BYTES 32
+#define BM_MAX_NUM_KV 50
+#define BM_MAX_KEY_LEN_BYTES 32
+#define BM_MAX_STR_LEN_BYTES 50
+#define BM_MAX_CONFIG_BUFFER_SIZE_BYTES 50
+#define BM_CONFIG_VERSION 0
+
+typedef enum {
+    UINT32,
+    INT32,
+    FLOAT,
+    STR,
+    BYTES,
+    ARRAY,
+} ConfigDataTypes;
 
 typedef enum {
   UINT32,
