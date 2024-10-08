@@ -50,11 +50,11 @@ else()
         src/service.c
         src/heartbeat.c
         src/bcmp.c
-        ${CMAKE_CURRENT_LIST_DIR}third_party/tinycbor/src/cborparser.c
-        ${CMAKE_CURRENT_LIST_DIR}third_party/tinycbor/src/cborencoder_float.c
-        ${CMAKE_CURRENT_LIST_DIR}third_party/tinycbor/src/cborencoder.c
-        ${CMAKE_CURRENT_LIST_DIR}third_party/tinycbor/src/cborerrorstrings.c
-        ${CMAKE_CURRENT_LIST_DIR}third_party/tinycbor/src/cborvalidation.c
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborerrorstrings.c
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborvalidation.c
     )
     add_library(bmcore ${SOURCES})
 
