@@ -24,9 +24,15 @@ FetchContent_MakeAvailable(bm_common)
 
 #TODO: Configuration will determine RTOS and IP stack here
 
+# TODO - is this needed here or leave it in the application cmake files?
+set(COMPILE_FLAGS
+    -DCBOR_CUSTOM_ALLOC_INCLUDE="tinycbor_alloc.h"
+    -DCBOR_PARSER_MAX_RECURSIONS=10
+)
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${bm_common_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
 )
 
 
@@ -44,6 +50,11 @@ else()
         src/service.c
         src/heartbeat.c
         src/bcmp.c
+        third_party/tinycbor/src/cborparser.c
+        third_party/tinycbor/src/cborencoder_float.c
+        third_party/tinycbor/src/cborencoder.c
+        third_party/tinycbor/src/cborerrorstrings.c
+        third_party/tinycbor/src/cborvalidation.c
     )
     add_library(bmcore ${SOURCES})
 
