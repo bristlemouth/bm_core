@@ -1,5 +1,31 @@
 cmake_minimum_required(VERSION 3.29)
 
+# - Add Platform File To Build
+
+# This function adds any item in a src/platform directory to the build
+# based on the parameters. It allows for specific platform implementations
+# to be utilized for the integrator's project. This function works by
+# passing in a list of sources, a subname (uppercase) of the file in
+# which will be pulled into the build, along with a path to the directory of
+# the project (it could be another project/module)
+#
+# sources - list variable to append the found sources to
+# platform - uppercase subname of the platform to be compiled into the
+#          project
+# path - path to the root directory with a following relative path of
+#        src/platform (see this repository for example)
+function(append_platform_file sources platform path)
+    file(GLOB files "${path}/src/platform/*.c")
+    foreach(file ${files})
+        string(TOUPPER "${file}" file_upper)
+        if (${file_upper} MATCHES ${platform})
+            list(APPEND ${sources} ${file})
+            set(${sources} "${${sources}}" PARENT_SCOPE)
+            break()
+        endif()
+    endforeach()
+endfunction()
+
 if(NOT ENABLE_TESTING)
     set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/arm-gcc-toolchain.cmake)
 endif()
@@ -21,8 +47,6 @@ FetchContent_Declare(
   GIT_TAG        main
 )
 FetchContent_MakeAvailable(bm_common)
-
-#TODO: Configuration will determine RTOS and IP stack here
 
 set(COMPILE_FLAGS
     -DCBOR_CUSTOM_ALLOC_INCLUDE="tinycbor_alloc.h"
@@ -66,6 +90,12 @@ else()
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborerrorstrings.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborvalidation.c
+    )
+    append_platform_file(SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR})
+    append_platform_file(SOURCES ${BM_OS} ${bm_common_SOURCE_DIR})
+    include_directories(
+        "${BM_IP_INCLUDES}"
+        "${BM_OS_INCLUDES}"
     )
     add_library(bmcore ${SOURCES})
 
