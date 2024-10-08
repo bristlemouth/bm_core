@@ -29,6 +29,7 @@ set(COMPILE_FLAGS
     -DCBOR_CUSTOM_ALLOC_INCLUDE="tinycbor_alloc.h"
     -DCBOR_PARSER_MAX_RECURSIONS=10
 )
+
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${bm_common_SOURCE_DIR}/include
