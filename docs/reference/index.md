@@ -5,5 +5,6 @@ The following are reference guides explaining how certain aspects of the Bristle
 ```{toctree}
 :maxdepth: 1
 
+l2.md
 bcmp.md
 ```
