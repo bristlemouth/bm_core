@@ -116,7 +116,7 @@ static uint8_t bcmp_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
       memcpy(src_ref, src, sizeof(ip_addr_t));
       *layout = (LwipLayout){pbuf, src_ref, dst_ref};
 
-      BcmpQueueItem item = {BCMP_EVT_RX, (void *)layout, layout->pbuf->len};
+      BcmpQueueItem item = {BcmpEventRx, (void *)layout, layout->pbuf->len};
       if (bm_queue_send(queue, &item, 0) != BmOK) {
         printf("Error sending to Queue\n");
         pbuf_free(pbuf);
