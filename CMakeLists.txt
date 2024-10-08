@@ -1,5 +1,17 @@
 cmake_minimum_required(VERSION 3.29)
 
+function(append_platform_file sources platform path)
+    file(GLOB files "${path}/src/platform/*.c")
+    foreach(file ${files})
+        string(TOUPPER "${file}" file_upper)
+        if (${file_upper} MATCHES ${platform})
+            list(APPEND ${sources} ${file})
+            set(${sources} "${${sources}}" PARENT_SCOPE)
+            break()
+        endif()
+    endforeach()
+endfunction()
+
 if(NOT ENABLE_TESTING)
     set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/arm-gcc-toolchain.cmake)
 endif()
@@ -48,6 +60,12 @@ else()
         src/ping.c
         src/resource_discovery.c
         src/topology.c
+    )
+    append_platform_file(SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR})
+    append_platform_file(SOURCES ${BM_OS} ${bm_common_SOURCE_DIR})
+    include_directories(
+        "${BM_IP_INCLUDES}"
+        "${BM_OS_INCLUDES}"
     )
     add_library(bmcore ${SOURCES})
 
