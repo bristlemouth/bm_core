@@ -108,10 +108,7 @@ static void bcmp_thread(void *parameters) {
   @return none
 */
 BmErr bcmp_init(void) {
-
   CTX.queue = bm_queue_create(bcmp_evt_queue_len, sizeof(BcmpQueueItem));
-
-  bm_ip_init(CTX.queue);
 
   bcmp_heartbeat_init();
   ping_init();
@@ -124,6 +121,8 @@ BmErr bcmp_init(void) {
   return bm_task_create(bcmp_thread, "BCMP", 1024, NULL, bcmp_task_priority,
                         NULL);
 }
+
+void *bcmp_get_queue(void) { return CTX.queue; }
 
 /*!
   @brief BCMP packet transmit function. Header and checksum added and computer within
