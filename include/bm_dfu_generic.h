@@ -15,3 +15,5 @@ bool bm_dfu_client_confirm_is_enabled(void);
 void bm_dfu_client_confirm_enable(bool en);
 BmErr bm_dfu_host_get_chunk(uint32_t offset, uint8_t *buffer, size_t len,
                             uint32_t timeouts);
+void bm_core_lpm_peripheral_active(void);
+void bm_core_lpm_peripheral_inactive(void);
