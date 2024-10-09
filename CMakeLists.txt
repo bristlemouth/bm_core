@@ -18,7 +18,7 @@ FetchContent_Declare(
   bm_common
   GIT_REPOSITORY https://github.com/bristlemouth/bm_common.git
   #TODO: This must be set by configuration somehow
-  GIT_TAG        victor/bring_over_state_machine
+  GIT_TAG        main
 )
 FetchContent_MakeAvailable(bm_common)
 
