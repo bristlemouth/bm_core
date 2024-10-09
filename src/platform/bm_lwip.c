@@ -109,16 +109,14 @@ static uint8_t bcmp_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
       // Make a copy of the IP address since we'll be modifying it later when we
       // remove the src/dest ports (and since it might not be in the pbuf so someone
       // else is managing that memory)
-      struct pbuf *p_ref = pbuf_alloc(PBUF_IP, pbuf->len, PBUF_RAM);
       ip_addr_t *src_ref = (ip_addr_t *)bm_malloc(sizeof(ip_addr_t));
       ip_addr_t *dst_ref = (ip_addr_t *)bm_malloc(sizeof(ip_addr_t));
       LwipLayout *layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
-      pbuf_copy(p_ref, pbuf);
       memcpy(dst_ref, ip6_hdr->dest.addr, sizeof(ip_addr_t));
       memcpy(src_ref, src, sizeof(ip_addr_t));
-      *layout = (LwipLayout){p_ref, src_ref, dst_ref};
+      *layout = (LwipLayout){pbuf, src_ref, dst_ref};
 
-      BcmpQueueItem item = {BcmpEventRx, (void *)layout, p_ref->len};
+      BcmpQueueItem item = {BcmpEventRx, (void *)layout, layout->pbuf->len};
       if (bm_queue_send(queue, &item, 0) != BmOK) {
         printf("Error sending to Queue\n");
         pbuf_free(pbuf);
@@ -238,10 +236,10 @@ BmErr bm_ip_tx_copy(void *payload, const void *data, uint32_t size,
  @details The destination address is optional, if NULL the address passed
           into bm_ip_tx_new will be utilized
 
- @param payload abstracted payload to be 
+ @param payload abstracted payload to be
  @param dst destination IP address to send the message to
 
- @return 
+ @return
  */
 BmErr bm_ip_tx_perform(void *payload, const void *dst) {
   BmErr err = BmEINVAL;
