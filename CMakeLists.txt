@@ -24,7 +24,6 @@ FetchContent_MakeAvailable(bm_common)
 
 #TODO: Configuration will determine RTOS and IP stack here
 
-# TODO - is this needed here or leave it in the application cmake files?
 set(COMPILE_FLAGS
     -DCBOR_CUSTOM_ALLOC_INCLUDE="tinycbor_alloc.h"
     -DCBOR_PARSER_MAX_RECURSIONS=10
