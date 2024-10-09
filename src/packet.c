@@ -339,9 +339,9 @@ BmErr packet_init(BcmpGetIPAddr src_ip, BcmpGetIPAddr dst_ip, BcmpGetData data,
     err = BmENOMEM;
     PACKET.sequence_list_semaphore = bm_semaphore_create();
     if (PACKET.sequence_list_semaphore) {
-      PACKET.timer = bm_timer_create(sequence_list_timer_callback,
-                                     "bcmp_message_expiration",
-                                     message_timer_expiry_period_ms, NULL);
+      PACKET.timer = bm_timer_create("bcmp_message_expiration",
+                                     message_timer_expiry_period_ms, true, NULL,
+                                     sequence_list_timer_callback);
       err = PACKET.timer != NULL ? bm_timer_start(PACKET.timer, 10) : err;
     }
   }
