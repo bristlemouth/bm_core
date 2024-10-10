@@ -4,6 +4,7 @@
 //#include "bcmp_time.h"
 #include "bm_ip.h"
 #include "bm_os.h"
+#include "messages/config.h"
 #include "messages/heartbeat.h"
 #include "messages/info.h"
 #include "messages/neighbors.h"
@@ -63,8 +64,9 @@ static void heartbeat_timer_handler(BmTimer tmr) {
 static void bcmp_thread(void *parameters) {
   (void)parameters;
 
-  CTX.heartbeat_timer = bm_timer_create(
-      heartbeat_timer_handler, "bcmp_heartbeat", bcmp_heartbeat_s * 1000, NULL);
+  CTX.heartbeat_timer =
+      bm_timer_create("bcmp_heartbeat", bcmp_heartbeat_s * 1000, true, NULL,
+                      heartbeat_timer_handler);
 
   // TODO - send out heartbeats on link change
   for (;;) {
@@ -114,6 +116,7 @@ BmErr bcmp_init(void) {
   bcmp_heartbeat_init();
   ping_init();
   //time_init();
+  bcmp_config_init();
   bcmp_topology_init();
   bcmp_device_info_init();
   bcmp_resource_discovery_init();

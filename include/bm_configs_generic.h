@@ -29,7 +29,7 @@ typedef struct {
 } __attribute__((packed, aligned(1))) GenericConfigKey;
 
 const GenericConfigKey *
-bcmp_config_get_stored_keys(uint8_t &num_stored_keys,
+bcmp_config_get_stored_keys(uint8_t *num_stored_keys,
                             BmConfigPartition partition);
 bool bcmp_remove_key(const char *key, size_t key_len,
                      BmConfigPartition partition);
@@ -38,7 +38,7 @@ bool bcmp_commit_config(BmConfigPartition partition);
 bool bcmp_set_config(const char *key, size_t key_len, uint8_t *value,
                      size_t value_len, BmConfigPartition partition);
 bool bcmp_get_config(const char *key, size_t key_len, uint8_t *value,
-                     size_t &value_len, BmConfigPartition partition);
+                     size_t *value_len, BmConfigPartition partition);
 bool bm_cbor_type_to_config_type(const CborValue *value,
                                  GenericConfigDataTypes *configType);
 

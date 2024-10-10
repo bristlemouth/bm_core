@@ -349,8 +349,8 @@ static void topology_timer_handler(BmTimer tmr) {
 static void bcmp_topology_thread(void *parameters) {
   (void)parameters;
 
-  CTX.topo_timer = bm_timer_create(topology_timer_handler, "topology_timer",
-                                   bcmp_topo_timeout_s * 1000, NULL);
+  CTX.topo_timer = bm_timer_create("topology_timer", bcmp_topo_timeout_s * 1000,
+                                   true, NULL, topology_timer_handler);
 
   for (;;) {
     BcmpTopoQueueItem item;
