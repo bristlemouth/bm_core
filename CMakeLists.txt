@@ -46,6 +46,7 @@ if(ENABLE_TESTING)
 else()
     set(SOURCES
         src/bcmp.c
+        src/config.c
         src/device.c
         src/heartbeat.c
         src/info.c
