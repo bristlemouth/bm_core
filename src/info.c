@@ -42,13 +42,13 @@ static BmErr bcmp_send_info(void *dst) {
   dev_info = (BcmpDeviceInfoReply *)bm_malloc(info_len);
 
   if (dev_info) {
+    memset(dev_info, 0, info_len);
     if (version) {
       memcpy(&dev_info->strings[0], version, version_string_len);
     }
     if (device) {
       memcpy(&dev_info->strings[version_string_len], device, device_name_len);
     }
-    memset(dev_info, 0, info_len);
     dev_info->info.node_id = node_id();
     dev_info->info.vendor_id = vendor_id();
     dev_info->info.product_id = product_id();
