@@ -1,6 +1,10 @@
 #include "util.h"
 #include <stdint.h>
 
+#ifndef BM_DFU_EVENT_TASK_PRIORITY
+#define BM_DFU_EVENT_TASK_PRIORITY 11
+#endif
+
 BmErr bm_dfu_client_set_confirmed(void);
 BmErr bm_dfu_client_set_pending_and_reset(void);
 BmErr bm_dfu_client_fail_update_and_reset(void);
