@@ -434,7 +434,7 @@ BmErr process_received_message(void *payload, uint32_t size) {
 
     // Process parsed message type
     if ((err = ll_get_item(&PACKET.packet_list, data.header->type,
-                           (void *)&cfg)) == BmOK &&
+                           (void **)&cfg)) == BmOK &&
         cfg) {
       check_endianness(data.payload, data.header->type);
 

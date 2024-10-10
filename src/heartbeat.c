@@ -1,65 +1,74 @@
-#include "heartbeat.h"
+#include "messages/heartbeat.h"
+#include "bcmp.h"
+#include "bm_os.h"
+#include "messages/info.h"
+#include "messages/neighbors.h"
 #include "packet.h"
-#include <stddef.h>
-
-//#include "bcmp_info.h"
-//#include "bcmp_neighbors.h"
-//#include "device_info.h"
-//#include "task.h"
-//#include "uptime.h"
-
-//extern neighbor_discovery_callback_t
-//    neighbor_discovery_cb; // FIXME - https://github.com/wavespotter/bristlemouth/issues/384
+#include <inttypes.h>
 
 /*!
-  Send heartbeat to neighbors
+  @brief Send heartbeat to neighbors
 
-  \param lease_duration_s - liveliness lease duration
-  \return ERR_OK if successful
+  @param lease_duration_s - liveliness lease duration
+
+  @return BmOk on success
+  @return BmErr on failure
 */
-
 BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
-  (void)lease_duration_s;
-  //bcmp_heartbeat_t heartbeat = {.time_since_boot_us = uptimeGetMicroSeconds(),
-  //                              .liveliness_lease_dur_s = lease_duration_s};
-  //return bcmp_tx(&multicast_ll_addr, BCMP_HEARTBEAT, (uint8_t *)&heartbeat, sizeof(heartbeat));
-  return BmOK;
+  // TODO: abstract time since boot microseconds?
+  BcmpHeartbeat heartbeat = {.time_since_boot_us =
+                                 bm_ticks_to_ms(bm_get_tick_count()) * 1000,
+                             .liveliness_lease_dur_s = lease_duration_s};
+  return bcmp_tx(&multicast_ll_addr, BcmpHeartbeatMessage,
+                 (uint8_t *)&heartbeat, sizeof(heartbeat), 0, NULL);
 }
 
 /*!
-  Process incoming heartbeat. Update neighbor tables if necessary.
-  If a device is not in our neighbor tables, add it, and request it's info.
+  @brief Process Incoming Heartbeat
 
-  \param *heartbeat - hearteat data
-  \return ERR_OK if successful
+  @details Update neighbor tables if necessary, if a device is not in our
+           neighbor tables, add it, and request it's info
+
+  @param *data - heartbeat data
+
+  @return BmOK on success
+  @return BmErr on failure
 */
 static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
-  BcmpHeartbeat hb = *(BcmpHeartbeat *)data.payload;
-  (void)hb;
-  //bm_neighbor_t *neighbor = bcmp_update_neighbor(ip_to_nodeid(src), dst_port);
-  //if (neighbor) {
+  BmErr err = BmEINVAL;
+  BcmpHeartbeat *heartbeat = (BcmpHeartbeat *)data.payload;
 
-  //  // Neighbor restarted, let's get additional info
-  //  if (heartbeat->time_since_boot_us < neighbor->last_time_since_boot_us) {
-  //    if (neighbor_discovery_cb) {
-  //      neighbor_discovery_cb(true, neighbor);
-  //    }
-  //    printf("🏘📡 Updating neighbor info! %016" PRIx64 "\n", neighbor->node_id);
-  //    bcmp_request_info(neighbor->info.node_id, &multicast_ll_addr);
-  //  }
+  BcmpNeighbor *neighbor =
+      bcmp_update_neighbor(ip_to_nodeid(data.src), data.ingress_port);
+  if (neighbor) {
+    err = BmOK;
 
-  //  // Update times
-  //  neighbor->last_time_since_boot_us = heartbeat->time_since_boot_us;
-  //  neighbor->heartbeat_period_s = heartbeat->liveliness_lease_dur_s;
-  //  neighbor->last_heartbeat_ticks = xTaskGetTickCount();
-  //  neighbor->online = true;
-  //}
+    // Neighbor restarted, let's get additional info
+    if (heartbeat->time_since_boot_us < neighbor->last_time_since_boot_us) {
+      bcmp_neighbor_invoke_discovery_cb(true, neighbor);
+      printf("🏘📡 Updating neighbor info! %016" PRIx64 "\n",
+             neighbor->node_id);
+      bcmp_request_info(neighbor->info.node_id, &multicast_ll_addr, NULL);
+    }
 
-  return BmOK;
+    // Update times
+    neighbor->last_time_since_boot_us = heartbeat->time_since_boot_us;
+    neighbor->heartbeat_period_s = heartbeat->liveliness_lease_dur_s;
+    neighbor->last_heartbeat_ticks = bm_get_tick_count();
+    neighbor->online = true;
+  }
+
+  return err;
 }
 
+/*!
+  @brief Initialize Heartbeat Module
+
+  @return BmOK on success
+  @return BmErr on failure
+*/
 BmErr bcmp_heartbeat_init(void) {
-  static BcmpPacketCfg heartbeat_packet = {
+  BcmpPacketCfg heartbeat_packet = {
       false,
       false,
       bcmp_process_heartbeat,

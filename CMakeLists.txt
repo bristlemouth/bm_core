@@ -24,7 +24,6 @@ FetchContent_MakeAvailable(bm_common)
 
 #TODO: Configuration will determine RTOS and IP stack here
 
-# TODO - is this needed here or leave it in the application cmake files?
 set(COMPILE_FLAGS
     -DCBOR_CUSTOM_ALLOC_INCLUDE="tinycbor_alloc.h"
     -DCBOR_PARSER_MAX_RECURSIONS=10
@@ -46,11 +45,16 @@ if(ENABLE_TESTING)
     add_subdirectory("test")
 else()
     set(SOURCES
-        src/device.c
-        src/packet.c
-        src/service.c
-        src/heartbeat.c
         src/bcmp.c
+        src/config.c
+        src/device.c
+        src/heartbeat.c
+        src/info.c
+        src/neighbors.c
+        src/packet.c
+        src/ping.c
+        src/resource_discovery.c
+        src/topology.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c

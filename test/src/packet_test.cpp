@@ -5,21 +5,19 @@
 
 #include "fff.h"
 
-#ifdef __cplusplus
+DEFINE_FFF_GLOBALS;
+
 extern "C" {
-#endif
 #include "mock_bm_os.h"
 #include "packet.h"
-#ifdef __cplusplus
 }
-#endif
 
-#define MAX_PAYLOAD_SIZE UINT16_MAX
-#define MIN_PAYLOAD_SIZE 8192
-#define GEN_RND_U64 ((uint64_t)RND.rnd_int(UINT64_MAX, 0))
-#define GEN_RND_U32 ((uint32_t)RND.rnd_int(UINT32_MAX, 0))
-#define GEN_RND_U16 ((uint16_t)RND.rnd_int(UINT16_MAX, 0))
-#define GEN_RND_U8 ((uint8_t)RND.rnd_int(UINT8_MAX, 0))
+#define max_payload_size UINT16_MAX
+#define min_payload_size 8192
+#define gen_rnd_u64 ((uint64_t)RND.rnd_int(UINT64_MAX, 0))
+#define gen_rnd_u32 ((uint32_t)RND.rnd_int(UINT32_MAX, 0))
+#define gen_rnd_u16 ((uint16_t)RND.rnd_int(UINT16_MAX, 0))
+#define gen_rnd_u8 ((uint8_t)RND.rnd_int(UINT8_MAX, 0))
 
 DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpProcessData);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpProcessData);
@@ -76,7 +74,7 @@ protected:
     return (uint16_t)~sum;
   }
   void SetUp() override {
-    test_payload_size = RND.rnd_int(MAX_PAYLOAD_SIZE, MIN_PAYLOAD_SIZE);
+    test_payload_size = RND.rnd_int(max_payload_size, min_payload_size);
     test_payload = (uint8_t *)calloc(test_payload_size, sizeof(uint8_t));
 
     RESET_FAKE(bm_semaphore_create);
@@ -115,8 +113,8 @@ protected:
   BcmpHeader payload_stuffer(uint8_t *payload, void *data, uint32_t size,
                              BcmpMessageType type, uint32_t seq_req) {
     BcmpHeader header = {
-        GEN_RND_U16, GEN_RND_U16, GEN_RND_U8, GEN_RND_U8,
-        GEN_RND_U32, GEN_RND_U8,  GEN_RND_U8, GEN_RND_U8,
+        gen_rnd_u16, gen_rnd_u16, gen_rnd_u8, gen_rnd_u8,
+        gen_rnd_u32, gen_rnd_u8,  gen_rnd_u8, gen_rnd_u8,
     };
     header.type = type;
     header.seq_num = seq_req;
@@ -142,8 +140,8 @@ TEST_F(packet_test, serialize) {
 
   // Test a normal message
   BcmpHeartbeat hb = {
-      GEN_RND_U64,
-      GEN_RND_U32,
+      gen_rnd_u64,
+      gen_rnd_u32,
   };
 
   ASSERT_EQ(serialize((void *)&data, (void *)&hb, sizeof(hb),
@@ -176,8 +174,8 @@ TEST_F(packet_test, process) {
   // Test a normal message
   RESET_FAKE(bcmp_process_heartbeat);
   BcmpHeartbeat hb = {
-      GEN_RND_U64,
-      GEN_RND_U32,
+      gen_rnd_u64,
+      gen_rnd_u32,
   };
 
   header = payload_stuffer(data.payload, (void *)&hb, sizeof(hb),
@@ -216,14 +214,14 @@ TEST_F(packet_test, sequence_request) {
       bcmp_neighbor_info,
   };
   BcmpNeighborInfo request_neighbor_info = {
-      GEN_RND_U64,
-      GEN_RND_U8,
-      GEN_RND_U8,
+      gen_rnd_u64,
+      gen_rnd_u8,
+      gen_rnd_u8,
   };
   BcmpNeighborInfo reply_neighbor_info = {
-      GEN_RND_U64,
-      GEN_RND_U8,
-      GEN_RND_U8,
+      gen_rnd_u64,
+      gen_rnd_u8,
+      gen_rnd_u8,
   };
   PacketTestData data;
   BcmpHeader header;
@@ -297,14 +295,14 @@ TEST_F(packet_test, sequence_request) {
 
 TEST_F(packet_test, sequence_reply) {
   BcmpPacketCfg reply_neighbor_info_packet = {
-      false,
       true,
+      false,
       bcmp_neighbor_info,
   };
   BcmpNeighborInfo reply_neighbor_info = {
-      GEN_RND_U64,
-      GEN_RND_U8,
-      GEN_RND_U8,
+      gen_rnd_u64,
+      gen_rnd_u8,
+      gen_rnd_u8,
   };
   PacketTestData data;
   data.payload = test_payload;
