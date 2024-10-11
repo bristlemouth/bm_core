@@ -54,6 +54,7 @@ else()
         src/packet.c
         src/ping.c
         src/resource_discovery.c
+        src/time.c
         src/topology.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c

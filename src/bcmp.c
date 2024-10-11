@@ -1,7 +1,6 @@
 #include <string.h>
 
 #include "bcmp.h"
-//#include "bcmp_time.h"
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "messages/config.h"
@@ -10,6 +9,7 @@
 #include "messages/neighbors.h"
 #include "messages/ping.h"
 #include "messages/resource_discovery.h"
+#include "messages/time.h"
 #include "messages/topology.h"
 #include "packet.h"
 #include "util.h"
@@ -25,20 +25,6 @@ typedef struct {
 } BcmpContext;
 
 static BcmpContext CTX;
-
-//TODO implemnent with updated packet module
-///*!
-//  Process a DFU message. Allocates memory that the consumer is in charge of freeing.
-//  \param pbuf[in] pbuf buffer
-//  \return none
-//*/
-//static void dfu_copy_and_process_message(BcmpProcessData data) {
-//  bcmp_header_t *header = static_cast<bcmp_header_t *>(pbuf->payload);
-//  uint8_t *buf = static_cast<uint8_t *>(pvPortMalloc((pbuf->len) - sizeof(bcmp_header_t)));
-//  configASSERT(buf);
-//  memcpy(buf, data.payload, (pbuf->len) - sizeof(bcmp_header_t));
-//  bm_dfu_process_message(buf, (pbuf->len) - sizeof(bcmp_header_t));
-//}
 
 /*!
   @brief Timer handler for sending out heartbeats
@@ -112,7 +98,7 @@ BmErr bcmp_init(void) {
 
   bcmp_heartbeat_init();
   ping_init();
-  //time_init();
+  time_init();
   bcmp_config_init();
   bcmp_topology_init();
   bcmp_device_info_init();
