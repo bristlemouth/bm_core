@@ -3,7 +3,7 @@
 #include "bm_os.h"
 #include "dfu.h"
 #include "bm_dfu_generic.h"
-#include "bm_dfu_host.h"
+#include "dfu_host.h"
 #include "timer_callback_handler.h"
 #include "device.h"
 
