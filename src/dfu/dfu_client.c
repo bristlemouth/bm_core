@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "bm_os.h"
-#include "bm_dfu.h"
-#include "bm_dfu_client.h"
+#include "dfu.h"
+#include "dfu_client.h"
 #include "bm_dfu_generic.h"
 #include "crc.h"
 #include "device.h"

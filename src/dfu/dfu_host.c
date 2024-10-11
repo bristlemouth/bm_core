@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "bm_os.h"
-#include "bm_dfu.h"
+#include "dfu.h"
 #include "bm_dfu_generic.h"
 #include "bm_dfu_host.h"
 #include "timer_callback_handler.h"

@@ -1,9 +1,9 @@
 #include <string.h>
 #include <stdio.h>
 #include "bm_os.h"
-#include "bm_dfu.h"
-#include "bm_dfu_client.h"
-#include "bm_dfu_host.h"
+#include "dfu.h"
+#include "dfu_client.h"
+#include "dfu_host.h"
 #include "bm_dfu_generic.h"
 #include "messages.h"
 #include "packet.h"

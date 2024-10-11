@@ -1,4 +1,4 @@
-#include "bm_dfu.h"
+#include "dfu.h"
 
 // TODO - remove these when we can if we can
 #ifdef __cplusplus
