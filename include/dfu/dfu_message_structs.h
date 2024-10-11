@@ -1,4 +1,7 @@
-#pragma once
+#ifndef __DFU_MESSAGE_STRUCTS_H__
+#define __DFU_MESSAGE_STRUCTS_H__
+
+
 #include <stdint.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -66,3 +69,5 @@ static_assert(DFU_IMG_START_OFFSET_BYTES > DFU_HEADER_OFFSET_BYTES, "Invalid DFU
 #ifdef __cplusplus
 }
 #endif
+
+#endif // __DFU_MESSAGE_STRUCTS_H__

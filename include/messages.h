@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "dfu/dfu_message_structs.h"
+
 typedef struct {
   uint16_t type;
   uint16_t checksum;
