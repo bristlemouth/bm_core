@@ -15,6 +15,9 @@ jobs:
         shell: bash -l {0}
     steps:
     - uses: actions/checkout@v4
+    - name: Checkout submodules
+        run: |
+          git submodule update --init third_party/tinycbor
     - name: configure
       run: |
         cmake -S. -Bbuild -G "Unix Makefiles" -DENABLE_TESTING=ON
