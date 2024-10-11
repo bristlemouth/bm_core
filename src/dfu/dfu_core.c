@@ -418,7 +418,7 @@ void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_cod
     ack_msg.ack.err_code = err_code;
     ack_msg.ack.addresses.dst_node_id = dst_node_id;
     ack_msg.ack.addresses.src_node_id = dfu_ctx.self_node_id;
-    ack_msg.header.frame_type = BcmpDfuAck;
+    ack_msg.header.frame_type = BcmpDFUAckMessage;
 
     if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(ack_msg.header.frame_type), (uint8_t*)(&ack_msg), sizeof(ack_msg))){
         printf("Message %d sent \n",ack_msg.header.frame_type);
@@ -539,7 +539,9 @@ void bm_dfu_init(bcmp_dfu_tx_func_t bcmp_dfu_tx) {
     dfu_ctx.self_node_id = node_id();
 
     /* Initialize current event to NULL */
-    dfu_ctx.current_event = {DFU_EVENT_NONE, NULL, 0};
+    dfu_ctx.current_event.type = DFU_EVENT_NONE;
+    dfu_ctx.current_event.buf = NULL;
+    dfu_ctx.current_event.len = 0;
 
     /* Set initial state of DFU State Machine*/
     lib_sm_init(&(dfu_ctx.sm_ctx), &(dfu_states[BM_DFU_STATE_INIT]), bm_dfu_check_transitions);
