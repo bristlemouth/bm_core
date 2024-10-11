@@ -151,7 +151,7 @@ static void s_idle_run(void) {
         bm_dfu_client_process_update_request();
     } else if(dfu_ctx.current_event.type == DFU_EVENT_BEGIN_HOST) {
         /* Host */
-        dfu_host_start_event_t *start_event = reinterpret_cast<dfu_host_start_event_t*>(dfu_ctx.current_event.buf);
+        dfu_host_start_event_t *start_event = (dfu_host_start_event_t*)(dfu_ctx.current_event.buf);
         dfu_ctx.update_finish_callback = start_event->finish_cb;
         dfu_ctx.client_node_id = start_event->start.info.addresses.dst_node_id;
         bm_dfu_host_set_params(dfu_ctx.update_finish_callback, start_event->timeoutMs);
@@ -230,10 +230,10 @@ static void s_error_entry(void) {
 void bm_dfu_process_message(uint8_t *buf, size_t len) {
     // configASSERT(buf);
     bm_dfu_event_t evt;
-    bm_dfu_frame_t *frame = reinterpret_cast<bm_dfu_frame_t *>(buf);
+    bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(buf);
 
     /* If this node is not the intended destination, then discard and continue to wait on queue */
-    if (dfu_ctx.self_node_id != (reinterpret_cast<bm_dfu_event_address_t *>(frame->payload))->dst_node_id) {
+    if (dfu_ctx.self_node_id != ((bm_dfu_event_address_t *)(frame->payload))->dst_node_id) {
         bm_free(buf);
         return;
     }
@@ -250,14 +250,14 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
         case BM_DFU_STATE_CLIENT_REBOOT_REQ:
         case BM_DFU_STATE_CLIENT_REBOOT_DONE:
         case BM_DFU_STATE_CLIENT_ACTIVATING: {
-            if(!bm_dfu_client_host_node_valid((reinterpret_cast<bm_dfu_event_address_t *>(frame->payload))->src_node_id)) {
+            if(!bm_dfu_client_host_node_valid(((bm_dfu_event_address_t *)(frame->payload))->src_node_id)) {
                 valid_packet = false;; // DFU packet from the wrong host! Drop packet.
             }
             break;
         }
         case BM_DFU_STATE_HOST_REQ_UPDATE:
         case BM_DFU_STATE_HOST_UPDATE: {
-            if(!bm_dfu_host_client_node_valid((reinterpret_cast<bm_dfu_event_address_t *>(frame->payload))->src_node_id)){
+            if(!bm_dfu_host_client_node_valid(((bm_dfu_event_address_t *)(frame->payload))->src_node_id)){
                 valid_packet = false; // DFU packet from the wrong client! Drop packet.
             }
             break;
@@ -418,9 +418,9 @@ void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_cod
     ack_msg.ack.err_code = err_code;
     ack_msg.ack.addresses.dst_node_id = dst_node_id;
     ack_msg.ack.addresses.src_node_id = dfu_ctx.self_node_id;
-    ack_msg.header.frame_type = BCMP_DFU_ACK;
+    ack_msg.header.frame_type = BcmpDfuAck;
 
-    if(dfu_ctx.bcmp_dfu_tx(static_cast<bcmp_message_type_t>(ack_msg.header.frame_type), reinterpret_cast<uint8_t*>(&ack_msg), sizeof(ack_msg))){
+    if(dfu_ctx.bcmp_dfu_tx((bcmp_message_type_t)(ack_msg.header.frame_type), (uint8_t*)(&ack_msg), sizeof(ack_msg))){
         printf("Message %d sent \n",ack_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",ack_msg.header.frame_type);
@@ -445,7 +445,7 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num)
     chunk_req_msg.chunk_req.addresses.dst_node_id = dst_node_id;
     chunk_req_msg.header.frame_type = BCMP_DFU_PAYLOAD_REQ;
 
-    if(dfu_ctx.bcmp_dfu_tx(static_cast<bcmp_message_type_t>(chunk_req_msg.header.frame_type), reinterpret_cast<uint8_t*>(&chunk_req_msg), sizeof(chunk_req_msg))){
+    if(dfu_ctx.bcmp_dfu_tx((bcmp_message_type_t)(chunk_req_msg.header.frame_type), (uint8_t*)(&chunk_req_msg), sizeof(chunk_req_msg))){
         printf("Message %d sent \n", chunk_req_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n", chunk_req_msg.header.frame_type);
@@ -471,7 +471,7 @@ void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_c
     update_end_msg.result.addresses.src_node_id = dfu_ctx.self_node_id;
     update_end_msg.header.frame_type = BCMP_DFU_END;
 
-    if(dfu_ctx.bcmp_dfu_tx(static_cast<bcmp_message_type_t>(update_end_msg.header.frame_type), reinterpret_cast<uint8_t*>(&update_end_msg), sizeof(update_end_msg))){
+    if(dfu_ctx.bcmp_dfu_tx((bcmp_message_type_t)(update_end_msg.header.frame_type), (uint8_t*)(&update_end_msg), sizeof(update_end_msg))){
         printf("Message %d sent \n",update_end_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",update_end_msg.header.frame_type);
@@ -491,7 +491,7 @@ void bm_dfu_send_heartbeat(uint64_t dst_node_id) {
     heartbeat_msg.addr.src_node_id = dfu_ctx.self_node_id;
     heartbeat_msg.header.frame_type = BCMP_DFU_HEARTBEAT;
 
-    if(dfu_ctx.bcmp_dfu_tx(static_cast<bcmp_message_type_t>(heartbeat_msg.header.frame_type), reinterpret_cast<uint8_t*>(&heartbeat_msg), sizeof(heartbeat_msg))){
+    if(dfu_ctx.bcmp_dfu_tx((bcmp_message_type_t)(heartbeat_msg.header.frame_type), (uint8_t*)(&heartbeat_msg), sizeof(heartbeat_msg))){
         printf("Message %d sent \n",heartbeat_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",heartbeat_msg.header.frame_type);
@@ -520,7 +520,7 @@ static void bm_dfu_event_thread(void*) {
 //*/
 static BmErr dfu_copy_and_process_message(BcmpProcessData data) {
   BmErr err = BmEINVAL;
-  uint8_t *buf = static_cast<uint8_t *>(bm_malloc((data.size)));
+  uint8_t *buf = (uint8_t *)(bm_malloc((data.size)));
   if (buf) {
     memcpy(buf, data.payload, (data.size));
     bm_dfu_process_message(buf, (data.size));
@@ -607,10 +607,10 @@ bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id, updat
         bm_dfu_event_t evt;
         size_t size = sizeof(dfu_host_start_event_t);
         evt.type = DFU_EVENT_BEGIN_HOST;
-        uint8_t *buf = static_cast<uint8_t*>(bm_malloc(size));
+        uint8_t *buf = (uint8_t*)(bm_malloc(size));
         // configASSERT(buf);
 
-        dfu_host_start_event_t *start_event = reinterpret_cast<dfu_host_start_event_t*>(buf);
+        dfu_host_start_event_t *start_event = (dfu_host_start_event_t*)(buf);
         start_event->start.header.frame_type = BCMP_DFU_START;
         start_event->start.info.addresses.dst_node_id = dest_node_id;
         start_event->start.info.addresses.src_node_id = dfu_ctx.self_node_id;
