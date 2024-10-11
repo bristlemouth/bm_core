@@ -1,4 +1,4 @@
-#include <cinttypes>
+#include <inttypes.h>
 #include "bcmp_time.h"
 #include "util.h"
 #include "bcmp.h"
