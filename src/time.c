@@ -1,5 +1,5 @@
 #include <inttypes.h>
-#include "bcmp_time.h"
+#include "messages/time.h"
 #include "util.h"
 #include "bcmp.h"
 #include "bm_rtc.h"
