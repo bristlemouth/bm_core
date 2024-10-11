@@ -276,7 +276,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
     evt.len = len;
 
     switch (frame->header.frame_type) {
-        case BCMP_DFU_START:
+        case BcmpDFUStartMessage:
             evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
             printf("Received update request\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
@@ -284,7 +284,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_PAYLOAD:
+        case BcmpDFUPayloadMessage:
             evt.type = DFU_EVENT_IMAGE_CHUNK;
             printf("Received Payload\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
@@ -292,7 +292,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_END:
+        case BcmpDFUEndMessage:
             evt.type = DFU_EVENT_UPDATE_END;
             printf("Received DFU End\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
@@ -300,7 +300,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_ACK:
+        case BcmpDFUAckMessage:
             evt.type = DFU_EVENT_ACK_RECEIVED;
             printf("Received ACK\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
@@ -308,7 +308,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_ABORT:
+        case BcmpDFUAbortMessage:
             evt.type = DFU_EVENT_ABORT;
             printf("Received Abort\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
@@ -316,7 +316,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_HEARTBEAT:
+        case BcmpDFUHeartbeatMessage:
             evt.type = DFU_EVENT_HEARTBEAT;
             printf("Received DFU Heartbeat\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
@@ -324,28 +324,28 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_PAYLOAD_REQ:
+        case BcmpDFUPayloadReqMessage:
             evt.type = DFU_EVENT_CHUNK_REQUEST;
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_REBOOT_REQ:
+        case BcmpDFURebootReqMessage:
             evt.type = DFU_EVENT_REBOOT_REQUEST;
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_REBOOT:
+        case BcmpDFURebootMessage:
             evt.type = DFU_EVENT_REBOOT;
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
                 printf("Message could not be added to Queue\n");
             }
             break;
-        case BCMP_DFU_BOOT_COMPLETE:
+        case BcmpDFUBootCompleteMessage:
             evt.type = DFU_EVENT_BOOT_COMPLETE;
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
@@ -420,7 +420,7 @@ void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_cod
     ack_msg.ack.addresses.src_node_id = dfu_ctx.self_node_id;
     ack_msg.header.frame_type = BcmpDfuAck;
 
-    if(dfu_ctx.bcmp_dfu_tx((bcmp_message_type_t)(ack_msg.header.frame_type), (uint8_t*)(&ack_msg), sizeof(ack_msg))){
+    if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(ack_msg.header.frame_type), (uint8_t*)(&ack_msg), sizeof(ack_msg))){
         printf("Message %d sent \n",ack_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",ack_msg.header.frame_type);
@@ -443,9 +443,9 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num)
     chunk_req_msg.chunk_req.seq_num = chunk_num;
     chunk_req_msg.chunk_req.addresses.src_node_id = dfu_ctx.self_node_id;
     chunk_req_msg.chunk_req.addresses.dst_node_id = dst_node_id;
-    chunk_req_msg.header.frame_type = BCMP_DFU_PAYLOAD_REQ;
+    chunk_req_msg.header.frame_type = BcmpDFUPayloadReqMessage;
 
-    if(dfu_ctx.bcmp_dfu_tx((bcmp_message_type_t)(chunk_req_msg.header.frame_type), (uint8_t*)(&chunk_req_msg), sizeof(chunk_req_msg))){
+    if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(chunk_req_msg.header.frame_type), (uint8_t*)(&chunk_req_msg), sizeof(chunk_req_msg))){
         printf("Message %d sent \n", chunk_req_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n", chunk_req_msg.header.frame_type);
@@ -469,9 +469,9 @@ void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_c
     update_end_msg.result.err_code = err_code;
     update_end_msg.result.addresses.dst_node_id = dst_node_id;
     update_end_msg.result.addresses.src_node_id = dfu_ctx.self_node_id;
-    update_end_msg.header.frame_type = BCMP_DFU_END;
+    update_end_msg.header.frame_type = BcmpDFUEndMessage;
 
-    if(dfu_ctx.bcmp_dfu_tx((bcmp_message_type_t)(update_end_msg.header.frame_type), (uint8_t*)(&update_end_msg), sizeof(update_end_msg))){
+    if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(update_end_msg.header.frame_type), (uint8_t*)(&update_end_msg), sizeof(update_end_msg))){
         printf("Message %d sent \n",update_end_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",update_end_msg.header.frame_type);
@@ -489,9 +489,9 @@ void bm_dfu_send_heartbeat(uint64_t dst_node_id) {
     bcmp_dfu_heartbeat_t heartbeat_msg;
     heartbeat_msg.addr.dst_node_id = dst_node_id;
     heartbeat_msg.addr.src_node_id = dfu_ctx.self_node_id;
-    heartbeat_msg.header.frame_type = BCMP_DFU_HEARTBEAT;
+    heartbeat_msg.header.frame_type = BcmpDFUHeartbeatMessage;
 
-    if(dfu_ctx.bcmp_dfu_tx((bcmp_message_type_t)(heartbeat_msg.header.frame_type), (uint8_t*)(&heartbeat_msg), sizeof(heartbeat_msg))){
+    if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(heartbeat_msg.header.frame_type), (uint8_t*)(&heartbeat_msg), sizeof(heartbeat_msg))){
         printf("Message %d sent \n",heartbeat_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",heartbeat_msg.header.frame_type);
@@ -611,7 +611,7 @@ bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id, updat
         // configASSERT(buf);
 
         dfu_host_start_event_t *start_event = (dfu_host_start_event_t*)(buf);
-        start_event->start.header.frame_type = BCMP_DFU_START;
+        start_event->start.header.frame_type = BcmpDFUStartMessage;
         start_event->start.info.addresses.dst_node_id = dest_node_id;
         start_event->start.info.addresses.src_node_id = dfu_ctx.self_node_id;
         memcpy(&start_event->start.info.img_info, &info, sizeof(bm_dfu_img_info_t));

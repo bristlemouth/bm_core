@@ -61,8 +61,8 @@ static void bm_dfu_client_abort(bm_dfu_err_t err) {
     abort_msg.err.addresses.src_node_id = client_ctx.self_node_id;
     abort_msg.err.err_code = err;
     abort_msg.err.success = 0;
-    abort_msg.header.frame_type = BCMP_DFU_ABORT;
-    if(client_ctx.bcmp_dfu_tx(static_cast<bcmp_message_type_t>(abort_msg.header.frame_type), reinterpret_cast<uint8_t*>(&abort_msg), sizeof(abort_msg))){
+    abort_msg.header.frame_type = BcmpDFUAbortMessage;
+    if(client_ctx.bcmp_dfu_tx(static_cast<BcmpMessageType>(abort_msg.header.frame_type), reinterpret_cast<uint8_t*>(&abort_msg), sizeof(abort_msg))){
         printf("Message %d sent \n",abort_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",abort_msg.header.frame_type);
@@ -73,8 +73,8 @@ static void bm_dfu_client_send_reboot_request() {
     bcmp_dfu_reboot_req_t reboot_req;
     reboot_req.addr.src_node_id = client_ctx.self_node_id;
     reboot_req.addr.dst_node_id = client_ctx.host_node_id;
-    reboot_req.header.frame_type = BCMP_DFU_REBOOT_REQ;
-    if(client_ctx.bcmp_dfu_tx(static_cast<bcmp_message_type_t>(reboot_req.header.frame_type), reinterpret_cast<uint8_t*>(&reboot_req), sizeof(bcmp_dfu_reboot_req_t))){
+    reboot_req.header.frame_type = BcmpDFURebootReqMessage;
+    if(client_ctx.bcmp_dfu_tx(static_cast<BcmpMessageType>(reboot_req.header.frame_type), reinterpret_cast<uint8_t*>(&reboot_req), sizeof(bcmp_dfu_reboot_req_t))){
         printf("Message %d sent \n",reboot_req.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_req.header.frame_type);
@@ -85,8 +85,8 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
     bcmp_dfu_boot_complete_t boot_compl;
     boot_compl.addr.src_node_id = client_ctx.self_node_id;
     boot_compl.addr.dst_node_id = host_node_id;
-    boot_compl.header.frame_type = BCMP_DFU_BOOT_COMPLETE;
-    if(client_ctx.bcmp_dfu_tx(static_cast<bcmp_message_type_t>(boot_compl.header.frame_type), reinterpret_cast<uint8_t*>(&boot_compl), sizeof(bcmp_dfu_boot_complete_t))){
+    boot_compl.header.frame_type = BcmpDFUBootCompleteMessage;
+    if(client_ctx.bcmp_dfu_tx(static_cast<BcmpMessageType>(boot_compl.header.frame_type), reinterpret_cast<uint8_t*>(&boot_compl), sizeof(bcmp_dfu_boot_complete_t))){
         printf("Message %d sent \n",boot_compl.header.frame_type);
     } else {
         printf("Failed to send message %d\n",boot_compl.header.frame_type);
