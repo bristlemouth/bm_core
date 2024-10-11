@@ -62,7 +62,7 @@ static void bm_dfu_client_abort(bm_dfu_err_t err) {
     abort_msg.err.err_code = err;
     abort_msg.err.success = 0;
     abort_msg.header.frame_type = BcmpDFUAbortMessage;
-    if(client_ctx.bcmp_dfu_tx(static_cast<BcmpMessageType>(abort_msg.header.frame_type), reinterpret_cast<uint8_t*>(&abort_msg), sizeof(abort_msg))){
+    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(abort_msg.header.frame_type), (uint8_t*)(&abort_msg), sizeof(abort_msg))){
         printf("Message %d sent \n",abort_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",abort_msg.header.frame_type);
@@ -74,7 +74,7 @@ static void bm_dfu_client_send_reboot_request() {
     reboot_req.addr.src_node_id = client_ctx.self_node_id;
     reboot_req.addr.dst_node_id = client_ctx.host_node_id;
     reboot_req.header.frame_type = BcmpDFURebootReqMessage;
-    if(client_ctx.bcmp_dfu_tx(static_cast<BcmpMessageType>(reboot_req.header.frame_type), reinterpret_cast<uint8_t*>(&reboot_req), sizeof(bcmp_dfu_reboot_req_t))){
+    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(bcmp_dfu_reboot_req_t))){
         printf("Message %d sent \n",reboot_req.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_req.header.frame_type);
@@ -86,7 +86,7 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
     boot_compl.addr.src_node_id = client_ctx.self_node_id;
     boot_compl.addr.dst_node_id = host_node_id;
     boot_compl.header.frame_type = BcmpDFUBootCompleteMessage;
-    if(client_ctx.bcmp_dfu_tx(static_cast<BcmpMessageType>(boot_compl.header.frame_type), reinterpret_cast<uint8_t*>(&boot_compl), sizeof(bcmp_dfu_boot_complete_t))){
+    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(bcmp_dfu_boot_complete_t))){
         printf("Message %d sent \n",boot_compl.header.frame_type);
     } else {
         printf("Failed to send message %d\n",boot_compl.header.frame_type);
@@ -215,8 +215,8 @@ void bm_dfu_client_process_update_request(void) {
         return;
     }
 
-    bm_dfu_frame_t *frame = reinterpret_cast<bm_dfu_frame_t *>(curr_evt.buf);
-    bm_dfu_event_img_info_t* img_info_evt = (bm_dfu_event_img_info_t*) &(reinterpret_cast<uint8_t *>(frame))[1];
+    bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
+    bm_dfu_event_img_info_t* img_info_evt = (bm_dfu_event_img_info_t*) &((uint8_t *)(frame))[1];
 
     image_size = img_info_evt->img_info.image_size;
     chunk_size = img_info_evt->img_info.chunk_size;
@@ -319,8 +319,8 @@ void s_client_receiving_run(void) {
 
     if (curr_evt.type == DFU_EVENT_IMAGE_CHUNK) {
         // configASSERT(curr_evt.buf);
-        bm_dfu_frame_t *frame = reinterpret_cast<bm_dfu_frame_t *>(curr_evt.buf);
-        bm_dfu_event_image_chunk_t* image_chunk_evt = (bm_dfu_event_image_chunk_t*) &(reinterpret_cast<uint8_t *>(frame))[1];
+        bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
+        bm_dfu_event_image_chunk_t* image_chunk_evt = (bm_dfu_event_image_chunk_t*) &((uint8_t *)(frame))[1];
 
         /* Stop Chunk Timer */
         // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
