@@ -33,6 +33,7 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${CMAKE_CURRENT_LIST_DIR}/include/dfu
     ${bm_common_SOURCE_DIR}/include
+    ${bm_common_SOURCE_DIR}/third_party/crc
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
 )
 
