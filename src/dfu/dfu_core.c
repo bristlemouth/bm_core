@@ -230,7 +230,7 @@ static void s_error_entry(void) {
 void bm_dfu_process_message(uint8_t *buf, size_t len) {
     // configASSERT(buf);
     BmDfuEvent evt;
-    bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(buf);
+    BmDfuFrame *frame = (BmDfuFrame *)(buf);
 
     /* If this node is not the intended destination, then discard and continue to wait on queue */
     if (dfu_ctx.self_node_id != ((BmDfuEventAddress *)(frame->payload))->dst_node_id) {
@@ -592,7 +592,7 @@ void bm_dfu_init(BcmpDfuTxFunc bcmp_dfu_tx) {
   bm_err_check(err, packet_add(&process_dfu_message, BcmpDFULastMessageMessage));
 }
 
-bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id, UpdateFinishCb update_finish_callback, uint32_t timeoutMs) {
+bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id, UpdateFinishCb update_finish_callback, uint32_t timeoutMs) {
     bool ret = false;
     do {
         if(info.chunk_size > BM_DFU_MAX_CHUNK_SIZE) {
@@ -616,7 +616,7 @@ bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id, Updat
         start_event->start.header.frame_type = BcmpDFUStartMessage;
         start_event->start.info.addresses.dst_node_id = dest_node_id;
         start_event->start.info.addresses.src_node_id = dfu_ctx.self_node_id;
-        memcpy(&start_event->start.info.img_info, &info, sizeof(bm_dfu_img_info_t));
+        memcpy(&start_event->start.info.img_info, &info, sizeof(BmDfuImgInfo));
         start_event->finish_cb = update_finish_callback;
         start_event->timeoutMs = timeoutMs;
         evt.buf = buf;

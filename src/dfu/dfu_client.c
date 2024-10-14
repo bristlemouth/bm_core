@@ -215,7 +215,7 @@ void bm_dfu_client_process_update_request(void) {
         return;
     }
 
-    bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
+    BmDfuFrame *frame = (BmDfuFrame *)(curr_evt.buf);
     BmDfuEventImgInfo* img_info_evt = (BmDfuEventImgInfo*) &((uint8_t *)(frame))[1];
 
     image_size = img_info_evt->img_info.image_size;
@@ -319,7 +319,7 @@ void s_client_receiving_run(void) {
 
     if (curr_evt.type == DfuEventImageChunk) {
         // configASSERT(curr_evt.buf);
-        bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
+        BmDfuFrame *frame = (BmDfuFrame *)(curr_evt.buf);
         BmDfuEventImageChunk* image_chunk_evt = (BmDfuEventImageChunk*) &((uint8_t *)(frame))[1];
 
         /* Stop Chunk Timer */

@@ -12,7 +12,7 @@ typedef struct dfu_host_ctx_t {
     BmTimer ack_timer;
     uint8_t ack_retry_num;
     BmTimer heartbeat_timer;
-    bm_dfu_img_info_t img_info;
+    BmDfuImgInfo img_info;
     uint64_t self_node_id;
     uint64_t client_node_id;
     BcmpDfuTxFunc bcmp_dfu_tx;
@@ -190,7 +190,7 @@ void s_host_req_update_entry(void) {
         return;
     }
 
-    bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
+    BmDfuFrame *frame = (BmDfuFrame *)(curr_evt.buf);
     BmDfuEventImgInfo* img_info_evt = (BmDfuEventImgInfo*)(&((uint8_t *)(frame))[1]);
     host_ctx.img_info = img_info_evt->img_info;
     host_ctx.bytes_remaining = host_ctx.img_info.image_size;
@@ -223,7 +223,7 @@ void s_host_req_update_run(void)
         // configASSERT(xTimerStop(host_ctx.ack_timer, 10));
         bm_timer_stop(host_ctx.ack_timer, 10);
         // configASSERT(curr_evt.buf);
-        bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
+        BmDfuFrame *frame = (BmDfuFrame *)(curr_evt.buf);
         BmDfuEventResult* result_evt = (BmDfuEventResult*)(&((uint8_t *)(frame))[1]);
 
         if (result_evt->success) {
@@ -273,12 +273,12 @@ void s_host_update_entry(void) {
  * @return none
  */
 void s_host_update_run(void) {
-    bm_dfu_frame_t *frame = NULL;
+    BmDfuFrame *frame = NULL;
     BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
     /* Check if we even have a buf to inspect */
     if (curr_evt.buf) {
-        frame = (bm_dfu_frame_t *)(curr_evt.buf);
+        frame = (BmDfuFrame *)(curr_evt.buf);
     }
 
     if (curr_evt.type == DfuEventChunkRequest) {

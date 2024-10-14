@@ -52,7 +52,7 @@ enum BmDfuHfsmStates {
   BmNumDfuStates,
 };
 
-enum BM_DFU_EVT_TYPE {
+enum BmDfuEvtType {
   DfuEventNone,
   DfuEventInitSuccess,
   DfuEventReceivedUpdateRequest,
@@ -114,7 +114,7 @@ void bm_dfu_send_heartbeat(uint64_t dst_node_id);
 
 void bm_dfu_init(BcmpDfuTxFunc bcmp_dfu_tx);
 void bm_dfu_process_message(uint8_t *buf, size_t len);
-bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id,
+bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
                             UpdateFinishCb update_finish_callback, uint32_t timeoutMs);
 
 /*!

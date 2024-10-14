@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-typedef struct __attribute__((__packed__)) bm_dfu_img_info_s {
+typedef struct __attribute__((__packed__)) BmDfuImgInfo {
     uint32_t image_size;
     uint16_t chunk_size;
     uint16_t crc16;
@@ -14,48 +14,48 @@ typedef struct __attribute__((__packed__)) bm_dfu_img_info_s {
     uint8_t minor_ver;
     uint32_t filter_key; // Will be used later for image rejection.
     uint32_t gitSHA;
-} bm_dfu_img_info_t;
+} BmDfuImgInfo;
 
 #define BM_DFU_IMG_INFO_FORCE_UPDATE (0x4CEDc0fe)
 
-typedef struct __attribute__((__packed__)) bm_dfu_frame_header_s {
+typedef struct __attribute__((__packed__)) BmDfuFrameHeader {
     uint8_t frame_type;
 } BmDfuFrameHeader;
 
-typedef struct __attribute__((__packed__)) bm_dfu_frame_s {
+typedef struct __attribute__((__packed__)) BmDfuFrame {
     BmDfuFrameHeader header;
     uint8_t payload[0];
-} bm_dfu_frame_t;
+} BmDfuFrame;
 
-typedef struct __attribute__((__packed__)) bm_dfu_event_init_success_s {
+typedef struct __attribute__((__packed__)) BmDfuEventInitSuccess {
     uint8_t reserved;
-}bm_dfu_event_init_success_t;
+} BmDfuEventInitSuccess;
 
-typedef struct __attribute__((__packed__)) bm_dfu_address_s {
+typedef struct __attribute__((__packed__)) BmDfuEventAddress {
     uint64_t src_node_id;
     uint64_t dst_node_id;
 } BmDfuEventAddress;
 
-typedef struct __attribute__((__packed__)) bm_dfu_event_chunk_request_s {
+typedef struct __attribute__((__packed__)) BmDfuEventChunkRequest {
     BmDfuEventAddress addresses;
     uint16_t seq_num;
 } BmDfuEventChunkRequest;
 
-typedef struct __attribute__((__packed__)) bm_dfu_event_image_chunk_s {
+typedef struct __attribute__((__packed__)) BmDfuEventImageChunk {
     BmDfuEventAddress addresses;
     uint16_t payload_length;
     uint8_t payload_buf[0];
 } BmDfuEventImageChunk;
 
-typedef struct __attribute__((__packed__)) bm_dfu_result_s {
+typedef struct __attribute__((__packed__)) BmDfuEventResult {
     BmDfuEventAddress addresses;
     uint8_t success;
     uint8_t err_code;
 } BmDfuEventResult;
 
-typedef struct __attribute__((__packed__)) bm_dfu_event_img_info_s {
+typedef struct __attribute__((__packed__)) BmDfuEventImgInfo {
     BmDfuEventAddress addresses;
-    bm_dfu_img_info_t img_info;
+    BmDfuImgInfo img_info;
 } BmDfuEventImgInfo;
 
 #ifdef __cplusplus
@@ -63,7 +63,7 @@ extern "C" {
 #endif
 
 #define DFU_HEADER_OFFSET_BYTES (0)
-#define DFU_IMG_START_OFFSET_BYTES (sizeof(bm_dfu_img_info_t))
+#define DFU_IMG_START_OFFSET_BYTES (sizeof(BmDfuImgInfo))
 static_assert(DFU_IMG_START_OFFSET_BYTES > DFU_HEADER_OFFSET_BYTES, "Invalid DFU image offset");
 
 #ifdef __cplusplus
