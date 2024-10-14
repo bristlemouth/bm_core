@@ -95,6 +95,7 @@ typedef struct __attribute__((__packed__)) {
   uint32_t gitSHA;
 } ReboootClientUpdateInfo;
 
+// TODO - remove this if we no longer need it, or just leave it
 #ifndef CI_TEST
 extern ReboootClientUpdateInfo client_update_reboot_info __attribute__((section(".noinit")));
 #else // CI_TEST
