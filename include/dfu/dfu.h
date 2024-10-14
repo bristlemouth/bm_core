@@ -80,7 +80,7 @@ typedef struct {
 } bm_dfu_event_t;
 
 typedef struct __attribute__((__packed__)) dfu_host_start_event {
-  bcmp_dfu_start_t start;
+  BcmpDfuStart start;
   update_finish_cb_t finish_cb;
   uint32_t timeoutMs;
 } dfu_host_start_event_t;

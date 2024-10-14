@@ -104,7 +104,7 @@ static void update_timer_handler(BmTimer tmr) {
  * @return none
  */
 static void bm_dfu_host_req_update() {
-    bcmp_dfu_start_t update_start_req_evt;
+    BcmpDfuStart update_start_req_evt;
 
     printf("Sending Update to Client\n");
 
@@ -130,10 +130,10 @@ static void bm_dfu_host_req_update() {
 static void bm_dfu_host_send_chunk(bm_dfu_event_chunk_request_t* req) {
     printf("Processing chunk id %" PRIX32 "\n",req->seq_num);
     uint32_t payload_len = (host_ctx.bytes_remaining >= host_ctx.img_info.chunk_size) ? host_ctx.img_info.chunk_size : host_ctx.bytes_remaining;
-    uint32_t payload_len_plus_header = sizeof(bcmp_dfu_payload_t) + payload_len;
+    uint32_t payload_len_plus_header = sizeof(BcmpDfuPayload) + payload_len;
     uint8_t* buf = (uint8_t*)bm_malloc(payload_len_plus_header);
     // configASSERT(buf);
-    bcmp_dfu_payload_t *payload_header = (bcmp_dfu_payload_t *)buf;
+    BcmpDfuPayload *payload_header = (BcmpDfuPayload *)buf;
     payload_header->header.frame_type = BcmpDFUPayloadMessage;
     payload_header->chunk.addresses.src_node_id = host_ctx.self_node_id;
     payload_header->chunk.addresses.dst_node_id = host_ctx.client_node_id;
@@ -164,11 +164,11 @@ static void bm_dfu_host_send_chunk(bm_dfu_event_chunk_request_t* req) {
  * @return none
  */
 static void bm_dfu_host_send_reboot() {
-    bcmp_dfu_reboot_t reboot_msg;
+    BcmpDfuReboot reboot_msg;
     reboot_msg.addr.src_node_id = host_ctx.self_node_id;
     reboot_msg.addr.dst_node_id = host_ctx.client_node_id;
     reboot_msg.header.frame_type = BcmpDFURebootMessage;
-    if(host_ctx.bcmp_dfu_tx((BcmpMessageType)(reboot_msg.header.frame_type), (uint8_t*)(&reboot_msg), sizeof(bcmp_dfu_reboot_t))){
+    if(host_ctx.bcmp_dfu_tx((BcmpMessageType)(reboot_msg.header.frame_type), (uint8_t*)(&reboot_msg), sizeof(BcmpDfuReboot))){
         printf("Message %d sent \n",reboot_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_msg.header.frame_type);
@@ -246,7 +246,7 @@ void s_host_req_update_run(void)
         bm_dfu_err_t err = BM_DFU_ERR_ABORTED;
         if (curr_evt.buf)
         {
-            bcmp_dfu_abort_t* abort_evt = (bcmp_dfu_abort_t *)(curr_evt.buf);
+            BcmpDfuAbort* abort_evt = (BcmpDfuAbort *)(curr_evt.buf);
             err = (bm_dfu_err_t)(abort_evt->err.err_code);
         }
         printf("Recieved abort in request.\n");
@@ -321,7 +321,7 @@ void s_host_update_run(void) {
         bm_dfu_err_t err = BM_DFU_ERR_ABORTED;
         if (curr_evt.buf)
         {
-            bcmp_dfu_abort_t* abort_evt = (bcmp_dfu_abort_t *)(curr_evt.buf);
+            BcmpDfuAbort* abort_evt = (BcmpDfuAbort *)(curr_evt.buf);
             err = (bm_dfu_err_t)(abort_evt->err.err_code);
         }
         printf("Recieved abort in run.\n");

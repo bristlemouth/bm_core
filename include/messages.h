@@ -307,52 +307,52 @@ typedef struct {
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_img_info_t info;
-} __attribute__((packed)) bcmp_dfu_start_t;
+} __attribute__((packed)) BcmpDfuStart;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_chunk_request_t chunk_req;
-} __attribute__((packed)) bcmp_dfu_payload_req_t;
+} __attribute__((packed)) BcmpDfuPayloadReq;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_image_chunk_t chunk;
-} __attribute__((packed)) bcmp_dfu_payload_t;
+} __attribute__((packed)) BcmpDfuPayload;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_result_t result;
-} __attribute__((packed)) bcmp_dfu_end_t;
+} __attribute__((packed)) BcmpDfuEnd;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_result_t ack;
-} __attribute__((packed)) bcmp_dfu_ack_t;
+} __attribute__((packed)) BcmpDfuAck;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_result_t err;
-} __attribute__((packed)) bcmp_dfu_abort_t;
+} __attribute__((packed)) BcmpDfuAbort;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_address_t addr;
-} __attribute__((packed)) bcmp_dfu_heartbeat_t;
+} __attribute__((packed)) BcmpDfuHeartbeat;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_address_t addr;
-} __attribute__((packed)) bcmp_dfu_reboot_req_t;
+} __attribute__((packed)) BcmpDfuRebootReq;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_address_t addr;
-} __attribute__((packed)) bcmp_dfu_reboot_t;
+} __attribute__((packed)) BcmpDfuReboot;
 
 typedef struct {
  bm_dfu_frame_header_t header;
  bm_dfu_event_address_t addr;
-} __attribute__((packed)) bcmp_dfu_boot_complete_t;
+} __attribute__((packed)) BcmpDfuBootComplete;
 
 /////////////////////////////
 /* CONFIGURATION*/

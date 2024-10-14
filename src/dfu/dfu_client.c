@@ -54,7 +54,7 @@ static void bm_dfu_client_fail_update_and_reboot(void);
  * @return none
  */
 static void bm_dfu_client_abort(bm_dfu_err_t err) {
-    bcmp_dfu_abort_t abort_msg;
+    BcmpDfuAbort abort_msg;
 
     /* Populate the appropriate event */
     abort_msg.err.addresses.dst_node_id = client_ctx.host_node_id;
@@ -70,11 +70,11 @@ static void bm_dfu_client_abort(bm_dfu_err_t err) {
 }
 
 static void bm_dfu_client_send_reboot_request() {
-    bcmp_dfu_reboot_req_t reboot_req;
+    BcmpDfuRebootReq reboot_req;
     reboot_req.addr.src_node_id = client_ctx.self_node_id;
     reboot_req.addr.dst_node_id = client_ctx.host_node_id;
     reboot_req.header.frame_type = BcmpDFURebootReqMessage;
-    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(bcmp_dfu_reboot_req_t))){
+    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(BcmpDfuRebootReq))){
         printf("Message %d sent \n",reboot_req.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_req.header.frame_type);
@@ -82,11 +82,11 @@ static void bm_dfu_client_send_reboot_request() {
 }
 
 static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
-    bcmp_dfu_boot_complete_t boot_compl;
+    BcmpDfuBootComplete boot_compl;
     boot_compl.addr.src_node_id = client_ctx.self_node_id;
     boot_compl.addr.dst_node_id = host_node_id;
     boot_compl.header.frame_type = BcmpDFUBootCompleteMessage;
-    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(bcmp_dfu_boot_complete_t))){
+    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(BcmpDfuBootComplete))){
         printf("Message %d sent \n",boot_compl.header.frame_type);
     } else {
         printf("Failed to send message %d\n",boot_compl.header.frame_type);

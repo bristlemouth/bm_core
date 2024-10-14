@@ -411,7 +411,7 @@ void bm_dfu_set_pending_state_change(uint8_t new_state) {
  * @return none
  */
 void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_code) {
-    bcmp_dfu_ack_t ack_msg;
+    BcmpDfuAck ack_msg;
 
     /* Stuff ACK Event */
     ack_msg.ack.success = success;
@@ -437,7 +437,7 @@ void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_cod
  */
 void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num)
 {
-    bcmp_dfu_payload_req_t chunk_req_msg;
+    BcmpDfuPayloadReq chunk_req_msg;
 
     /* Stuff Chunk Request Event */
     chunk_req_msg.chunk_req.seq_num = chunk_num;
@@ -462,7 +462,7 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num)
  * @return none
  */
 void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_code) {
-    bcmp_dfu_end_t update_end_msg;
+    BcmpDfuEnd update_end_msg;
 
     /* Stuff Update End Event */
     update_end_msg.result.success = success;
@@ -486,7 +486,7 @@ void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_c
  * @return none
  */
 void bm_dfu_send_heartbeat(uint64_t dst_node_id) {
-    bcmp_dfu_heartbeat_t heartbeat_msg;
+    BcmpDfuHeartbeat heartbeat_msg;
     heartbeat_msg.addr.dst_node_id = dst_node_id;
     heartbeat_msg.addr.src_node_id = dfu_ctx.self_node_id;
     heartbeat_msg.header.frame_type = BcmpDFUHeartbeatMessage;
