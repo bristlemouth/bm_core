@@ -11,20 +11,20 @@
 
 typedef struct dfu_core_ctx_t {
     LibSmContext sm_ctx;
-    bm_dfu_event_t current_event;
+    BmDfuEvent current_event;
     bool pending_state_change;
     uint8_t new_state;
-    bm_dfu_err_t error;
+    BmDfuErr error;
     uint64_t self_node_id;
     uint64_t client_node_id;
-    bcmp_dfu_tx_func_t bcmp_dfu_tx;
-    update_finish_cb_t update_finish_callback;
+    BcmpDfuTxFunc bcmp_dfu_tx;
+    UpdateFinishCb update_finish_callback;
 } dfu_core_ctx_t;
 
 #ifndef CI_TEST
-ReboootClientUpdateInfo_t client_update_reboot_info __attribute__((section(".noinit")));
+ReboootClientUpdateInfo client_update_reboot_info __attribute__((section(".noinit")));
 #else // CI_TEST
-ReboootClientUpdateInfo_t client_update_reboot_info;
+ReboootClientUpdateInfo client_update_reboot_info;
 #endif // CI_TEST
 
 static dfu_core_ctx_t dfu_ctx;
@@ -41,72 +41,72 @@ static void s_idle_run(void);
 static void s_error_run(void) {}
 static void s_error_entry(void);
 
-static const LibSmState dfu_states[BM_NUM_DFU_STATES] = {
+static const LibSmState dfu_states[BmNumDfuStates] = {
     {
-        .state_enum = BM_DFU_STATE_INIT,
+        .state_enum = BmDfuStateInit,
         .state_name = "Init", // The name MUST NOT BE NULL
         .run = s_init_run, // This function MUST NOT BE NULL
         .on_state_exit = NULL, // This function can be NULL
         .on_state_entry = NULL, // This function can be NULL
     },
     {
-        .state_enum = BM_DFU_STATE_IDLE,
+        .state_enum = BmDfuStateIdle,
         .state_name = "Idle",
         .run = s_idle_run,
         .on_state_exit = s_idle_exit,
         .on_state_entry = s_idle_entry,
     },
     {
-        .state_enum = BM_DFU_STATE_ERROR,
+        .state_enum = BmDfuStateError,
         .state_name = "Error",
         .run = s_error_run,
         .on_state_exit = NULL,
         .on_state_entry = s_error_entry,
     },
     {
-        .state_enum = BM_DFU_STATE_CLIENT_RECEIVING,
+        .state_enum = BmDfuStateClientReceiving,
         .state_name = "Client Rx",
         .run = s_client_receiving_run,
         .on_state_exit = NULL,
         .on_state_entry = s_client_receiving_entry,
     },
     {
-        .state_enum = BM_DFU_STATE_CLIENT_VALIDATING,
+        .state_enum = BmDfuStateClientValidating,
         .state_name = "Client Validating",
         .run = s_client_validating_run,
         .on_state_exit = NULL,
         .on_state_entry = s_client_validating_entry,
     },
     {
-        .state_enum = BM_DFU_STATE_CLIENT_REBOOT_REQ,
+        .state_enum = BmDfuStateClientRebootReq,
         .state_name = "Client Reboot Request",
         .run = s_client_reboot_req_run,
         .on_state_exit = NULL,
         .on_state_entry = s_client_reboot_req_entry,
     },
     {
-        .state_enum = BM_DFU_STATE_CLIENT_REBOOT_DONE,
+        .state_enum = BmDfuStateClientRebootDone,
         .state_name = "Client Reboot Done",
         .run = s_client_update_done_run,
         .on_state_exit = NULL,
         .on_state_entry = s_client_update_done_entry,
     },
     {
-        .state_enum = BM_DFU_STATE_CLIENT_ACTIVATING,
+        .state_enum = BmDfuStateClientActivating,
         .state_name = "Client Activating",
         .run = s_client_activating_run,
         .on_state_exit = NULL,
         .on_state_entry = s_client_activating_entry,
     },
     {
-        .state_enum = BM_DFU_STATE_HOST_REQ_UPDATE,
+        .state_enum = BmDfuStateHostReqUpdate,
         .state_name = "Host Reqeust Update",
         .run = s_host_req_update_run,
         .on_state_exit = NULL,
         .on_state_entry = s_host_req_update_entry,
     },
     {
-        .state_enum = BM_DFU_STATE_HOST_UPDATE,
+        .state_enum = BmDfuStateHostUpdate,
         .state_name = "Host Update",
         .run = s_host_update_run,
         .on_state_exit = NULL,
@@ -116,7 +116,7 @@ static const LibSmState dfu_states[BM_NUM_DFU_STATES] = {
 
 static void bm_dfu_send_nop_event(void) {
     /* Force running the current state by sending a NOP event */
-    bm_dfu_event_t evt = {DFU_EVENT_NONE, NULL, 0};
+    BmDfuEvent evt = {DfuEventNone, NULL, 0};
     if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
         printf("Message could not be added to Queue\n");
     }
@@ -131,11 +131,11 @@ static const LibSmState* bm_dfu_check_transitions(uint8_t current_state){
 }
 
 static void s_init_run(void) {
-    if (dfu_ctx.current_event.type == DFU_EVENT_INIT_SUCCESS) {
+    if (dfu_ctx.current_event.type == DfuEventInitSuccess) {
         if (client_update_reboot_info.magic == DFU_REBOOT_MAGIC) {
-            bm_dfu_set_pending_state_change(BM_DFU_STATE_CLIENT_REBOOT_DONE);
+            bm_dfu_set_pending_state_change(BmDfuStateClientRebootDone);
         } else {
-            bm_dfu_set_pending_state_change(BM_DFU_STATE_IDLE);
+            bm_dfu_set_pending_state_change(BmDfuStateIdle);
         }
     }
 }
@@ -146,16 +146,16 @@ static void s_idle_entry(void) {
 }
 
 static void s_idle_run(void) {
-    if (dfu_ctx.current_event.type == DFU_EVENT_RECEIVED_UPDATE_REQUEST) {
+    if (dfu_ctx.current_event.type == DfuEventReceivedUpdateRequest) {
         /* Client */
         bm_dfu_client_process_update_request();
-    } else if(dfu_ctx.current_event.type == DFU_EVENT_BEGIN_HOST) {
+    } else if(dfu_ctx.current_event.type == DfuEventBeginHost) {
         /* Host */
-        dfu_host_start_event_t *start_event = (dfu_host_start_event_t*)(dfu_ctx.current_event.buf);
+        DfuHostStartEvent *start_event = (DfuHostStartEvent*)(dfu_ctx.current_event.buf);
         dfu_ctx.update_finish_callback = start_event->finish_cb;
         dfu_ctx.client_node_id = start_event->start.info.addresses.dst_node_id;
         bm_dfu_host_set_params(dfu_ctx.update_finish_callback, start_event->timeoutMs);
-        bm_dfu_set_pending_state_change(BM_DFU_STATE_HOST_REQ_UPDATE);
+        bm_dfu_set_pending_state_change(BmDfuStateHostReqUpdate);
     }
 }
 
@@ -173,43 +173,43 @@ static void s_idle_exit(void) {
 static void s_error_entry(void) {
     bm_dfu_core_lpm_peripheral_inactive();
     switch (dfu_ctx.error) {
-        case BM_DFU_ERR_FLASH_ACCESS:
+        case BmDfuErrFlashAccess:
             printf("Flash access error (Fatal Error)\n");
             break;
-        case BM_DFU_ERR_IMG_CHUNK_ACCESS:
+        case BmDfuErrImgChunkAccess:
             printf("Unable to get image chunk\n");
             break;
-        case BM_DFU_ERR_TOO_LARGE:
+        case BmDfuErrTooLarge:
             printf("Image too large for Client\n");
             break;
-        case BM_DFU_ERR_SAME_VER:
+        case BmDfuErrSameVer:
             printf("Client already loaded with image\n");
             break;
-        case BM_DFU_ERR_MISMATCH_LEN:
+        case BmDfuErrMismatchLen:
             printf("Length mismatch\n");
             break;
-        case BM_DFU_ERR_BAD_CRC:
+        case BmDfuErrBadCrc:
             printf("CRC mismatch\n");
             break;
-        case BM_DFU_ERR_TIMEOUT:
+        case BmDfuErrTimeout:
             printf("DFU Timeout\n");
             break;
-        case BM_DFU_ERR_BM_FRAME:
+        case BmDfuErrBmFrame:
             printf("BM Processing Error\n");
             break;
-        case BM_DFU_ERR_ABORTED:
+        case BmDfuErrAborted:
             printf("BM Aborted Error\n");
             break;
-        case BM_DFU_ERR_WRONG_VER:
+        case BmDfuErrWrongVer:
             printf("Client booted with the wrong version.\n");
             break;
-        case BM_DFU_ERR_IN_PROGRESS:
+        case BmDfuErrInProgress:
             printf("A FW update is already in progress.\n");
             break;
-        case BM_DFU_ERR_CONFIRMATION_ABORT:
+        case BmDfuErrConfirmationAbort:
             printf("BM Aborted Error During Reboot Confirmation\n");
             break;
-        case BM_DFU_ERR_NONE:
+        case BmDfuErrNone:
         default:
             break;
     }
@@ -218,8 +218,8 @@ static void s_error_entry(void) {
         dfu_ctx.update_finish_callback(false, dfu_ctx.error, dfu_ctx.client_node_id);
     }
 
-    if(dfu_ctx.error <  BM_DFU_ERR_FLASH_ACCESS) {
-        bm_dfu_set_pending_state_change(BM_DFU_STATE_IDLE);
+    if(dfu_ctx.error <  BmDfuErrFlashAccess) {
+        bm_dfu_set_pending_state_change(BmDfuStateIdle);
     }
     return;
 }
@@ -229,7 +229,7 @@ static void s_error_entry(void) {
    into events that are placed into the subystem queue and are consumed by the DFU event thread. */
 void bm_dfu_process_message(uint8_t *buf, size_t len) {
     // configASSERT(buf);
-    bm_dfu_event_t evt;
+    BmDfuEvent evt;
     bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(buf);
 
     /* If this node is not the intended destination, then discard and continue to wait on queue */
@@ -240,23 +240,23 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
 
     bool valid_packet = true;
     switch(get_current_state_enum(&(dfu_ctx.sm_ctx))){
-        case BM_DFU_STATE_INIT:
-        case BM_DFU_STATE_IDLE:
-        case BM_DFU_STATE_ERROR: {
+        case BmDfuStateInit:
+        case BmDfuStateIdle:
+        case BmDfuStateError: {
             break;
         }
-        case BM_DFU_STATE_CLIENT_RECEIVING:
-        case BM_DFU_STATE_CLIENT_VALIDATING:
-        case BM_DFU_STATE_CLIENT_REBOOT_REQ:
-        case BM_DFU_STATE_CLIENT_REBOOT_DONE:
-        case BM_DFU_STATE_CLIENT_ACTIVATING: {
+        case BmDfuStateClientReceiving:
+        case BmDfuStateClientValidating:
+        case BmDfuStateClientRebootReq:
+        case BmDfuStateClientRebootDone:
+        case BmDfuStateClientActivating: {
             if(!bm_dfu_client_host_node_valid(((BmDfuEventAddress *)(frame->payload))->src_node_id)) {
                 valid_packet = false;; // DFU packet from the wrong host! Drop packet.
             }
             break;
         }
-        case BM_DFU_STATE_HOST_REQ_UPDATE:
-        case BM_DFU_STATE_HOST_UPDATE: {
+        case BmDfuStateHostReqUpdate:
+        case BmDfuStateHostUpdate: {
             if(!bm_dfu_host_client_node_valid(((BmDfuEventAddress *)(frame->payload))->src_node_id)){
                 valid_packet = false; // DFU packet from the wrong client! Drop packet.
             }
@@ -277,7 +277,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
 
     switch (frame->header.frame_type) {
         case BcmpDFUStartMessage:
-            evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
+            evt.type = DfuEventReceivedUpdateRequest;
             printf("Received update request\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
@@ -285,7 +285,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
             }
             break;
         case BcmpDFUPayloadMessage:
-            evt.type = DFU_EVENT_IMAGE_CHUNK;
+            evt.type = DfuEventImageChunk;
             printf("Received Payload\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
@@ -293,7 +293,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
             }
             break;
         case BcmpDFUEndMessage:
-            evt.type = DFU_EVENT_UPDATE_END;
+            evt.type = DfuEventUpdateEnd;
             printf("Received DFU End\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
@@ -301,7 +301,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
             }
             break;
         case BcmpDFUAckMessage:
-            evt.type = DFU_EVENT_ACK_RECEIVED;
+            evt.type = DfuEventAckReceived;
             printf("Received ACK\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
@@ -309,7 +309,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
             }
             break;
         case BcmpDFUAbortMessage:
-            evt.type = DFU_EVENT_ABORT;
+            evt.type = DfuEventAbort;
             printf("Received Abort\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
@@ -317,7 +317,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
             }
             break;
         case BcmpDFUHeartbeatMessage:
-            evt.type = DFU_EVENT_HEARTBEAT;
+            evt.type = DfuEventHeartbeat;
             printf("Received DFU Heartbeat\n");
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
@@ -325,28 +325,28 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
             }
             break;
         case BcmpDFUPayloadReqMessage:
-            evt.type = DFU_EVENT_CHUNK_REQUEST;
+            evt.type = DfuEventChunkRequest;
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
                 printf("Message could not be added to Queue\n");
             }
             break;
         case BcmpDFURebootReqMessage:
-            evt.type = DFU_EVENT_REBOOT_REQUEST;
+            evt.type = DfuEventRebootRequest;
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
                 printf("Message could not be added to Queue\n");
             }
             break;
         case BcmpDFURebootMessage:
-            evt.type = DFU_EVENT_REBOOT;
+            evt.type = DfuEventReboot;
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
                 printf("Message could not be added to Queue\n");
             }
             break;
         case BcmpDFUBootCompleteMessage:
-            evt.type = DFU_EVENT_BOOT_COMPLETE;
+            evt.type = DfuEventBootComplete;
             if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
                 bm_free(buf);
                 printf("Message could not be added to Queue\n");
@@ -376,9 +376,9 @@ BmQueue bm_dfu_get_event_queue(void) {
  * @note Get the event currently stored in the DFU Core context
  *
  * @param none
- * @return bm_dfu_event_t Latest DFU Event enum
+ * @return BmDfuEvent Latest DFU Event enum
  */
-bm_dfu_event_t bm_dfu_get_current_event(void) {
+BmDfuEvent bm_dfu_get_current_event(void) {
     return dfu_ctx.current_event;
 }
 
@@ -390,7 +390,7 @@ bm_dfu_event_t bm_dfu_get_current_event(void) {
  * @param error  Specific DFU Error value
  * @return none
  */
-void bm_dfu_set_error(bm_dfu_err_t error) {
+void bm_dfu_set_error(BmDfuErr error) {
     dfu_ctx.error = error;
 }
 
@@ -410,7 +410,7 @@ void bm_dfu_set_pending_state_change(uint8_t new_state) {
  * @param err_code      Error Code enum, read by Host on NACK
  * @return none
  */
-void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_code) {
+void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code) {
     BcmpDfuAck ack_msg;
 
     /* Stuff ACK Event */
@@ -461,7 +461,7 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num)
  * @param err_code      Error Code enum, read by Host on Unsuccessful update
  * @return none
  */
-void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, bm_dfu_err_t err_code) {
+void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code) {
     BcmpDfuEnd update_end_msg;
 
     /* Stuff Update End Event */
@@ -503,7 +503,7 @@ static void bm_dfu_event_thread(void*) {
     printf("BM DFU Subsystem thread started\n");
 
     while (1) {
-        dfu_ctx.current_event.type = DFU_EVENT_NONE;
+        dfu_ctx.current_event.type = DfuEventNone;
         if(bm_queue_receive(dfu_event_queue, &dfu_ctx.current_event, BM_MAX_DELAY_UINT32) == BmOK) {
             lib_sm_run(&(dfu_ctx.sm_ctx));
         }
@@ -529,30 +529,30 @@ static BmErr dfu_copy_and_process_message(BcmpProcessData data) {
   return err;
 }
 
-void bm_dfu_init(bcmp_dfu_tx_func_t bcmp_dfu_tx) {
+void bm_dfu_init(BcmpDfuTxFunc bcmp_dfu_tx) {
     // configASSERT(bcmp_dfu_tx);
     dfu_ctx.bcmp_dfu_tx = bcmp_dfu_tx;
-    bm_dfu_event_t evt;
+    BmDfuEvent evt;
     BmErr retval;
 
     /* Store relevant variables from bristlemouth.c */
     dfu_ctx.self_node_id = node_id();
 
     /* Initialize current event to NULL */
-    dfu_ctx.current_event.type = DFU_EVENT_NONE;
+    dfu_ctx.current_event.type = DfuEventNone;
     dfu_ctx.current_event.buf = NULL;
     dfu_ctx.current_event.len = 0;
 
     /* Set initial state of DFU State Machine*/
-    lib_sm_init(&(dfu_ctx.sm_ctx), &(dfu_states[BM_DFU_STATE_INIT]), bm_dfu_check_transitions);
+    lib_sm_init(&(dfu_ctx.sm_ctx), &(dfu_states[BmDfuStateInit]), bm_dfu_check_transitions);
 
-    dfu_event_queue = bm_queue_create( 5, sizeof(bm_dfu_event_t));
+    dfu_event_queue = bm_queue_create( 5, sizeof(BmDfuEvent));
     // configASSERT(dfu_event_queue);
 
     bm_dfu_client_init(bcmp_dfu_tx);
     bm_dfu_host_init(bcmp_dfu_tx);
 
-    evt.type = DFU_EVENT_INIT_SUCCESS;
+    evt.type = DfuEventInitSuccess;
     evt.buf = NULL;
     evt.len = 0;
 
@@ -592,27 +592,27 @@ void bm_dfu_init(bcmp_dfu_tx_func_t bcmp_dfu_tx) {
   bm_err_check(err, packet_add(&process_dfu_message, BcmpDFULastMessageMessage));
 }
 
-bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id, update_finish_cb_t update_finish_callback, uint32_t timeoutMs) {
+bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id, UpdateFinishCb update_finish_callback, uint32_t timeoutMs) {
     bool ret = false;
     do {
         if(info.chunk_size > BM_DFU_MAX_CHUNK_SIZE) {
             printf("Invalid chunk size for DFU\n");
             break;
         }
-        if(get_current_state_enum(&(dfu_ctx.sm_ctx)) != BM_DFU_STATE_IDLE) {
+        if(get_current_state_enum(&(dfu_ctx.sm_ctx)) != BmDfuStateIdle) {
             printf("Not ready to start update.\n");
             if(update_finish_callback) {
-                update_finish_callback(false, BM_DFU_ERR_IN_PROGRESS, dest_node_id);
+                update_finish_callback(false, BmDfuErrInProgress, dest_node_id);
             }
             break;
         }
-        bm_dfu_event_t evt;
-        size_t size = sizeof(dfu_host_start_event_t);
-        evt.type = DFU_EVENT_BEGIN_HOST;
+        BmDfuEvent evt;
+        size_t size = sizeof(DfuHostStartEvent);
+        evt.type = DfuEventBeginHost;
         uint8_t *buf = (uint8_t*)(bm_malloc(size));
         // configASSERT(buf);
 
-        dfu_host_start_event_t *start_event = (dfu_host_start_event_t*)(buf);
+        DfuHostStartEvent *start_event = (DfuHostStartEvent*)(buf);
         start_event->start.header.frame_type = BcmpDFUStartMessage;
         start_event->start.info.addresses.dst_node_id = dest_node_id;
         start_event->start.info.addresses.src_node_id = dfu_ctx.self_node_id;
@@ -624,7 +624,7 @@ bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id, updat
         if(bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
             bm_free(buf);
             if(update_finish_callback) {
-                update_finish_callback(false, BM_DFU_ERR_IN_PROGRESS, dest_node_id);
+                update_finish_callback(false, BmDfuErrInProgress, dest_node_id);
             }
             printf("Message could not be added to Queue\n");
             break;
@@ -634,7 +634,7 @@ bool bm_dfu_initiate_update(bm_dfu_img_info_t info, uint64_t dest_node_id, updat
     return ret;
 }
 
-bm_dfu_err_t bm_dfu_get_error(void) {
+BmDfuErr bm_dfu_get_error(void) {
     return dfu_ctx.error;
 }
 
@@ -646,8 +646,8 @@ LibSmContext* bm_dfu_test_get_sm_ctx(void) {
     return &dfu_ctx.sm_ctx;
 }
 
-void bm_dfu_test_set_dfu_event_and_run_sm(bm_dfu_event_t evt) {
-    memcpy(&dfu_ctx.current_event, &evt, sizeof(bm_dfu_event_t));
+void bm_dfu_test_set_dfu_event_and_run_sm(BmDfuEvent evt) {
+    memcpy(&dfu_ctx.current_event, &evt, sizeof(BmDfuEvent));
     lib_sm_run(dfu_ctx.sm_ctx);
 }
 #endif //CI_TEST

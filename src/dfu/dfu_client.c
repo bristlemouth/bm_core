@@ -30,15 +30,15 @@ typedef struct dfu_client_ctx_t {
     BmTimer chunk_timer;
     uint64_t self_node_id;
     uint64_t host_node_id;
-    bcmp_dfu_tx_func_t bcmp_dfu_tx;
+    BcmpDfuTxFunc bcmp_dfu_tx;
 } dfu_client_ctx_t;
 
 static dfu_client_ctx_t client_ctx;
 
-static void bm_dfu_client_abort(bm_dfu_err_t err);
+static void bm_dfu_client_abort(BmDfuErr err);
 static void bm_dfu_client_send_reboot_request();
 static void bm_dfu_client_send_boot_complete(uint64_t host_node_id);
-static void bm_dfu_client_transition_to_error(bm_dfu_err_t err);
+static void bm_dfu_client_transition_to_error(BmDfuErr err);
 static void bm_dfu_client_fail_update_and_reboot(void);
 
 // TODO - throughout this file there are a bunch of configASSERTs that need to be replaced with error handling
@@ -53,7 +53,7 @@ static void bm_dfu_client_fail_update_and_reboot(void);
  *
  * @return none
  */
-static void bm_dfu_client_abort(bm_dfu_err_t err) {
+static void bm_dfu_client_abort(BmDfuErr err) {
     BcmpDfuAbort abort_msg;
 
     /* Populate the appropriate event */
@@ -103,7 +103,7 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
  */
 static void chunk_timer_handler(BmTimer tmr) {
     (void) tmr;
-    bm_dfu_event_t evt = {DFU_EVENT_CHUNK_TIMEOUT, NULL, 0};
+    BmDfuEvent evt = {DfuEventChunkTimeout, NULL, 0};
 
     if(bm_queue_send(client_ctx.dfu_event_queue, &evt, 0) != BmOK) {
         // configASSERT(false);
@@ -208,7 +208,7 @@ void bm_dfu_client_process_update_request(void) {
     uint8_t minor_version;
     uint8_t major_version;
 
-    bm_dfu_event_t curr_evt = bm_dfu_get_current_event();
+    BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
     /* Check if we even have a buf to inspect */
     if (! curr_evt.buf) {
@@ -226,8 +226,8 @@ void bm_dfu_client_process_update_request(void) {
 
     if (img_info_evt->img_info.gitSHA != git_sha() || img_info_evt->img_info.filter_key == BM_DFU_IMG_INFO_FORCE_UPDATE) {
         if(chunk_size > BM_DFU_MAX_CHUNK_SIZE) {
-            bm_dfu_client_abort(BM_DFU_ERR_ABORTED);
-            bm_dfu_client_transition_to_error(BM_DFU_ERR_CHUNK_SIZE);
+            bm_dfu_client_abort(BmDfuErrAborted);
+            bm_dfu_client_transition_to_error(BmDfuErrChunkSize);
             return;
         }
         client_ctx.image_size = image_size;
@@ -243,8 +243,8 @@ void bm_dfu_client_process_update_request(void) {
 
             /* Open the secondary image slot */
         if (bm_dfu_client_flash_area_open(&client_ctx.fa) != 0) {
-            bm_dfu_send_ack(client_ctx.host_node_id, 0, BM_DFU_ERR_FLASH_ACCESS);
-            bm_dfu_client_transition_to_error(BM_DFU_ERR_FLASH_ACCESS);
+            bm_dfu_send_ack(client_ctx.host_node_id, 0, BmDfuErrFlashAccess);
+            bm_dfu_client_transition_to_error(BmDfuErrFlashAccess);
         } else {
 
             if(bm_dfu_client_flash_area_get_size(client_ctx.fa) > image_size) {
@@ -252,10 +252,10 @@ void bm_dfu_client_process_update_request(void) {
                 printf("Erasing flash\n");
                 if(bm_dfu_client_flash_area_erase(client_ctx.fa, 0, bm_dfu_client_flash_area_get_size(client_ctx.fa)) != 0) {
                     printf("Error erasing flash!\n");
-                    bm_dfu_send_ack(client_ctx.host_node_id, 0, BM_DFU_ERR_FLASH_ACCESS);
-                    bm_dfu_client_transition_to_error(BM_DFU_ERR_FLASH_ACCESS);
+                    bm_dfu_send_ack(client_ctx.host_node_id, 0, BmDfuErrFlashAccess);
+                    bm_dfu_client_transition_to_error(BmDfuErrFlashAccess);
                 } else {
-                    bm_dfu_send_ack(client_ctx.host_node_id, 1, BM_DFU_ERR_NONE);
+                    bm_dfu_send_ack(client_ctx.host_node_id, 1, BmDfuErrNone);
 
                     // Save image update info to noinit
                     client_update_reboot_info.major = major_version;
@@ -266,17 +266,17 @@ void bm_dfu_client_process_update_request(void) {
 
                     /* TODO: Fix this. Is this needed for FreeRTOS */
                     bm_delay(10); // Needed so ACK can properly be sent/processed
-                    bm_dfu_set_pending_state_change(BM_DFU_STATE_CLIENT_RECEIVING);
+                    bm_dfu_set_pending_state_change(BmDfuStateClientReceiving);
 
                 }
             } else {
                 printf("Image too large\n");
-                bm_dfu_send_ack(client_ctx.host_node_id, 0, BM_DFU_ERR_TOO_LARGE);
+                bm_dfu_send_ack(client_ctx.host_node_id, 0, BmDfuErrTooLarge);
             }
         }
     } else {
         printf("Same version requested\n");
-        bm_dfu_send_ack(client_ctx.host_node_id, 0, BM_DFU_ERR_SAME_VER);
+        bm_dfu_send_ack(client_ctx.host_node_id, 0, BmDfuErrSameVer);
     }
 }
 
@@ -315,9 +315,9 @@ void s_client_receiving_entry(void) {
  * @return none
  */
 void s_client_receiving_run(void) {
-    bm_dfu_event_t curr_evt = bm_dfu_get_current_event();
+    BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
-    if (curr_evt.type == DFU_EVENT_IMAGE_CHUNK) {
+    if (curr_evt.type == DfuEventImageChunk) {
         // configASSERT(curr_evt.buf);
         bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
         BmDfuEventImageChunk* image_chunk_evt = (BmDfuEventImageChunk*) &((uint8_t *)(frame))[1];
@@ -334,7 +334,7 @@ void s_client_receiving_run(void) {
 
         /* Process the frame */
         if (bm_dfu_process_payload(client_ctx.chunk_length, image_chunk_evt->payload_buf)) {
-            bm_dfu_client_transition_to_error(BM_DFU_ERR_BM_FRAME);
+            bm_dfu_client_transition_to_error(BmDfuErrBmFrame);
         }
 
         /* Request Next Chunk */
@@ -348,26 +348,26 @@ void s_client_receiving_run(void) {
         } else {
             /* Process the frame */
             if (bm_dfu_process_end()) {
-                bm_dfu_client_transition_to_error(BM_DFU_ERR_BM_FRAME);
+                bm_dfu_client_transition_to_error(BmDfuErrBmFrame);
             } else {
-                bm_dfu_set_pending_state_change(BM_DFU_STATE_CLIENT_VALIDATING);
+                bm_dfu_set_pending_state_change(BmDfuStateClientValidating);
             }
         }
-    } else if (curr_evt.type == DFU_EVENT_CHUNK_TIMEOUT) {
+    } else if (curr_evt.type == DfuEventChunkTimeout) {
         client_ctx.chunk_retry_num++;
         /* Try requesting chunk until max retries is reached */
         if (client_ctx.chunk_retry_num >= BM_DFU_MAX_CHUNK_RETRIES) {
-            bm_dfu_client_abort(BM_DFU_ERR_ABORTED);
-            bm_dfu_client_transition_to_error(BM_DFU_ERR_TIMEOUT);
+            bm_dfu_client_abort(BmDfuErrAborted);
+            bm_dfu_client_transition_to_error(BmDfuErrTimeout);
         } else {
             bm_dfu_req_next_chunk(client_ctx.host_node_id, client_ctx.current_chunk);
             // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
             bm_timer_start(client_ctx.chunk_timer, 10);
         }
-    } else if (curr_evt.type == DFU_EVENT_RECEIVED_UPDATE_REQUEST) { // The host dropped our previous ack to the image, and we need to sync up.
+    } else if (curr_evt.type == DfuEventReceivedUpdateRequest) { // The host dropped our previous ack to the image, and we need to sync up.
         // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
         bm_timer_stop(client_ctx.chunk_timer, 10);
-        bm_dfu_send_ack(client_ctx.host_node_id, 1, BM_DFU_ERR_NONE);
+        bm_dfu_send_ack(client_ctx.host_node_id, 1, BmDfuErrNone);
         // Start image from the beginning
         client_ctx.current_chunk = 0;
         client_ctx.chunk_retry_num = 0;
@@ -381,7 +381,7 @@ void s_client_receiving_run(void) {
     }
     /* TODO: (IMPLEMENT THIS PERIODICALLY ON HOST SIDE)
        If host is still waiting for chunk, it will send a heartbeat to client */
-    else if (curr_evt.type == DFU_EVENT_HEARTBEAT) {
+    else if (curr_evt.type == DfuEventHeartbeat) {
         // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
         bm_timer_start(client_ctx.chunk_timer, 10);
     }
@@ -399,17 +399,17 @@ void s_client_validating_entry(void)
     /* Verify image length */
     if (client_ctx.image_size != client_ctx.img_flash_offset) {
         printf("Rx Len: %" PRIu32 ", Actual Len: %" PRIu32 "\n", client_ctx.image_size, client_ctx.img_flash_offset);
-        bm_dfu_update_end(client_ctx.host_node_id, 0, BM_DFU_ERR_MISMATCH_LEN);
-        bm_dfu_client_transition_to_error(BM_DFU_ERR_MISMATCH_LEN);
+        bm_dfu_update_end(client_ctx.host_node_id, 0, BmDfuErrMismatchLen);
+        bm_dfu_client_transition_to_error(BmDfuErrMismatchLen);
 
     } else {
         /* Verify CRC. If ok, then move to Activating state */
         if (client_ctx.crc16 == client_ctx.running_crc16) {
-            bm_dfu_set_pending_state_change(BM_DFU_STATE_CLIENT_REBOOT_REQ);
+            bm_dfu_set_pending_state_change(BmDfuStateClientRebootReq);
         } else {
             printf("Expected Image CRC: %d | Calculated Image CRC: %d\n", client_ctx.crc16, client_ctx.running_crc16);
-            bm_dfu_update_end(client_ctx.host_node_id, 0, BM_DFU_ERR_BAD_CRC);
-            bm_dfu_client_transition_to_error(BM_DFU_ERR_BAD_CRC);
+            bm_dfu_update_end(client_ctx.host_node_id, 0, BmDfuErrBadCrc);
+            bm_dfu_client_transition_to_error(BmDfuErrBadCrc);
         }
     }
 }
@@ -457,19 +457,19 @@ void s_client_reboot_req_entry(void) {
  * @return none
  */
 void s_client_reboot_req_run(void) {
-    bm_dfu_event_t curr_evt = bm_dfu_get_current_event();
+    BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
-    if (curr_evt.type == DFU_EVENT_REBOOT) {
+    if (curr_evt.type == DfuEventReboot) {
         // configASSERT(curr_evt.buf);
         // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
         bm_timer_stop(client_ctx.chunk_timer, 10);
-        bm_dfu_set_pending_state_change(BM_DFU_STATE_CLIENT_ACTIVATING);
-    } else if (curr_evt.type == DFU_EVENT_CHUNK_TIMEOUT) {
+        bm_dfu_set_pending_state_change(BmDfuStateClientActivating);
+    } else if (curr_evt.type == DfuEventChunkTimeout) {
         client_ctx.chunk_retry_num++;
         /* Try requesting reboot until max retries is reached */
         if (client_ctx.chunk_retry_num >= BM_DFU_MAX_CHUNK_RETRIES) {
-            bm_dfu_client_abort(BM_DFU_ERR_ABORTED);
-            bm_dfu_client_transition_to_error(BM_DFU_ERR_TIMEOUT);
+            bm_dfu_client_abort(BmDfuErrAborted);
+            bm_dfu_client_transition_to_error(BmDfuErrTimeout);
         } else {
             bm_dfu_client_send_reboot_request();
             // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
@@ -500,7 +500,7 @@ void s_client_update_done_entry(void) {
             bm_timer_start(client_ctx.chunk_timer, 10);
         }
     } else {
-        bm_dfu_update_end(client_update_reboot_info.host_node_id, false, BM_DFU_ERR_WRONG_VER);
+        bm_dfu_update_end(client_update_reboot_info.host_node_id, false, BmDfuErrWrongVer);
         bm_dfu_client_fail_update_and_reboot();
     }
 }
@@ -513,21 +513,21 @@ void s_client_update_done_entry(void) {
  * @return none
  */
 void s_client_update_done_run(void) {
-    bm_dfu_event_t curr_evt = bm_dfu_get_current_event();
+    BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
-    if (curr_evt.type == DFU_EVENT_UPDATE_END) {
+    if (curr_evt.type == DfuEventUpdateEnd) {
         // configASSERT(curr_evt.buf);
         // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
         bm_timer_stop(client_ctx.chunk_timer, 10);
         bm_dfu_client_set_confirmed();
         printf("Boot confirmed!\n Update success!\n");
-        bm_dfu_update_end(client_update_reboot_info.host_node_id, true, BM_DFU_ERR_NONE);
-        bm_dfu_set_pending_state_change(BM_DFU_STATE_IDLE);
-    } else if (curr_evt.type == DFU_EVENT_CHUNK_TIMEOUT) {
+        bm_dfu_update_end(client_update_reboot_info.host_node_id, true, BmDfuErrNone);
+        bm_dfu_set_pending_state_change(BmDfuStateIdle);
+    } else if (curr_evt.type == DfuEventChunkTimeout) {
         client_ctx.chunk_retry_num++;
         /* Try requesting confirmation until max retries is reached */
         if (client_ctx.chunk_retry_num >= BM_DFU_MAX_CHUNK_RETRIES) {
-            bm_dfu_client_abort(BM_DFU_ERR_CONFIRMATION_ABORT);
+            bm_dfu_client_abort(BmDfuErrConfirmationAbort);
             bm_dfu_client_fail_update_and_reboot();
         } else {
             /* Request confirmation */
@@ -547,7 +547,7 @@ void s_client_update_done_run(void) {
  * @return none
  */
 
-void bm_dfu_client_init(bcmp_dfu_tx_func_t bcmp_dfu_tx)
+void bm_dfu_client_init(BcmpDfuTxFunc bcmp_dfu_tx)
 {
     // configASSERT(bcmp_dfu_tx);
     client_ctx.bcmp_dfu_tx = bcmp_dfu_tx;
@@ -564,11 +564,11 @@ void bm_dfu_client_init(bcmp_dfu_tx_func_t bcmp_dfu_tx)
     // configASSERT(client_ctx.chunk_timer);
 }
 
-static void bm_dfu_client_transition_to_error(bm_dfu_err_t err) {
+static void bm_dfu_client_transition_to_error(BmDfuErr err) {
     // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
     bm_timer_stop(client_ctx.chunk_timer, 10);
     bm_dfu_set_error(err);
-    bm_dfu_set_pending_state_change(BM_DFU_STATE_ERROR);
+    bm_dfu_set_pending_state_change(BmDfuStateError);
 }
 
 static void bm_dfu_client_fail_update_and_reboot(void) {

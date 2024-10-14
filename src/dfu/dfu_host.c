@@ -15,9 +15,9 @@ typedef struct dfu_host_ctx_t {
     bm_dfu_img_info_t img_info;
     uint64_t self_node_id;
     uint64_t client_node_id;
-    bcmp_dfu_tx_func_t bcmp_dfu_tx;
+    BcmpDfuTxFunc bcmp_dfu_tx;
     uint32_t bytes_remaining;
-    update_finish_cb_t update_complete_callback;
+    UpdateFinishCb update_complete_callback;
     BmTimer update_timer;
     uint32_t host_timeout_ms;
 } dfu_host_ctx_t;
@@ -32,7 +32,7 @@ static void update_timer_handler(BmTimer tmr);
 
 static void bm_dfu_host_req_update();
 static void bm_dfu_host_send_reboot();
-static void bm_dfu_host_transition_to_error(bm_dfu_err_t err);
+static void bm_dfu_host_transition_to_error(BmDfuErr err);
 static void bm_dfu_host_start_update_timer(uint32_t timeoutMs);
 
 /**
@@ -45,7 +45,7 @@ static void bm_dfu_host_start_update_timer(uint32_t timeoutMs);
  */
 static void ack_timer_handler(BmTimer tmr) {
     (void) tmr;
-    bm_dfu_event_t evt = {DFU_EVENT_ACK_TIMEOUT, NULL,0};
+    BmDfuEvent evt = {DfuEventAckTimeout, NULL,0};
 
     if(bm_queue_send(host_ctx.dfu_event_queue, &evt, 0) != BmOK) {
         // configASSERT(false);
@@ -89,7 +89,7 @@ static void heartbeat_timer_handler(BmTimer tmr) {
  */
 static void update_timer_handler(BmTimer tmr) {
     (void) tmr;
-    bm_dfu_event_t evt = {DFU_EVENT_ABORT, NULL,0};
+    BmDfuEvent evt = {DfuEventAbort, NULL,0};
 
     if(bm_queue_send(host_ctx.dfu_event_queue, &evt, 0) != BmOK) {
         // configASSERT(false);
@@ -143,7 +143,7 @@ static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest* req) {
     do {
         if (bm_dfu_host_get_chunk(flash_offset, payload_header->chunk.payload_buf, payload_len, FLASH_READ_TIMEOUT_MS) != BmOK) {
             printf("Failed to read chunk from flash.\n");
-            bm_dfu_host_transition_to_error(BM_DFU_ERR_FLASH_ACCESS);
+            bm_dfu_host_transition_to_error(BmDfuErrFlashAccess);
             break;
         }
         if(host_ctx.bcmp_dfu_tx((BcmpMessageType)(payload_header->header.frame_type), buf, payload_len_plus_header)){
@@ -151,7 +151,7 @@ static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest* req) {
             printf("Message %d sent, payload size: %" PRIX32 ", remaining: %" PRIX32 "\n",payload_header->header.frame_type, payload_len, host_ctx.bytes_remaining);
         } else {
             printf("Failed to send message %d\n",payload_header->header.frame_type);
-            bm_dfu_host_transition_to_error(BM_DFU_ERR_IMG_CHUNK_ACCESS);
+            bm_dfu_host_transition_to_error(BmDfuErrImgChunkAccess);
         }
     } while(0);
 
@@ -183,7 +183,7 @@ static void bm_dfu_host_send_reboot() {
  * @return none
  */
 void s_host_req_update_entry(void) {
-    bm_dfu_event_t curr_evt = bm_dfu_get_current_event();
+    BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
     /* Check if we even have a buf to inspect */
     if (! curr_evt.buf) {
@@ -216,9 +216,9 @@ void s_host_req_update_entry(void) {
  */
 void s_host_req_update_run(void)
 {
-    bm_dfu_event_t curr_evt = bm_dfu_get_current_event();
+    BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
-    if (curr_evt.type == DFU_EVENT_ACK_RECEIVED) {
+    if (curr_evt.type == DfuEventAckReceived) {
         /* Stop ACK Timer */
         // configASSERT(xTimerStop(host_ctx.ack_timer, 10));
         bm_timer_stop(host_ctx.ack_timer, 10);
@@ -227,27 +227,27 @@ void s_host_req_update_run(void)
         BmDfuEventResult* result_evt = (BmDfuEventResult*)(&((uint8_t *)(frame))[1]);
 
         if (result_evt->success) {
-            bm_dfu_set_pending_state_change(BM_DFU_STATE_HOST_UPDATE);
+            bm_dfu_set_pending_state_change(BmDfuStateHostUpdate);
         } else {
-            bm_dfu_host_transition_to_error((bm_dfu_err_t)(result_evt->err_code));
+            bm_dfu_host_transition_to_error((BmDfuErr)(result_evt->err_code));
         }
-    } else if (curr_evt.type == DFU_EVENT_ACK_TIMEOUT) {
+    } else if (curr_evt.type == DfuEventAckTimeout) {
         host_ctx.ack_retry_num++;
 
         /* Wait for ack until max retries is reached */
         if (host_ctx.ack_retry_num >= BM_DFU_MAX_ACK_RETRIES) {
-            bm_dfu_host_transition_to_error(BM_DFU_ERR_TIMEOUT);
+            bm_dfu_host_transition_to_error(BmDfuErrTimeout);
         } else {
             bm_dfu_host_req_update();
             // configASSERT(xTimerStart(host_ctx.ack_timer, 10));
             bm_timer_start(host_ctx.ack_timer, 10);
         }
-    } else if (curr_evt.type == DFU_EVENT_ABORT) {
-        bm_dfu_err_t err = BM_DFU_ERR_ABORTED;
+    } else if (curr_evt.type == DfuEventAbort) {
+        BmDfuErr err = BmDfuErrAborted;
         if (curr_evt.buf)
         {
             BcmpDfuAbort* abort_evt = (BcmpDfuAbort *)(curr_evt.buf);
-            err = (bm_dfu_err_t)(abort_evt->err.err_code);
+            err = (BmDfuErr)(abort_evt->err.err_code);
         }
         printf("Recieved abort in request.\n");
         bm_dfu_host_transition_to_error(err);
@@ -274,14 +274,14 @@ void s_host_update_entry(void) {
  */
 void s_host_update_run(void) {
     bm_dfu_frame_t *frame = NULL;
-    bm_dfu_event_t curr_evt = bm_dfu_get_current_event();
+    BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
     /* Check if we even have a buf to inspect */
     if (curr_evt.buf) {
         frame = (bm_dfu_frame_t *)(curr_evt.buf);
     }
 
-    if (curr_evt.type == DFU_EVENT_CHUNK_REQUEST) {
+    if (curr_evt.type == DfuEventChunkRequest) {
         // configASSERT(frame);
         BmDfuEventChunkRequest* chunk_req_evt = (BmDfuEventChunkRequest*)(&((uint8_t *)(frame))[1]);
 
@@ -295,14 +295,14 @@ void s_host_update_run(void) {
 
         // configASSERT(xTimerStop(host_ctx.heartbeat_timer, 10));
         bm_timer_stop(host_ctx.heartbeat_timer, 10);
-    } else if (curr_evt.type == DFU_EVENT_REBOOT_REQUEST) {
+    } else if (curr_evt.type == DfuEventRebootRequest) {
         // configASSERT(frame);
         bm_dfu_host_send_reboot();
-    } else if (curr_evt.type == DFU_EVENT_BOOT_COMPLETE) {
+    } else if (curr_evt.type == DfuEventBootComplete) {
         // configASSERT(frame);
-        bm_dfu_update_end(host_ctx.client_node_id, true, BM_DFU_ERR_NONE);
+        bm_dfu_update_end(host_ctx.client_node_id, true, BmDfuErrNone);
     }
-    else if (curr_evt.type == DFU_EVENT_UPDATE_END) {
+    else if (curr_evt.type == DfuEventUpdateEnd) {
         // configASSERT(xTimerStop(host_ctx.update_timer, 100));
         bm_timer_stop(host_ctx.update_timer, 100);
         // configASSERT(frame);
@@ -314,22 +314,22 @@ void s_host_update_run(void) {
             printf("Client Update Failed\n");
         }
         if(host_ctx.update_complete_callback) {
-            host_ctx.update_complete_callback(update_end_evt->success, (bm_dfu_err_t)(update_end_evt->err_code), host_ctx.client_node_id);
+            host_ctx.update_complete_callback(update_end_evt->success, (BmDfuErr)(update_end_evt->err_code), host_ctx.client_node_id);
         }
-        bm_dfu_set_pending_state_change(BM_DFU_STATE_IDLE);
-    } else if (curr_evt.type == DFU_EVENT_ABORT) {
-        bm_dfu_err_t err = BM_DFU_ERR_ABORTED;
+        bm_dfu_set_pending_state_change(BmDfuStateIdle);
+    } else if (curr_evt.type == DfuEventAbort) {
+        BmDfuErr err = BmDfuErrAborted;
         if (curr_evt.buf)
         {
             BcmpDfuAbort* abort_evt = (BcmpDfuAbort *)(curr_evt.buf);
-            err = (bm_dfu_err_t)(abort_evt->err.err_code);
+            err = (BmDfuErr)(abort_evt->err.err_code);
         }
         printf("Recieved abort in run.\n");
         bm_dfu_host_transition_to_error(err);
     }
 }
 
-void bm_dfu_host_init(bcmp_dfu_tx_func_t bcmp_dfu_tx) {
+void bm_dfu_host_init(BcmpDfuTxFunc bcmp_dfu_tx) {
     // configASSERT(bcmp_dfu_tx);
     host_ctx.bcmp_dfu_tx = bcmp_dfu_tx;
     int tmr_id = 0;
@@ -353,9 +353,9 @@ void bm_dfu_host_init(bcmp_dfu_tx_func_t bcmp_dfu_tx) {
     // configASSERT(host_ctx.update_timer);
 }
 
-void bm_dfu_host_set_params(update_finish_cb_t update_complete_callback, uint32_t hostTimeoutMs) {
+void bm_dfu_host_set_params(UpdateFinishCb update_complete_callback, uint32_t host_timeout_ms) {
     host_ctx.update_complete_callback = update_complete_callback;
-    host_ctx.host_timeout_ms = hostTimeoutMs;
+    host_ctx.host_timeout_ms = host_timeout_ms;
 }
 
 static void bm_dfu_host_start_update_timer(uint32_t timeoutMs) {
@@ -367,7 +367,7 @@ static void bm_dfu_host_start_update_timer(uint32_t timeoutMs) {
     bm_timer_start(host_ctx.update_timer, 100);
 }
 
-static void bm_dfu_host_transition_to_error(bm_dfu_err_t err) {
+static void bm_dfu_host_transition_to_error(BmDfuErr err) {
     // configASSERT(xTimerStop(host_ctx.update_timer, 100));
     // configASSERT(xTimerStop(host_ctx.heartbeat_timer, 10));
     // configASSERT(xTimerStop(host_ctx.ack_timer, 10));
@@ -375,7 +375,7 @@ static void bm_dfu_host_transition_to_error(bm_dfu_err_t err) {
     bm_timer_stop(host_ctx.heartbeat_timer, 10);
     bm_timer_stop(host_ctx.ack_timer, 10);
     bm_dfu_set_error(err);
-    bm_dfu_set_pending_state_change(BM_DFU_STATE_ERROR);
+    bm_dfu_set_pending_state_change(BmDfuStateError);
 }
 
 bool bm_dfu_host_client_node_valid(uint64_t client_node_id) {
