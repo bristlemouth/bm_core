@@ -20,10 +20,10 @@ typedef struct __attribute__((__packed__)) bm_dfu_img_info_s {
 
 typedef struct __attribute__((__packed__)) bm_dfu_frame_header_s {
     uint8_t frame_type;
-} bm_dfu_frame_header_t;
+} BmDfuFrameHeader;
 
 typedef struct __attribute__((__packed__)) bm_dfu_frame_s {
-    bm_dfu_frame_header_t header;
+    BmDfuFrameHeader header;
     uint8_t payload[0];
 } bm_dfu_frame_t;
 
@@ -34,29 +34,29 @@ typedef struct __attribute__((__packed__)) bm_dfu_event_init_success_s {
 typedef struct __attribute__((__packed__)) bm_dfu_address_s {
     uint64_t src_node_id;
     uint64_t dst_node_id;
-} bm_dfu_event_address_t;
+} BmDfuEventAddress;
 
 typedef struct __attribute__((__packed__)) bm_dfu_event_chunk_request_s {
-    bm_dfu_event_address_t addresses;
+    BmDfuEventAddress addresses;
     uint16_t seq_num;
-} bm_dfu_event_chunk_request_t;
+} BmDfuEventChunkRequest;
 
 typedef struct __attribute__((__packed__)) bm_dfu_event_image_chunk_s {
-    bm_dfu_event_address_t addresses;
+    BmDfuEventAddress addresses;
     uint16_t payload_length;
     uint8_t payload_buf[0];
-} bm_dfu_event_image_chunk_t;
+} BmDfuEventImageChunk;
 
 typedef struct __attribute__((__packed__)) bm_dfu_result_s {
-    bm_dfu_event_address_t addresses;
+    BmDfuEventAddress addresses;
     uint8_t success;
     uint8_t err_code;
-} bm_dfu_event_result_t;
+} BmDfuEventResult;
 
 typedef struct __attribute__((__packed__)) bm_dfu_event_img_info_s {
-    bm_dfu_event_address_t addresses;
+    BmDfuEventAddress addresses;
     bm_dfu_img_info_t img_info;
-} bm_dfu_event_img_info_t;
+} BmDfuEventImgInfo;
 
 #ifdef __cplusplus
 extern "C" {

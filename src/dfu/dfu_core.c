@@ -233,7 +233,7 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
     bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(buf);
 
     /* If this node is not the intended destination, then discard and continue to wait on queue */
-    if (dfu_ctx.self_node_id != ((bm_dfu_event_address_t *)(frame->payload))->dst_node_id) {
+    if (dfu_ctx.self_node_id != ((BmDfuEventAddress *)(frame->payload))->dst_node_id) {
         bm_free(buf);
         return;
     }
@@ -250,14 +250,14 @@ void bm_dfu_process_message(uint8_t *buf, size_t len) {
         case BM_DFU_STATE_CLIENT_REBOOT_REQ:
         case BM_DFU_STATE_CLIENT_REBOOT_DONE:
         case BM_DFU_STATE_CLIENT_ACTIVATING: {
-            if(!bm_dfu_client_host_node_valid(((bm_dfu_event_address_t *)(frame->payload))->src_node_id)) {
+            if(!bm_dfu_client_host_node_valid(((BmDfuEventAddress *)(frame->payload))->src_node_id)) {
                 valid_packet = false;; // DFU packet from the wrong host! Drop packet.
             }
             break;
         }
         case BM_DFU_STATE_HOST_REQ_UPDATE:
         case BM_DFU_STATE_HOST_UPDATE: {
-            if(!bm_dfu_host_client_node_valid(((bm_dfu_event_address_t *)(frame->payload))->src_node_id)){
+            if(!bm_dfu_host_client_node_valid(((BmDfuEventAddress *)(frame->payload))->src_node_id)){
                 valid_packet = false; // DFU packet from the wrong client! Drop packet.
             }
             break;

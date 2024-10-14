@@ -127,7 +127,7 @@ static void bm_dfu_host_req_update() {
  *
  * @return none
  */
-static void bm_dfu_host_send_chunk(bm_dfu_event_chunk_request_t* req) {
+static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest* req) {
     printf("Processing chunk id %" PRIX32 "\n",req->seq_num);
     uint32_t payload_len = (host_ctx.bytes_remaining >= host_ctx.img_info.chunk_size) ? host_ctx.img_info.chunk_size : host_ctx.bytes_remaining;
     uint32_t payload_len_plus_header = sizeof(BcmpDfuPayload) + payload_len;
@@ -191,7 +191,7 @@ void s_host_req_update_entry(void) {
     }
 
     bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
-    bm_dfu_event_img_info_t* img_info_evt = (bm_dfu_event_img_info_t*)(&((uint8_t *)(frame))[1]);
+    BmDfuEventImgInfo* img_info_evt = (BmDfuEventImgInfo*)(&((uint8_t *)(frame))[1]);
     host_ctx.img_info = img_info_evt->img_info;
     host_ctx.bytes_remaining = host_ctx.img_info.image_size;
     host_ctx.client_node_id = img_info_evt->addresses.dst_node_id;
@@ -224,7 +224,7 @@ void s_host_req_update_run(void)
         bm_timer_stop(host_ctx.ack_timer, 10);
         // configASSERT(curr_evt.buf);
         bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
-        bm_dfu_event_result_t* result_evt = (bm_dfu_event_result_t*)(&((uint8_t *)(frame))[1]);
+        BmDfuEventResult* result_evt = (BmDfuEventResult*)(&((uint8_t *)(frame))[1]);
 
         if (result_evt->success) {
             bm_dfu_set_pending_state_change(BM_DFU_STATE_HOST_UPDATE);
@@ -283,7 +283,7 @@ void s_host_update_run(void) {
 
     if (curr_evt.type == DFU_EVENT_CHUNK_REQUEST) {
         // configASSERT(frame);
-        bm_dfu_event_chunk_request_t* chunk_req_evt = (bm_dfu_event_chunk_request_t*)(&((uint8_t *)(frame))[1]);
+        BmDfuEventChunkRequest* chunk_req_evt = (BmDfuEventChunkRequest*)(&((uint8_t *)(frame))[1]);
 
         /* Request Next Chunk */
         /* Send Heartbeat to Client */
@@ -306,7 +306,7 @@ void s_host_update_run(void) {
         // configASSERT(xTimerStop(host_ctx.update_timer, 100));
         bm_timer_stop(host_ctx.update_timer, 100);
         // configASSERT(frame);
-        bm_dfu_event_result_t* update_end_evt = (bm_dfu_event_result_t*)(&((uint8_t *)(frame))[1]);
+        BmDfuEventResult* update_end_evt = (BmDfuEventResult*)(&((uint8_t *)(frame))[1]);
 
         if (update_end_evt->success) {
             printf("Successfully updated Client\n");

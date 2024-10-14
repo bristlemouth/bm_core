@@ -216,7 +216,7 @@ void bm_dfu_client_process_update_request(void) {
     }
 
     bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
-    bm_dfu_event_img_info_t* img_info_evt = (bm_dfu_event_img_info_t*) &((uint8_t *)(frame))[1];
+    BmDfuEventImgInfo* img_info_evt = (BmDfuEventImgInfo*) &((uint8_t *)(frame))[1];
 
     image_size = img_info_evt->img_info.image_size;
     chunk_size = img_info_evt->img_info.chunk_size;
@@ -320,7 +320,7 @@ void s_client_receiving_run(void) {
     if (curr_evt.type == DFU_EVENT_IMAGE_CHUNK) {
         // configASSERT(curr_evt.buf);
         bm_dfu_frame_t *frame = (bm_dfu_frame_t *)(curr_evt.buf);
-        bm_dfu_event_image_chunk_t* image_chunk_evt = (bm_dfu_event_image_chunk_t*) &((uint8_t *)(frame))[1];
+        BmDfuEventImageChunk* image_chunk_evt = (BmDfuEventImageChunk*) &((uint8_t *)(frame))[1];
 
         /* Stop Chunk Timer */
         // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));

@@ -305,53 +305,53 @@ typedef struct {
 // TODO move this to DFU specific stuff
 // DFU stuff goes below
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_img_info_t info;
+ BmDfuFrameHeader header;
+ BmDfuEventImgInfo info;
 } __attribute__((packed)) BcmpDfuStart;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_chunk_request_t chunk_req;
+ BmDfuFrameHeader header;
+ BmDfuEventChunkRequest chunk_req;
 } __attribute__((packed)) BcmpDfuPayloadReq;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_image_chunk_t chunk;
+ BmDfuFrameHeader header;
+ BmDfuEventImageChunk chunk;
 } __attribute__((packed)) BcmpDfuPayload;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_result_t result;
+ BmDfuFrameHeader header;
+ BmDfuEventResult result;
 } __attribute__((packed)) BcmpDfuEnd;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_result_t ack;
+ BmDfuFrameHeader header;
+ BmDfuEventResult ack;
 } __attribute__((packed)) BcmpDfuAck;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_result_t err;
+ BmDfuFrameHeader header;
+ BmDfuEventResult err;
 } __attribute__((packed)) BcmpDfuAbort;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_address_t addr;
+ BmDfuFrameHeader header;
+ BmDfuEventAddress addr;
 } __attribute__((packed)) BcmpDfuHeartbeat;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_address_t addr;
+ BmDfuFrameHeader header;
+ BmDfuEventAddress addr;
 } __attribute__((packed)) BcmpDfuRebootReq;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_address_t addr;
+ BmDfuFrameHeader header;
+ BmDfuEventAddress addr;
 } __attribute__((packed)) BcmpDfuReboot;
 
 typedef struct {
- bm_dfu_frame_header_t header;
- bm_dfu_event_address_t addr;
+ BmDfuFrameHeader header;
+ BmDfuEventAddress addr;
 } __attribute__((packed)) BcmpDfuBootComplete;
 
 /////////////////////////////
