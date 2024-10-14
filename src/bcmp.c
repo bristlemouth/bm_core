@@ -183,11 +183,14 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
     forward = bm_ip_tx_new(&multicast_ll_addr, size + sizeof(BcmpHeader));
     if (forward) {
       header->checksum = 0;
-      header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
 
       // Copy data to be forwarded
       bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
       bm_ip_tx_copy(forward, payload, size, sizeof(BcmpHeader));
+
+      // Calculate checksum and re-copy into payload
+      header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
+      bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
 
       err = bm_ip_tx_perform(forward, &port_specific_dst);
       if (err != BmOK) {
