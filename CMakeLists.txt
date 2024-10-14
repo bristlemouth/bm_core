@@ -31,7 +31,9 @@ set(COMPILE_FLAGS
 
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/include/dfu
     ${bm_common_SOURCE_DIR}/include
+    ${bm_common_SOURCE_DIR}/third_party/crc
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
 )
 
@@ -56,6 +58,9 @@ else()
         src/resource_discovery.c
         src/time.c
         src/topology.c
+        src/dfu/dfu_client.c
+        src/dfu/dfu_core.c
+        src/dfu/dfu_host.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c

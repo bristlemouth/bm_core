@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "dfu/dfu_message_structs.h"
+
 typedef struct {
   uint16_t type;
   uint16_t checksum;
@@ -302,55 +304,55 @@ typedef struct {
 
 // TODO move this to DFU specific stuff
 // DFU stuff goes below
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_img_info_t info;
-//} __attribute__((packed)) bcmp_dfu_start_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_chunk_request_t chunk_req;
-//} __attribute__((packed)) bcmp_dfu_payload_req_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_image_chunk_t chunk;
-//} __attribute__((packed)) bcmp_dfu_payload_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_result_t result;
-//} __attribute__((packed)) bcmp_dfu_end_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_result_t ack;
-//} __attribute__((packed)) bcmp_dfu_ack_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_result_t err;
-//} __attribute__((packed)) bcmp_dfu_abort_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_address_t addr;
-//} __attribute__((packed)) bcmp_dfu_heartbeat_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_address_t addr;
-//} __attribute__((packed)) bcmp_dfu_reboot_req_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_address_t addr;
-//} __attribute__((packed)) bcmp_dfu_reboot_t;
-//
-//typedef struct {
-//  bm_dfu_frame_header_t header;
-//  bm_dfu_event_address_t addr;
-//} __attribute__((packed)) bcmp_dfu_boot_complete_t;
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventImgInfo info;
+} __attribute__((packed)) BcmpDfuStart;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventChunkRequest chunk_req;
+} __attribute__((packed)) BcmpDfuPayloadReq;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventImageChunk chunk;
+} __attribute__((packed)) BcmpDfuPayload;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventResult result;
+} __attribute__((packed)) BcmpDfuEnd;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventResult ack;
+} __attribute__((packed)) BcmpDfuAck;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventResult err;
+} __attribute__((packed)) BcmpDfuAbort;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventAddress addr;
+} __attribute__((packed)) BcmpDfuHeartbeat;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventAddress addr;
+} __attribute__((packed)) BcmpDfuRebootReq;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventAddress addr;
+} __attribute__((packed)) BcmpDfuReboot;
+
+typedef struct {
+ BmDfuFrameHeader header;
+ BmDfuEventAddress addr;
+} __attribute__((packed)) BcmpDfuBootComplete;
 
 /////////////////////////////
 /* CONFIGURATION*/
