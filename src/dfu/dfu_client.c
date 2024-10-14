@@ -10,7 +10,7 @@
 #include "device.h"
 
 
-typedef struct dfu_client_ctx_t {
+typedef struct DfuClientCtx {
     BmQueue dfu_event_queue;
     /* Variables from DFU Start */
     uint32_t image_size;
@@ -23,7 +23,7 @@ typedef struct dfu_client_ctx_t {
     const void *fa;
     uint16_t img_page_byte_counter;
     uint32_t img_flash_offset;
-    uint8_t img_page_buf[BM_IMG_PAGE_LENGTH];
+    uint8_t img_page_buf[bm_img_page_length];
     /* Chunk variables */
     uint8_t chunk_retry_num;
     uint16_t current_chunk;
@@ -31,9 +31,9 @@ typedef struct dfu_client_ctx_t {
     uint64_t self_node_id;
     uint64_t host_node_id;
     BcmpDfuTxFunc bcmp_dfu_tx;
-} dfu_client_ctx_t;
+} DfuClientCtx;
 
-static dfu_client_ctx_t client_ctx;
+static DfuClientCtx CLIENT_CTX;
 
 static void bm_dfu_client_abort(BmDfuErr err);
 static void bm_dfu_client_send_reboot_request();
@@ -57,12 +57,12 @@ static void bm_dfu_client_abort(BmDfuErr err) {
     BcmpDfuAbort abort_msg;
 
     /* Populate the appropriate event */
-    abort_msg.err.addresses.dst_node_id = client_ctx.host_node_id;
-    abort_msg.err.addresses.src_node_id = client_ctx.self_node_id;
+    abort_msg.err.addresses.dst_node_id = CLIENT_CTX.host_node_id;
+    abort_msg.err.addresses.src_node_id = CLIENT_CTX.self_node_id;
     abort_msg.err.err_code = err;
     abort_msg.err.success = 0;
     abort_msg.header.frame_type = BcmpDFUAbortMessage;
-    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(abort_msg.header.frame_type), (uint8_t*)(&abort_msg), sizeof(abort_msg))){
+    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(abort_msg.header.frame_type), (uint8_t*)(&abort_msg), sizeof(abort_msg))){
         printf("Message %d sent \n",abort_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",abort_msg.header.frame_type);
@@ -71,10 +71,10 @@ static void bm_dfu_client_abort(BmDfuErr err) {
 
 static void bm_dfu_client_send_reboot_request() {
     BcmpDfuRebootReq reboot_req;
-    reboot_req.addr.src_node_id = client_ctx.self_node_id;
-    reboot_req.addr.dst_node_id = client_ctx.host_node_id;
+    reboot_req.addr.src_node_id = CLIENT_CTX.self_node_id;
+    reboot_req.addr.dst_node_id = CLIENT_CTX.host_node_id;
     reboot_req.header.frame_type = BcmpDFURebootReqMessage;
-    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(BcmpDfuRebootReq))){
+    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(BcmpDfuRebootReq))){
         printf("Message %d sent \n",reboot_req.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_req.header.frame_type);
@@ -83,10 +83,10 @@ static void bm_dfu_client_send_reboot_request() {
 
 static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
     BcmpDfuBootComplete boot_compl;
-    boot_compl.addr.src_node_id = client_ctx.self_node_id;
+    boot_compl.addr.src_node_id = CLIENT_CTX.self_node_id;
     boot_compl.addr.dst_node_id = host_node_id;
     boot_compl.header.frame_type = BcmpDFUBootCompleteMessage;
-    if(client_ctx.bcmp_dfu_tx((BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(BcmpDfuBootComplete))){
+    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(BcmpDfuBootComplete))){
         printf("Message %d sent \n",boot_compl.header.frame_type);
     } else {
         printf("Failed to send message %d\n",boot_compl.header.frame_type);
@@ -105,7 +105,7 @@ static void chunk_timer_handler(BmTimer tmr) {
     (void) tmr;
     BmDfuEvent evt = {DfuEventChunkTimeout, NULL, 0};
 
-    if(bm_queue_send(client_ctx.dfu_event_queue, &evt, 0) != BmOK) {
+    if(bm_queue_send(CLIENT_CTX.dfu_event_queue, &evt, 0) != BmOK) {
         // configASSERT(false);
     }
 }
@@ -127,43 +127,43 @@ static int32_t bm_dfu_process_payload(uint16_t len, uint8_t * buf)
     // configASSERT(buf);
 
     do {
-        if ( BM_IMG_PAGE_LENGTH > (len + client_ctx.img_page_byte_counter)) {
-            memcpy(&client_ctx.img_page_buf[client_ctx.img_page_byte_counter], buf, len);
-            client_ctx.img_page_byte_counter += len;
+        if ( bm_img_page_length > (len + CLIENT_CTX.img_page_byte_counter)) {
+            memcpy(&CLIENT_CTX.img_page_buf[CLIENT_CTX.img_page_byte_counter], buf, len);
+            CLIENT_CTX.img_page_byte_counter += len;
 
-            if (client_ctx.img_page_byte_counter == BM_IMG_PAGE_LENGTH) {
-                client_ctx.img_page_byte_counter = 0;
+            if (CLIENT_CTX.img_page_byte_counter == bm_img_page_length) {
+                CLIENT_CTX.img_page_byte_counter = 0;
 
                 /* Perform page write and increment flash byte counter */
-                retval = bm_dfu_client_flash_area_write(client_ctx.fa, client_ctx.img_flash_offset, client_ctx.img_page_buf, BM_IMG_PAGE_LENGTH);
+                retval = bm_dfu_client_flash_area_write(CLIENT_CTX.fa, CLIENT_CTX.img_flash_offset, CLIENT_CTX.img_page_buf, bm_img_page_length);
                 if (retval) {
                     printf("Unable to write DFU frame to Flash");
                     break;
                 } else {
-                    client_ctx.img_flash_offset += BM_IMG_PAGE_LENGTH;
+                    CLIENT_CTX.img_flash_offset += bm_img_page_length;
                 }
             }
         } else {
-            uint16_t _remaining_page_length = BM_IMG_PAGE_LENGTH - client_ctx.img_page_byte_counter;
-            memcpy(&client_ctx.img_page_buf[client_ctx.img_page_byte_counter], buf, _remaining_page_length);
-            client_ctx.img_page_byte_counter += _remaining_page_length;
+            uint16_t _remaining_page_length = bm_img_page_length - CLIENT_CTX.img_page_byte_counter;
+            memcpy(&CLIENT_CTX.img_page_buf[CLIENT_CTX.img_page_byte_counter], buf, _remaining_page_length);
+            CLIENT_CTX.img_page_byte_counter += _remaining_page_length;
 
-            if (client_ctx.img_page_byte_counter == BM_IMG_PAGE_LENGTH) {
-                client_ctx.img_page_byte_counter = 0;
+            if (CLIENT_CTX.img_page_byte_counter == bm_img_page_length) {
+                CLIENT_CTX.img_page_byte_counter = 0;
 
                 /* Perform page write and increment flash byte counter */
-                retval = bm_dfu_client_flash_area_write(client_ctx.fa, client_ctx.img_flash_offset, client_ctx.img_page_buf, BM_IMG_PAGE_LENGTH);
+                retval = bm_dfu_client_flash_area_write(CLIENT_CTX.fa, CLIENT_CTX.img_flash_offset, CLIENT_CTX.img_page_buf, bm_img_page_length);
                 if (retval) {
                     printf("Unable to write DFU frame to Flash");
                     break;
                 } else {
-                    client_ctx.img_flash_offset += BM_IMG_PAGE_LENGTH;
+                    CLIENT_CTX.img_flash_offset += bm_img_page_length;
                 }
             }
 
             /* Memcpy the remaining bytes to next page */
-            memcpy(&client_ctx.img_page_buf[client_ctx.img_page_byte_counter], &buf[ _remaining_page_length], (len - _remaining_page_length) );
-            client_ctx.img_page_byte_counter += (len - _remaining_page_length);
+            memcpy(&CLIENT_CTX.img_page_buf[CLIENT_CTX.img_page_byte_counter], &buf[ _remaining_page_length], (len - _remaining_page_length) );
+            CLIENT_CTX.img_page_byte_counter += (len - _remaining_page_length);
         }
     } while (0);
 
@@ -181,17 +181,17 @@ static int32_t bm_dfu_process_end(void) {
     int32_t retval = 0;
 
     /* If there are any dirty bytes, write to flash */
-    if (client_ctx.img_page_byte_counter != 0) {
+    if (CLIENT_CTX.img_page_byte_counter != 0) {
         /* Perform page write and increment flash byte counter */
-        retval = bm_dfu_client_flash_area_write(client_ctx.fa, client_ctx.img_flash_offset, client_ctx.img_page_buf, (client_ctx.img_page_byte_counter));
+        retval = bm_dfu_client_flash_area_write(CLIENT_CTX.fa, CLIENT_CTX.img_flash_offset, CLIENT_CTX.img_page_buf, (CLIENT_CTX.img_page_byte_counter));
         if (retval) {
             printf("Unable to write DFU frame to Flash\n");
         } else {
-            client_ctx.img_flash_offset += client_ctx.img_page_byte_counter;
+            CLIENT_CTX.img_flash_offset += CLIENT_CTX.img_page_byte_counter;
         }
     }
 
-    bm_dfu_client_flash_area_close(client_ctx.fa);
+    bm_dfu_client_flash_area_close(CLIENT_CTX.fa);
     return retval;
 }
 
@@ -222,45 +222,45 @@ void bm_dfu_client_process_update_request(void) {
     chunk_size = img_info_evt->img_info.chunk_size;
     minor_version = img_info_evt->img_info.minor_ver;
     major_version = img_info_evt->img_info.major_ver;
-    client_ctx.host_node_id = img_info_evt->addresses.src_node_id;
+    CLIENT_CTX.host_node_id = img_info_evt->addresses.src_node_id;
 
     if (img_info_evt->img_info.gitSHA != git_sha() || img_info_evt->img_info.filter_key == BM_DFU_IMG_INFO_FORCE_UPDATE) {
-        if(chunk_size > BM_DFU_MAX_CHUNK_SIZE) {
+        if(chunk_size > bm_dfu_max_chunk_size) {
             bm_dfu_client_abort(BmDfuErrAborted);
             bm_dfu_client_transition_to_error(BmDfuErrChunkSize);
             return;
         }
-        client_ctx.image_size = image_size;
+        CLIENT_CTX.image_size = image_size;
 
         /* We calculating the number of chunks that the client will be requesting based on the
            size of each chunk and the total size of the image. */
         if (image_size % chunk_size) {
-            client_ctx.num_chunks = ( image_size / chunk_size ) + 1;
+            CLIENT_CTX.num_chunks = ( image_size / chunk_size ) + 1;
         } else {
-            client_ctx.num_chunks = ( image_size / chunk_size );
+            CLIENT_CTX.num_chunks = ( image_size / chunk_size );
         }
-        client_ctx.crc16 = img_info_evt->img_info.crc16;
+        CLIENT_CTX.crc16 = img_info_evt->img_info.crc16;
 
             /* Open the secondary image slot */
-        if (bm_dfu_client_flash_area_open(&client_ctx.fa) != 0) {
-            bm_dfu_send_ack(client_ctx.host_node_id, 0, BmDfuErrFlashAccess);
+        if (bm_dfu_client_flash_area_open(&CLIENT_CTX.fa) != 0) {
+            bm_dfu_send_ack(CLIENT_CTX.host_node_id, 0, BmDfuErrFlashAccess);
             bm_dfu_client_transition_to_error(BmDfuErrFlashAccess);
         } else {
 
-            if(bm_dfu_client_flash_area_get_size(client_ctx.fa) > image_size) {
+            if(bm_dfu_client_flash_area_get_size(CLIENT_CTX.fa) > image_size) {
                 /* Erase memory in secondary image slot */
                 printf("Erasing flash\n");
-                if(bm_dfu_client_flash_area_erase(client_ctx.fa, 0, bm_dfu_client_flash_area_get_size(client_ctx.fa)) != 0) {
+                if(bm_dfu_client_flash_area_erase(CLIENT_CTX.fa, 0, bm_dfu_client_flash_area_get_size(CLIENT_CTX.fa)) != 0) {
                     printf("Error erasing flash!\n");
-                    bm_dfu_send_ack(client_ctx.host_node_id, 0, BmDfuErrFlashAccess);
+                    bm_dfu_send_ack(CLIENT_CTX.host_node_id, 0, BmDfuErrFlashAccess);
                     bm_dfu_client_transition_to_error(BmDfuErrFlashAccess);
                 } else {
-                    bm_dfu_send_ack(client_ctx.host_node_id, 1, BmDfuErrNone);
+                    bm_dfu_send_ack(CLIENT_CTX.host_node_id, 1, BmDfuErrNone);
 
                     // Save image update info to noinit
                     client_update_reboot_info.major = major_version;
                     client_update_reboot_info.minor = minor_version;
-                    client_update_reboot_info.host_node_id = client_ctx.host_node_id;
+                    client_update_reboot_info.host_node_id = CLIENT_CTX.host_node_id;
                     client_update_reboot_info.gitSHA = img_info_evt->img_info.gitSHA;
                     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
 
@@ -271,12 +271,12 @@ void bm_dfu_client_process_update_request(void) {
                 }
             } else {
                 printf("Image too large\n");
-                bm_dfu_send_ack(client_ctx.host_node_id, 0, BmDfuErrTooLarge);
+                bm_dfu_send_ack(CLIENT_CTX.host_node_id, 0, BmDfuErrTooLarge);
             }
         }
     } else {
         printf("Same version requested\n");
-        bm_dfu_send_ack(client_ctx.host_node_id, 0, BmDfuErrSameVer);
+        bm_dfu_send_ack(CLIENT_CTX.host_node_id, 0, BmDfuErrSameVer);
     }
 }
 
@@ -293,18 +293,18 @@ void s_client_activating_run(void) {}
  */
 void s_client_receiving_entry(void) {
     /* Start from Chunk #0 */
-    client_ctx.current_chunk = 0;
-    client_ctx.chunk_retry_num = 0;
-    client_ctx.img_page_byte_counter = 0;
-    client_ctx.img_flash_offset = 0;
-    client_ctx.running_crc16 = 0;
+    CLIENT_CTX.current_chunk = 0;
+    CLIENT_CTX.chunk_retry_num = 0;
+    CLIENT_CTX.img_page_byte_counter = 0;
+    CLIENT_CTX.img_flash_offset = 0;
+    CLIENT_CTX.running_crc16 = 0;
 
     /* Request Next Chunk */
-    bm_dfu_req_next_chunk(client_ctx.host_node_id, client_ctx.current_chunk);
+    bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
 
     /* Kickoff Chunk timeout */
-    // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-    bm_timer_start(client_ctx.chunk_timer, 10);
+    // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+    bm_timer_start(CLIENT_CTX.chunk_timer, 10);
 }
 
 /**
@@ -323,28 +323,28 @@ void s_client_receiving_run(void) {
         BmDfuEventImageChunk* image_chunk_evt = (BmDfuEventImageChunk*) &((uint8_t *)(frame))[1];
 
         /* Stop Chunk Timer */
-        // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
-        bm_timer_stop(client_ctx.chunk_timer, 10);
+        // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
+        bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
 
         /* Get Chunk Length and Chunk */
-        client_ctx.chunk_length = image_chunk_evt->payload_length;
+        CLIENT_CTX.chunk_length = image_chunk_evt->payload_length;
 
         /* Calculate Running CRC */
-        client_ctx.running_crc16 = crc16_ccitt(client_ctx.running_crc16, image_chunk_evt->payload_buf, client_ctx.chunk_length);
+        CLIENT_CTX.running_crc16 = crc16_ccitt(CLIENT_CTX.running_crc16, image_chunk_evt->payload_buf, CLIENT_CTX.chunk_length);
 
         /* Process the frame */
-        if (bm_dfu_process_payload(client_ctx.chunk_length, image_chunk_evt->payload_buf)) {
+        if (bm_dfu_process_payload(CLIENT_CTX.chunk_length, image_chunk_evt->payload_buf)) {
             bm_dfu_client_transition_to_error(BmDfuErrBmFrame);
         }
 
         /* Request Next Chunk */
-        client_ctx.current_chunk++;
-        client_ctx.chunk_retry_num = 0;
+        CLIENT_CTX.current_chunk++;
+        CLIENT_CTX.chunk_retry_num = 0;
 
-        if (client_ctx.current_chunk < client_ctx.num_chunks) {
-            bm_dfu_req_next_chunk(client_ctx.host_node_id, client_ctx.current_chunk);
-            // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-            bm_timer_start(client_ctx.chunk_timer, 10);
+        if (CLIENT_CTX.current_chunk < CLIENT_CTX.num_chunks) {
+            bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
+            // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+            bm_timer_start(CLIENT_CTX.chunk_timer, 10);
         } else {
             /* Process the frame */
             if (bm_dfu_process_end()) {
@@ -354,36 +354,36 @@ void s_client_receiving_run(void) {
             }
         }
     } else if (curr_evt.type == DfuEventChunkTimeout) {
-        client_ctx.chunk_retry_num++;
+        CLIENT_CTX.chunk_retry_num++;
         /* Try requesting chunk until max retries is reached */
-        if (client_ctx.chunk_retry_num >= BM_DFU_MAX_CHUNK_RETRIES) {
+        if (CLIENT_CTX.chunk_retry_num >= bm_dfu_max_chunk_retries) {
             bm_dfu_client_abort(BmDfuErrAborted);
             bm_dfu_client_transition_to_error(BmDfuErrTimeout);
         } else {
-            bm_dfu_req_next_chunk(client_ctx.host_node_id, client_ctx.current_chunk);
-            // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-            bm_timer_start(client_ctx.chunk_timer, 10);
+            bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
+            // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+            bm_timer_start(CLIENT_CTX.chunk_timer, 10);
         }
     } else if (curr_evt.type == DfuEventReceivedUpdateRequest) { // The host dropped our previous ack to the image, and we need to sync up.
-        // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
-        bm_timer_stop(client_ctx.chunk_timer, 10);
-        bm_dfu_send_ack(client_ctx.host_node_id, 1, BmDfuErrNone);
+        // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
+        bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
+        bm_dfu_send_ack(CLIENT_CTX.host_node_id, 1, BmDfuErrNone);
         // Start image from the beginning
-        client_ctx.current_chunk = 0;
-        client_ctx.chunk_retry_num = 0;
-        client_ctx.img_page_byte_counter = 0;
-        client_ctx.img_flash_offset = 0;
-        client_ctx.running_crc16 = 0;
+        CLIENT_CTX.current_chunk = 0;
+        CLIENT_CTX.chunk_retry_num = 0;
+        CLIENT_CTX.img_page_byte_counter = 0;
+        CLIENT_CTX.img_flash_offset = 0;
+        CLIENT_CTX.running_crc16 = 0;
         bm_delay(100); // Allow host to process ACK and Get ready to send chunk.
-        bm_dfu_req_next_chunk(client_ctx.host_node_id, client_ctx.current_chunk);
-        // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-        bm_timer_start(client_ctx.chunk_timer, 10);
+        bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
+        // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+        bm_timer_start(CLIENT_CTX.chunk_timer, 10);
     }
     /* TODO: (IMPLEMENT THIS PERIODICALLY ON HOST SIDE)
        If host is still waiting for chunk, it will send a heartbeat to client */
     else if (curr_evt.type == DfuEventHeartbeat) {
-        // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-        bm_timer_start(client_ctx.chunk_timer, 10);
+        // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+        bm_timer_start(CLIENT_CTX.chunk_timer, 10);
     }
 }
 
@@ -397,18 +397,18 @@ void s_client_receiving_run(void) {
 void s_client_validating_entry(void)
 {
     /* Verify image length */
-    if (client_ctx.image_size != client_ctx.img_flash_offset) {
-        printf("Rx Len: %" PRIu32 ", Actual Len: %" PRIu32 "\n", client_ctx.image_size, client_ctx.img_flash_offset);
-        bm_dfu_update_end(client_ctx.host_node_id, 0, BmDfuErrMismatchLen);
+    if (CLIENT_CTX.image_size != CLIENT_CTX.img_flash_offset) {
+        printf("Rx Len: %" PRIu32 ", Actual Len: %" PRIu32 "\n", CLIENT_CTX.image_size, CLIENT_CTX.img_flash_offset);
+        bm_dfu_update_end(CLIENT_CTX.host_node_id, 0, BmDfuErrMismatchLen);
         bm_dfu_client_transition_to_error(BmDfuErrMismatchLen);
 
     } else {
         /* Verify CRC. If ok, then move to Activating state */
-        if (client_ctx.crc16 == client_ctx.running_crc16) {
+        if (CLIENT_CTX.crc16 == CLIENT_CTX.running_crc16) {
             bm_dfu_set_pending_state_change(BmDfuStateClientRebootReq);
         } else {
-            printf("Expected Image CRC: %d | Calculated Image CRC: %d\n", client_ctx.crc16, client_ctx.running_crc16);
-            bm_dfu_update_end(client_ctx.host_node_id, 0, BmDfuErrBadCrc);
+            printf("Expected Image CRC: %d | Calculated Image CRC: %d\n", CLIENT_CTX.crc16, CLIENT_CTX.running_crc16);
+            bm_dfu_update_end(CLIENT_CTX.host_node_id, 0, BmDfuErrBadCrc);
             bm_dfu_client_transition_to_error(BmDfuErrBadCrc);
         }
     }
@@ -440,13 +440,13 @@ void s_client_activating_entry(void)
  * @return none
  */
 void s_client_reboot_req_entry(void) {
-    client_ctx.chunk_retry_num = 0;
+    CLIENT_CTX.chunk_retry_num = 0;
     /* Request reboot */
     bm_dfu_client_send_reboot_request();
 
     /* Kickoff Chunk timeout */
-    // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-    bm_timer_start(client_ctx.chunk_timer, 10);
+    // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+    bm_timer_start(CLIENT_CTX.chunk_timer, 10);
 }
 
 /**
@@ -461,19 +461,19 @@ void s_client_reboot_req_run(void) {
 
     if (curr_evt.type == DfuEventReboot) {
         // configASSERT(curr_evt.buf);
-        // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
-        bm_timer_stop(client_ctx.chunk_timer, 10);
+        // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
+        bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
         bm_dfu_set_pending_state_change(BmDfuStateClientActivating);
     } else if (curr_evt.type == DfuEventChunkTimeout) {
-        client_ctx.chunk_retry_num++;
+        CLIENT_CTX.chunk_retry_num++;
         /* Try requesting reboot until max retries is reached */
-        if (client_ctx.chunk_retry_num >= BM_DFU_MAX_CHUNK_RETRIES) {
+        if (CLIENT_CTX.chunk_retry_num >= bm_dfu_max_chunk_retries) {
             bm_dfu_client_abort(BmDfuErrAborted);
             bm_dfu_client_transition_to_error(BmDfuErrTimeout);
         } else {
             bm_dfu_client_send_reboot_request();
-            // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-            bm_timer_start(client_ctx.chunk_timer, 10);
+            // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+            bm_timer_start(CLIENT_CTX.chunk_timer, 10);
         }
     }
 }
@@ -484,8 +484,8 @@ void s_client_reboot_req_run(void) {
  * @return none
  */
 void s_client_update_done_entry(void) {
-    client_ctx.host_node_id = client_update_reboot_info.host_node_id;
-    client_ctx.chunk_retry_num = 0;
+    CLIENT_CTX.host_node_id = client_update_reboot_info.host_node_id;
+    CLIENT_CTX.chunk_retry_num = 0;
     if(git_sha() == client_update_reboot_info.gitSHA) {
         // We usually want to confirm the update, but if we want to force-confirm, we read a flag in the configuration,
         // confirm, reset the config flag, and then reboot.
@@ -496,8 +496,8 @@ void s_client_update_done_entry(void) {
         } else {
             bm_dfu_client_send_boot_complete(client_update_reboot_info.host_node_id);
             /* Kickoff Chunk timeout */
-            // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-            bm_timer_start(client_ctx.chunk_timer, 10);
+            // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+            bm_timer_start(CLIENT_CTX.chunk_timer, 10);
         }
     } else {
         bm_dfu_update_end(client_update_reboot_info.host_node_id, false, BmDfuErrWrongVer);
@@ -517,23 +517,23 @@ void s_client_update_done_run(void) {
 
     if (curr_evt.type == DfuEventUpdateEnd) {
         // configASSERT(curr_evt.buf);
-        // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
-        bm_timer_stop(client_ctx.chunk_timer, 10);
+        // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
+        bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
         bm_dfu_client_set_confirmed();
         printf("Boot confirmed!\n Update success!\n");
         bm_dfu_update_end(client_update_reboot_info.host_node_id, true, BmDfuErrNone);
         bm_dfu_set_pending_state_change(BmDfuStateIdle);
     } else if (curr_evt.type == DfuEventChunkTimeout) {
-        client_ctx.chunk_retry_num++;
+        CLIENT_CTX.chunk_retry_num++;
         /* Try requesting confirmation until max retries is reached */
-        if (client_ctx.chunk_retry_num >= BM_DFU_MAX_CHUNK_RETRIES) {
+        if (CLIENT_CTX.chunk_retry_num >= bm_dfu_max_chunk_retries) {
             bm_dfu_client_abort(BmDfuErrConfirmationAbort);
             bm_dfu_client_fail_update_and_reboot();
         } else {
             /* Request confirmation */
             bm_dfu_client_send_boot_complete(client_update_reboot_info.host_node_id);
-            // configASSERT(xTimerStart(client_ctx.chunk_timer, 10));
-            bm_timer_start(client_ctx.chunk_timer, 10);
+            // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
+            bm_timer_start(CLIENT_CTX.chunk_timer, 10);
         }
     }
 }
@@ -550,23 +550,23 @@ void s_client_update_done_run(void) {
 void bm_dfu_client_init(BcmpDfuTxFunc bcmp_dfu_tx)
 {
     // configASSERT(bcmp_dfu_tx);
-    client_ctx.bcmp_dfu_tx = bcmp_dfu_tx;
+    CLIENT_CTX.bcmp_dfu_tx = bcmp_dfu_tx;
     int32_t tmr_id = 0;
 
     /* Store relevant variables */
-    client_ctx.self_node_id = node_id();
+    CLIENT_CTX.self_node_id = node_id();
 
     /* Get DFU Subsystem Queue */
-    client_ctx.dfu_event_queue = bm_dfu_get_event_queue();
+    CLIENT_CTX.dfu_event_queue = bm_dfu_get_event_queue();
 
-    client_ctx.chunk_timer = bm_timer_create("DFU Client Chunk Timer", bm_ms_to_ticks(BM_DFU_CLIENT_CHUNK_TIMEOUT_MS),
+    CLIENT_CTX.chunk_timer = bm_timer_create("DFU Client Chunk Timer", bm_ms_to_ticks(bm_dfu_client_chunk_timeout_ms),
                                       false, (void *) &tmr_id, chunk_timer_handler);
-    // configASSERT(client_ctx.chunk_timer);
+    // configASSERT(CLIENT_CTX.chunk_timer);
 }
 
 static void bm_dfu_client_transition_to_error(BmDfuErr err) {
-    // configASSERT(xTimerStop(client_ctx.chunk_timer, 10));
-    bm_timer_stop(client_ctx.chunk_timer, 10);
+    // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
+    bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
     bm_dfu_set_error(err);
     bm_dfu_set_pending_state_change(BmDfuStateError);
 }
@@ -578,7 +578,7 @@ static void bm_dfu_client_fail_update_and_reboot(void) {
 }
 
 bool bm_dfu_client_host_node_valid(uint64_t host_node_id) {
-    return client_ctx.host_node_id == host_node_id;
+    return CLIENT_CTX.host_node_id == host_node_id;
 }
 
 /*!
@@ -586,6 +586,6 @@ bool bm_dfu_client_host_node_valid(uint64_t host_node_id) {
  */
 #ifdef CI_TEST
 void bm_dfu_test_set_client_fa(const struct flash_area *fa) {
-    client_ctx.fa = fa;
+    CLIENT_CTX.fa = fa;
 }
 #endif //CI_TEST

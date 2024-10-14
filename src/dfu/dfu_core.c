@@ -595,7 +595,7 @@ void bm_dfu_init(BcmpDfuTxFunc bcmp_dfu_tx) {
 bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id, UpdateFinishCb update_finish_callback, uint32_t timeoutMs) {
     bool ret = false;
     do {
-        if(info.chunk_size > BM_DFU_MAX_CHUNK_SIZE) {
+        if(info.chunk_size > bm_dfu_max_chunk_size) {
             printf("Invalid chunk size for DFU\n");
             break;
         }

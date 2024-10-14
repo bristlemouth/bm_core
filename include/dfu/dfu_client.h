@@ -1,6 +1,6 @@
 #include "dfu.h"
 
-#define BM_DFU_CLIENT_CHUNK_TIMEOUT_MS  2000UL
+#define bm_dfu_client_chunk_timeout_ms  2000UL
 
 void bm_dfu_client_process_update_request(void);
 

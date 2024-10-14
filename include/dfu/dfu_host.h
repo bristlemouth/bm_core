@@ -1,10 +1,10 @@
 #include "dfu.h"
 #include <inttypes.h>
 
-#define BM_DFU_MAX_ACK_RETRIES 2
-#define BM_DFU_HOST_ACK_TIMEOUT_MS 10000UL
-#define BM_DFU_HOST_HEARTBEAT_TIMEOUT_MS 1000UL
-#define BM_DFU_UPDATE_DEFAULT_TIMEOUT_MS (5 * 60 * 1000)
+#define bm_dfu_max_ack_retries 2
+#define bm_dfu_host_ack_timeout_ms 10000UL
+#define bm_dfu_host_heartbeat_timeout_ms 1000UL
+#define bm_dfu_update_default_timeout_ms (5 * 60 * 1000)
 
 typedef int (*bm_dfu_chunk_req_cb)(uint16_t chunk_num, uint16_t *chunk_len, uint8_t *buf,
                                    uint16_t buf_len);

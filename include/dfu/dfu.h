@@ -14,10 +14,10 @@
 extern "C" {
 #endif
 
-#define BM_DFU_MAX_CHUNK_SIZE (1024) // TODO: put this in an app config header
-#define BM_DFU_MAX_CHUNK_RETRIES 5
+#define bm_dfu_max_chunk_size (1024) // TODO: put this in an app config header
+#define bm_dfu_max_chunk_retries 5
 
-#define BM_IMG_PAGE_LENGTH 2048
+#define bm_img_page_length 2048
 
 typedef enum {
   BmDfuErrNone,

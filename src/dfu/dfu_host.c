@@ -22,7 +22,7 @@ typedef struct dfu_host_ctx_t {
     uint32_t host_timeout_ms;
 } dfu_host_ctx_t;
 
-#define FLASH_READ_TIMEOUT_MS 5 * 1000
+#define flash_read_timeout_ms 5 * 1000
 
 static dfu_host_ctx_t host_ctx;
 
@@ -141,7 +141,7 @@ static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest* req) {
 
     uint32_t flash_offset = DFU_IMG_START_OFFSET_BYTES + host_ctx.img_info.image_size - host_ctx.bytes_remaining;
     do {
-        if (bm_dfu_host_get_chunk(flash_offset, payload_header->chunk.payload_buf, payload_len, FLASH_READ_TIMEOUT_MS) != BmOK) {
+        if (bm_dfu_host_get_chunk(flash_offset, payload_header->chunk.payload_buf, payload_len, flash_read_timeout_ms) != BmOK) {
             printf("Failed to read chunk from flash.\n");
             bm_dfu_host_transition_to_error(BmDfuErrFlashAccess);
             break;
@@ -235,7 +235,7 @@ void s_host_req_update_run(void)
         host_ctx.ack_retry_num++;
 
         /* Wait for ack until max retries is reached */
-        if (host_ctx.ack_retry_num >= BM_DFU_MAX_ACK_RETRIES) {
+        if (host_ctx.ack_retry_num >= bm_dfu_max_ack_retries) {
             bm_dfu_host_transition_to_error(BmDfuErrTimeout);
         } else {
             bm_dfu_host_req_update();
@@ -341,14 +341,14 @@ void bm_dfu_host_init(BcmpDfuTxFunc bcmp_dfu_tx) {
     host_ctx.dfu_event_queue = bm_dfu_get_event_queue();
 
     /* Initialize ACK and Heartbeat Timer */
-    host_ctx.ack_timer = bm_timer_create("DFU Host Ack", bm_ms_to_ticks(BM_DFU_HOST_ACK_TIMEOUT_MS),
+    host_ctx.ack_timer = bm_timer_create("DFU Host Ack", bm_ms_to_ticks(bm_dfu_host_ack_timeout_ms),
                                       false, (void *) &tmr_id, ack_timer_handler);
     // configASSERT(host_ctx.ack_timer);
 
-    host_ctx.heartbeat_timer = bm_timer_create("DFU Host Heartbeat", bm_ms_to_ticks(BM_DFU_HOST_HEARTBEAT_TIMEOUT_MS),
+    host_ctx.heartbeat_timer = bm_timer_create("DFU Host Heartbeat", bm_ms_to_ticks(bm_dfu_host_heartbeat_timeout_ms),
                                       true, (void *) &tmr_id, heartbeat_timer_handler);
     // configASSERT(host_ctx.heartbeat_timer);
-    host_ctx.update_timer = bm_timer_create("update timer", bm_ms_to_ticks(BM_DFU_UPDATE_DEFAULT_TIMEOUT_MS),
+    host_ctx.update_timer = bm_timer_create("update timer", bm_ms_to_ticks(bm_dfu_update_default_timeout_ms),
                                     false, (void *) &tmr_id, update_timer_handler);
     // configASSERT(host_ctx.update_timer);
 }
