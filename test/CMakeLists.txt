@@ -27,6 +27,7 @@ set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
 set(BM_COMMON_MOCK_DIR ${bm_common_SOURCE_DIR}/test/mocks)
 set(BM_COMMON_TEST_DIR ${bm_common_SOURCE_DIR}/test)
 set(BM_COMMON_SOURCE_DIR ${bm_common_SOURCE_DIR}/src)
+set(BM_COMMON_STUBS_DIR ${bm_common_SOURCE_DIR}/test/stubs)
 
 include_directories(
     ${MOCK_DIR}
@@ -92,3 +93,65 @@ create_gtest("info" "${SRC_DIR}/info.c" "${SRCS}")
 create_gtest("resource_discovery" "${SRC_DIR}/resource_discovery.c" "${SRCS}")
 create_gtest("ping" "${SRC_DIR}/ping.c" "${SRCS}")
 create_gtest("neighbors" "${SRC_DIR}/neighbors.c" "${SRCS}")
+
+# create_gtest("dfu" "${SRC_DIR}/dfu.c" "${SRCS}")
+
+#
+# BCMP DFU
+#
+
+add_executable(bcmp_dfu_tests)
+target_include_directories(bcmp_dfu_tests
+    PRIVATE
+    ${SRC_DIR}/lib/common
+    ${TEST_DIR}/header_overrides
+    ${TEST_DIR}/mocks
+    ${SRC_DIR}/third_party/FreeRTOS/Source/include
+    ${SRC_DIR}/lib/sys
+    ${SRC_DIR}/third_party/crc
+    ${SRC_DIR}/third_party/tinycbor/src
+    ${TEST_DIR}/third_party/fff
+    ${SRC_DIR}/lib/sys
+    ${SRC_DIR}/lib/bcmp/dfu
+    ${SRC_DIR}/lib/bcmp
+    ${SRC_DIR}/third_party/mcuboot/boot/bootutil/include
+    ${SRC_DIR}/lib/mcuboot/include
+    ${SRC_DIR}/lib/drivers
+    ${SRC_DIR}/lib/drivers/abstract
+    ${SRC_DIR}/apps/bringup
+    ${SRC_DIR}/lib/mcuboot/include/flash_map_backend
+)
+
+target_sources(bcmp_dfu_tests
+    PRIVATE
+    # File we're testing
+    ${SRC_DIR}/lib/bcmp/dfu/bm_dfu_core.cpp
+    ${SRC_DIR}/lib/bcmp/dfu/bm_dfu_client.cpp
+    ${SRC_DIR}/lib/bcmp/dfu/bm_dfu_host.cpp
+
+    # Support files
+    ${SRC_DIR}/third_party/crc/crc16.c
+    ${SRC_DIR}/third_party/crc/crc32.c
+    ${SRC_DIR}/lib/common/lib_state_machine.cpp
+    ${SRC_DIR}/lib/common/nvmPartition.cpp
+    ${SRC_DIR}/lib/sys/configuration.cpp
+    ${SRC_DIR}/third_party/tinycbor/src/cborparser.c
+    ${SRC_DIR}/third_party/tinycbor/src/cborencoder_float.c
+    ${SRC_DIR}/third_party/tinycbor/src/cborencoder.c
+    ${SRC_DIR}/third_party/tinycbor/src/cborerrorstrings.c
+    ${SRC_DIR}/third_party/tinycbor/src/cborvalidation.c
+
+    # Mocks
+    # ${TEST_DIR}/stubs/mock_mcu_boot.cpp
+    # ${TEST_DIR}/stubs/mock_FreeRTOS.c
+    # ${TEST_DIR}/stubs/mock_reset_reason.cpp
+    # ${TEST_DIR}/stubs/mock_device_info.cpp
+    # ${TEST_DIR}/stubs/mock_timer_callback_handler.cpp
+    # ${TEST_DIR}/stubs/mock_lpm.cpp
+    # Stubs
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+
+    # Unit test wrapper for test
+    bcmp_dfu_ut.cpp
+)
+
