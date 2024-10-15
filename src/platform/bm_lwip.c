@@ -1,8 +1,9 @@
 #include "bcmp.h"
 #include "bm_ip.h"
-#include "l2.h"
 #include "bm_os.h"
 #include "device.h"
+#include "l2.h"
+#include "ll.h"
 #include "lwip/ethip6.h"
 #include "lwip/inet.h"
 #include "lwip/inet_chksum.h"
@@ -25,9 +26,14 @@
 //TODO: this will have to be moved as we go along
 extern struct netif netif;
 
+typedef struct {
+  BmErr (*udp_cb)(void *, uint64_t, uint32_t);
+} UdpCb;
+
 struct LwipCtx {
   struct netif *netif;
-  struct raw_pcb *pcb;
+  struct raw_pcb *raw_pcb;
+  LL udp_list;
 };
 typedef struct {
   struct pbuf *pbuf;
@@ -146,6 +152,31 @@ static uint8_t ip_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
 }
 
 /*!
+  @brief Lwip UDP Receive Callback
+
+  @details This requests an item from a linked list in accordance to the pcb
+           of the interface and invokes the associated callback this allows for
+           multiple pcbs to be utilized, example middleware and stress
+
+  @param *arg unused
+  @param *pcb UDP PCB
+  @param *pbuf data pbuf
+  @param *addr Source address
+  @param port unused
+*/
+static void udp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *pbuf,
+                        const ip_addr_t *addr, u16_t port) {
+
+  (void)arg;
+  (void)port;
+  UdpCb *cb = NULL;
+  if (ll_get_item(&CTX.udp_list, (uint32_t)pcb, (void **)&cb) == BmOK &&
+      cb != NULL) {
+    cb->udp_cb(pbuf, ip_to_nodeid((void *)addr), pbuf->len);
+  }
+}
+
+/*!
   @brief LWIP Callback For Transmitting Messages From LWIP Stack
 
   @details This calls bm_l2_link_output in bm_l2 module
@@ -183,6 +214,28 @@ static err_t bm_l2_netif_init(struct netif *netif) {
   netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
 
   return ERR_OK;
+}
+
+/*!
+  @brief Thread Safe Wrapper For udp_sendto_if
+
+  @param pcb protocol control block to send data to
+  @param pbuf pbuf to send data to
+  @param dst_ip destination IP address to send data to
+  @param dst_port destination port to send data to
+  @param netif network interface
+
+  @return ERR_OK on success
+  @return ERR_X on failure
+ */
+static inline err_t safe_udp_sendto_if(struct udp_pcb *pcb, struct pbuf *pbuf,
+                                       const ip_addr_t *dst_ip, u16_t dst_port,
+                                       struct netif *netif) {
+  LOCK_TCPIP_CORE();
+  err_t rval = udp_sendto_if(pcb, pbuf, dst_ip, dst_port, netif);
+  UNLOCK_TCPIP_CORE();
+
+  return rval;
 }
 
 /*!
@@ -230,10 +283,10 @@ BmErr bm_ip_init(void) {
     printf("Could not join ff03::1\n");
   }
 
-  CTX.pcb = raw_new(IpProtoBcmp);
-  if (CTX.pcb) {
-    raw_recv(CTX.pcb, ip_recv, NULL);
-    err = raw_bind(CTX.pcb, IP_ADDR_ANY) == ERR_OK ? BmOK : BmEACCES;
+  CTX.raw_pcb = raw_new(IpProtoBcmp);
+  if (CTX.raw_pcb) {
+    raw_recv(CTX.raw_pcb, ip_recv, NULL);
+    err = raw_bind(CTX.raw_pcb, IP_ADDR_ANY) == ERR_OK ? BmOK : BmEACCES;
     if (err == BmOK) {
       err = packet_init(message_get_src_ip, message_get_dst_ip,
                         message_get_data, message_get_checksum);
@@ -259,7 +312,11 @@ void *bm_l2_new(uint32_t size) { return pbuf_alloc(PBUF_RAW, size, PBUF_RAM); }
   @return pointer to payload of L2 buffer
 */
 void *bm_l2_get_payload(void *buf) {
-  return (void *)((struct pbuf *)buf)->payload;
+  void *ret = NULL;
+  if (buf) {
+    ret = ((struct pbuf *)buf)->payload;
+  }
+  return ret;
 }
 
 /*!
@@ -273,7 +330,9 @@ void *bm_l2_get_payload(void *buf) {
 */
 void bm_l2_tx_prep(void *buf, uint32_t size) {
   (void)size;
-  pbuf_ref((struct pbuf *)buf);
+  if (buf) {
+    pbuf_ref((struct pbuf *)buf);
+  }
 }
 
 /*!
@@ -340,6 +399,20 @@ BmErr bm_l2_set_netif(bool up) {
 const char *bm_ip_get_str(uint8_t idx) {
   //NOTE: returns ptr to static buffer; not reentrant! (from ip6addr_ntoa)
   return (ip6addr_ntoa(netif_ip6_addr(&netif, idx)));
+}
+
+/*!
+  @brief Get IP Address
+
+  @param idx index to return IP address of,
+             addresses should be as follows when setting up abstraction:
+                 0. ll address
+                 1. unicast address
+
+  @return Pointer to static IP address
+*/
+const void *bm_ip_get(uint8_t idx) {
+  return (const void *)netif_ip6_addr(CTX.netif, idx);
 }
 
 /*!
@@ -436,7 +509,7 @@ BmErr bm_ip_tx_perform(void *payload, const void *dst) {
   if (payload) {
     layout = (LwipLayout *)payload;
     layout->dst = dst == NULL ? layout->dst : (const ip_addr_t *)dst;
-    err = raw_sendto_if_src(CTX.pcb, layout->pbuf, layout->dst, CTX.netif,
+    err = raw_sendto_if_src(CTX.raw_pcb, layout->pbuf, layout->dst, CTX.netif,
                             layout->src) == ERR_OK
               ? BmOK
               : BmEBADMSG;
@@ -456,4 +529,123 @@ void bm_ip_tx_cleanup(void *payload) {
     pbuf_free(layout->pbuf);
     bm_free(layout);
   }
+}
+
+/*!
+  @brief Bind A New Port To A UDP PCB
+
+  @details This API should allow for multiple callbacks to be invoked from
+           different modules that utilize UDP communication
+
+  @param port port number to bind to pcb
+  @param cb callback of specified pcb
+
+  @return pointer to pcb if successful
+  @return NULL if unsuccessful
+*/
+void *bm_udp_bind_port(uint16_t port, BmErr (*cb)(void *, uint64_t, uint32_t)) {
+
+  struct udp_pcb *pcb = udp_new_ip_type(IPADDR_TYPE_V6);
+  LLItem *item = NULL;
+  UdpCb udp_cb = {cb};
+
+  // Utilize pointer to pcb to be the id of LL item and add it to list
+  item = ll_create_item(item, &udp_cb, sizeof(udp_cb), (uint32_t)pcb);
+  if (pcb && item && ll_item_add(&CTX.udp_list, item) == BmOK) {
+    // Bind UDP layer to created pcb
+    udp_bind(pcb, IP_ANY_TYPE, port);
+    udp_recv(pcb, udp_recv_cb, NULL);
+  } else {
+    if (pcb) {
+      udp_remove(pcb);
+    }
+    if (item) {
+      ll_delete_item(item);
+    }
+    pcb = NULL;
+  }
+  return (void *)pcb;
+}
+
+/*!
+  @brief Create A New UDP Buffer
+
+  @param size size of buffer to allocate in bytes
+
+  @return pointer to created buffer
+  @return NULL if unsuccessful
+*/
+void *bm_udp_new(uint32_t size) {
+  return (void *)pbuf_alloc(PBUF_TRANSPORT, size, PBUF_RAM);
+}
+
+/*!
+  @brief Get Pointer To Raw Payload Of Buffer
+
+  @param buf buffer to obtain raw payload from
+
+  @return raw payload
+  @return NULL if invalid input parameters
+*/
+void *bm_udp_get_payload(void *buf) {
+  void *ret = NULL;
+  if (buf) {
+    ret = ((struct pbuf *)buf)->payload;
+  }
+  return ret;
+}
+
+/*!
+  @brief Update Reference Count Of Buffer
+
+  @details This is utilized for counting the number of times that lwip must
+           free this buffer when calling pbuf_free, other IP stacks might
+           not utilize this
+
+  @param buf buffer to update references on
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+BmErr bm_udp_reference_update(void *buf) {
+  BmErr err = BmEINVAL;
+  if (buf) {
+    err = BmOK;
+    pbuf_ref((struct pbuf *)buf);
+  }
+  return err;
+}
+
+/*!
+  @brief Clean Up And Free UDP Buffer
+
+  @param buf buffer to free memory
+ */
+void bm_udp_cleanup(void *buf) {
+  if (buf) {
+    pbuf_free((struct pbuf *)buf);
+  }
+}
+
+/*!
+ @brief Perform A UDP Transmission
+
+ @param pcb protocol control block created with bm_udp_bind_port
+ @param buf buffer to transmit
+ @param addr ip address to transmit to
+ @param port port to transmit to
+
+ @return 
+ */
+BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size, const void *addr,
+                        uint16_t port) {
+  (void)size;
+  BmErr err = BmEINVAL;
+  if (buf && pcb && addr) {
+    err = safe_udp_sendto_if((struct udp_pcb *)pcb, (struct pbuf *)buf,
+                             (const ip_addr_t *)addr, port, CTX.netif) == ERR_OK
+              ? BmOK
+              : BmEBADMSG;
+  }
+  return err;
 }
