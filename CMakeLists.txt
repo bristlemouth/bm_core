@@ -77,6 +77,7 @@ else()
         src/heartbeat.c
         src/info.c
         src/neighbors.c
+        src/l2.c
         src/packet.c
         src/ping.c
         src/resource_discovery.c

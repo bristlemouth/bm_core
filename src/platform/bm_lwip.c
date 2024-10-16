@@ -1,6 +1,6 @@
 #include "bcmp.h"
 #include "bm_ip.h"
-#include "bm_l2.h"
+#include "l2.h"
 #include "bm_os.h"
 #include "device.h"
 #include "lwip/ethip6.h"
