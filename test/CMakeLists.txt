@@ -30,6 +30,7 @@ set(BM_COMMON_MOCK_DIR ${bm_common_SOURCE_DIR}/test/mocks)
 set(BM_COMMON_TEST_DIR ${bm_common_SOURCE_DIR}/test)
 set(BM_COMMON_SOURCE_DIR ${bm_common_SOURCE_DIR}/src)
 set(BM_COMMON_STUBS_DIR ${bm_common_SOURCE_DIR}/test/stubs)
+set(BM_COMMON_THIRD_PARTY_DIR ${bm_common_SOURCE_DIR}/third_party)
 
 include_directories(
     ${MOCK_DIR}
@@ -202,28 +203,28 @@ create_gtest("neighbors" "${NEIGHBORS_SRCS}")
 
 # DFU TESTS
 
-# set (DFU_SRCS
-#     # Files we're testing
-#     ${SRC_DIR}dfu/dfu_core.c
-#     ${SRC_DIR}/dfu/dfu_client.c
-#     ${SRC_DIR}/dfu/bm_dfu_host.c
+set (DFU_SRCS
+    # Files we're testing
+    ${SRC_DIR}/dfu/dfu_core.c
+    ${SRC_DIR}/dfu/dfu_client.c
+    ${SRC_DIR}/dfu/dfu_host.c
 
-#     # Support files
-#     ${THIRD_PARTY_DIR}/crc/crc16.c
-#     ${THIRD_PARTY_DIR}/crc/crc32.c
-#     ${SRC_DIR}/lib/common/lib_state_machine.cpp
-#     ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
-#     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
-#     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
-#     ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
-#     ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
+    # Support files
+    ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc16.c
+    ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc32.c
+    ${BM_COMMON_SOURCE_DIR}/lib_state_machine.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
 
-#     # Stubs
-#     # TODO - probably need to mock the generic/wrapper functions!
-#     ${BM_COMMON_STUBS_DIR}/bm_os.c
-#     ${STUB_DIR}/device_stub.c
-#     # ${TEST_DIR}/stubs/mock_timer_callback_handler.cpp # TODO - mock this
-#     ${BM_COMMON_STUBS_DIR}/bm_os.c
-# )
+    # Stubs
+    # TODO - probably need to mock the generic/wrapper functions!
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/device_stub.c
+    # ${TEST_DIR}/stubs/mock_timer_callback_handler.cpp # TODO - mock this
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+)
 
-# create_gtest("dfu" "${DFU_SRCS}")
+create_gtest("dfu" "${DFU_SRCS}")

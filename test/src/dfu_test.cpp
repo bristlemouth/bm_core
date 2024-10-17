@@ -1,24 +1,18 @@
 #include "gtest/gtest.h"
 
-#include "bm_dfu.h"
+#include "dfu/dfu.h"
 #include "fff.h"
-#include "mock_device_info.h"
-#include "nvmPartition.h"
-#include "mock_storage_driver.h"
-#include "flash_map_backend.h"
-#include "mock_reset_reason.h"
-#include "mock_timer_callback_handler.h"
-#include "configuration.h"
+#include "mock_device.h"
+#include "mock_bcmp.h"
+// #include "mock_timer_callback_handler.h"
 extern "C" {
-#include "mock_FreeRTOS.h"
+#include "mock_bm_os.h"
 }
 
 DEFINE_FFF_GLOBALS;
 
 using namespace testing;
-using namespace cfg;
 
-FAKE_VALUE_FUNC(bool, fake_bcmp_tx_func, bcmp_message_type_t, uint8_t *, uint16_t);
 
 // The fixture for testing class Foo.
 class BcmpDfuTest : public ::testing::Test {
@@ -40,42 +34,41 @@ class BcmpDfuTest : public ::testing::Test {
   void SetUp() override {
      // Code here will be called immediately after the constructor (right
      // before each test).
-        RESET_FAKE(xQueueGenericSend);
-        RESET_FAKE(xQueueGenericCreate);
-        RESET_FAKE(xTaskCreate);
-        RESET_FAKE(xTimerCreate);
-        RESET_FAKE(getNodeId);
-        RESET_FAKE(fake_bcmp_tx_func);
-        RESET_FAKE(xTimerGenericCommand);
-        RESET_FAKE(getVersionInfo);
-        RESET_FAKE(resetSystem);
-        RESET_FAKE(getGitSHA);
-        fake_q = (QueueHandle_t)malloc(sizeof(QueueHandle_t));
-        fake_timer = (TimerHandle_t)malloc(sizeof(QueueHandle_t));
-        EXPECT_CALL(_storage, getAlignmentBytes())
-            .Times(AtLeast(0))
-            .WillRepeatedly(Return(4096));
-        EXPECT_CALL(_storage, getStorageSizeBytes())
-            .Times(AtLeast(0))
-            .WillRepeatedly(Return(8000000));
-        EXPECT_CALL(_storage, write)
-            .Times(AtLeast(0))
-            .WillRepeatedly(Return(true));
-        EXPECT_CALL(_storage, read)
-            .Times(AtLeast(0))
-            .WillRepeatedly(Return(true));
-        testPartition = new NvmPartition(_storage, _test_configuration);
-        configNvm = new NvmPartition(_storage, _config_nvm);
-        testConfig = new Configuration(*configNvm, config_ram, sizeof(config_ram));
-        xQueueGenericSend_fake.return_val = pdPASS;
-        xTaskCreate_fake.return_val = pdPASS;
-        xQueueGenericCreate_fake.return_val = fake_q;
-        xTimerCreate_fake.return_val = fake_timer;
-        xTimerGenericCommand_fake.return_val = pdPASS;
-        getNodeId_fake.return_val = 0xdeadbeefbeeffeed;
-        fake_bcmp_tx_func_fake.return_val = true;
-        getVersionInfo_fake.return_val = &test_info;
-        getGitSHA_fake.return_val = 0xd00dd00d;
+        RESET_FAKE(bm_queue_send);
+        RESET_FAKE(bm_queue_create);
+        RESET_FAKE(bm_task_create);
+        RESET_FAKE(bm_timer_create);
+        RESET_FAKE(node_id);
+        RESET_FAKE(bcmp_tx);
+        // TODO - is this still needed?
+        // RESET_FAKE(xTimerGenericCommand);
+        RESET_FAKE(firmware_version);
+        RESET_FAKE(git_sha);
+        // TODO - are these valid?
+        fake_q = (BmQueue)malloc(sizeof(BmQueue));
+        fake_timer = (BmTimer)malloc(sizeof(BmTimer));
+        // TODO - are these needed?
+        // EXPECT_CALL(_storage, getAlignmentBytes())
+        //     .Times(AtLeast(0))
+        //     .WillRepeatedly(Return(4096));
+        // EXPECT_CALL(_storage, getStorageSizeBytes())
+        //     .Times(AtLeast(0))
+        //     .WillRepeatedly(Return(8000000));
+        // EXPECT_CALL(_storage, write)
+        //     .Times(AtLeast(0))
+        //     .WillRepeatedly(Return(true));
+        // EXPECT_CALL(_storage, read)
+        //     .Times(AtLeast(0))
+        //     .WillRepeatedly(Return(true));
+        bm_queue_send_fake.return_val = BmOK;
+        bm_task_create_fake.return_val = BmOK;
+        bm_queue_create_fake.return_val = fake_q;
+        bm_timer_create_fake.return_val = fake_timer;
+        // xTimerGenericCommand_fake.return_val = pdPASS;
+        node_id_fake.return_val = 0xdeadbeefbeeffeed;
+        bcmp_tx_fake.return_val = BmOK;
+        firmware_version_fake.return_val = &test_info;
+        git_sha_fake.return_val = 0xd00dd00d;
         memset(&client_update_reboot_info, 0, sizeof(client_update_reboot_info));
     }
 
@@ -83,32 +76,40 @@ class BcmpDfuTest : public ::testing::Test {
      // Code here will be called immediately after each test (right
      // before the destructor).
         free(fake_q);
-        delete testPartition;
+        // delete testPartition;
   }
 
   // Objects declared here can be used by all tests in the test suite for Foo.
-    QueueHandle_t fake_q;
-    TimerHandle_t fake_timer;
-    MockStorageDriver _storage;
-    NvmPartition *testPartition;
-    const ext_flash_partition_t _test_configuration = {
-        .fa_off = 4096,
-        .fa_size = 10000,
-    };
-    const ext_flash_partition_t _config_nvm = {
-        .fa_off = 4096,
-        .fa_size = 10000,
-    };
+    BmQueue fake_q;
+    BmTimer fake_timer;
+
+    // TODO - this is no longer used here so we need to figure out how to change this
+    // MockStorageDriver _storage;
+    // NvmPartition *testPartition;
+    // const ext_flash_partition_t _test_configuration = {
+    //     .fa_off = 4096,
+    //     .fa_size = 10000,
+    // };
+    // const ext_flash_partition_t _config_nvm = {
+    //     .fa_off = 4096,
+    //     .fa_size = 10000,
+    // };
     uint8_t config_ram[10000];
-    NvmPartition *configNvm;
-    Configuration *testConfig;
-    const struct flash_area fa = {
-        .fa_id = 1,
-        .fa_device_id = 2,
-        .pad16 = 0,
-        .fa_off = 0,
-        .fa_size = 2000000,
-    };
+
+    // TODO - this is no longer used here so we need to figure out how to change this
+    // NvmPartition *configNvm;
+    // Configuration *testConfig;
+
+    // TODO - this is no longer used here so we need to figure out how to change this
+    // const struct flash_area fa = {
+    //     .fa_id = 1,
+    //     .fa_device_id = 2,
+    //     .pad16 = 0,
+    //     .fa_off = 0,
+    //     .fa_size = 2000000,
+    // };
+
+    // TODO - this changed so need to update
     const versionInfo_t test_info = {
         .magic = 0xbaadd00dd00dbaad,
         .gitSHA = 0xd00dd00d,
@@ -126,22 +127,22 @@ class BcmpDfuTest : public ::testing::Test {
 
 TEST_F(BcmpDfuTest, InitTest)
 {
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 1);
-    EXPECT_EQ(xTaskCreate_fake.call_count, 1);
-    EXPECT_EQ(xQueueGenericCreate_fake.call_count, 1);
-    EXPECT_EQ(xTimerCreate_fake.call_count, 4);
-    EXPECT_EQ(getNodeId_fake.call_count, 3);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 1);
+    EXPECT_EQ(bm_task_create_fake.call_count, 1);
+    EXPECT_EQ(bm_queue_create_fake.call_count, 1);
+    EXPECT_EQ(bm_timer_create_fake.call_count, 4);
+    EXPECT_EQ(node_id_fake.call_count, 3);
 }
 
 TEST_F(BcmpDfuTest, processMessageTest)
 {
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 1);
-    EXPECT_EQ(xTaskCreate_fake.call_count, 1);
-    EXPECT_EQ(xQueueGenericCreate_fake.call_count, 1);
-    EXPECT_EQ(xTimerCreate_fake.call_count, 4);
-    EXPECT_EQ(getNodeId_fake.call_count, 3);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 1);
+    EXPECT_EQ(bm_task_create_fake.call_count, 1);
+    EXPECT_EQ(bm_queue_create_fake.call_count, 1);
+    EXPECT_EQ(bm_timer_create_fake.call_count, 4);
+    EXPECT_EQ(node_id_fake.call_count, 3);
 
     // dfu start
     bcmp_dfu_start_t* start_msg = (bcmp_dfu_start_t*) malloc (sizeof(bcmp_dfu_start_t));
@@ -149,7 +150,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     start_msg->info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     start_msg->info.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)start_msg, sizeof(bcmp_dfu_start_t));
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 2);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 2);
     free(start_msg);
 
     // payload req
@@ -158,7 +159,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     payload_req_msg->chunk_req.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     payload_req_msg->chunk_req.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)payload_req_msg, sizeof(bcmp_dfu_payload_req_t));
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 3);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 3);
     free(payload_req_msg);
 
     // payload
@@ -167,7 +168,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     payload_msg->chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     payload_msg->chunk.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)payload_msg, sizeof(bcmp_dfu_payload_t));
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 4);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 4);
     free(payload_msg);
 
     // dfu end
@@ -176,7 +177,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     end_msg->result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     end_msg->result.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)end_msg, sizeof(bcmp_dfu_end_t));
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 5);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 5);
     free(end_msg);
 
     // dfu ack
@@ -185,7 +186,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     ack_msg->ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     ack_msg->ack.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)ack_msg, sizeof(bcmp_dfu_ack_t));
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 6);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 6);
     free(ack_msg);
     // dfu abort
     bcmp_dfu_abort_t* abort_msg = (bcmp_dfu_abort_t*) malloc (sizeof(bcmp_dfu_abort_t));
@@ -193,7 +194,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     abort_msg->err.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     abort_msg->err.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)abort_msg, sizeof(bcmp_dfu_abort_t));
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 7);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 7);
     free(abort_msg);
     // dfu heartbeat
     bcmp_dfu_heartbeat_t* hb_msg = (bcmp_dfu_heartbeat_t*) malloc (sizeof(bcmp_dfu_heartbeat_t));
@@ -201,7 +202,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     hb_msg->addr.dst_node_id = 0xdeadbeefbeeffeed;
     hb_msg->addr.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)hb_msg, sizeof(bcmp_dfu_heartbeat_t));
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 8);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 8);
     free(hb_msg);
     // Invalid msg
     bcmp_dfu_heartbeat_t* bad_msg = (bcmp_dfu_heartbeat_t*) malloc (sizeof(bcmp_dfu_heartbeat_t));
@@ -213,28 +214,28 @@ TEST_F(BcmpDfuTest, processMessageTest)
 }
 
 TEST_F(BcmpDfuTest, DfuApiTest){
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
-    EXPECT_EQ(xQueueGenericSend_fake.call_count, 1);
-    EXPECT_EQ(xTaskCreate_fake.call_count, 1);
-    EXPECT_EQ(xQueueGenericCreate_fake.call_count, 1);
-    EXPECT_EQ(xTimerCreate_fake.call_count, 4);
-    EXPECT_EQ(getNodeId_fake.call_count, 3);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
+    EXPECT_EQ(bm_queue_send_fake.call_count, 1);
+    EXPECT_EQ(bm_task_create_fake.call_count, 1);
+    EXPECT_EQ(bm_queue_create_fake.call_count, 1);
+    EXPECT_EQ(bm_timer_create_fake.call_count, 4);
+    EXPECT_EQ(node_id_fake.call_count, 3);
 
     bm_dfu_send_ack(0xdeadbeefbeeffeed, 1, BM_DFU_ERR_NONE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.call_count, 1);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.call_count, 1);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_ACK);
 
     bm_dfu_req_next_chunk(0xdeadbeefbeeffeed, 0);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.call_count, 2);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.call_count, 2);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
 
     bm_dfu_update_end(0xdeadbeefbeeffeed, 1, BM_DFU_ERR_NONE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.call_count, 3);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_END);
+    EXPECT_EQ(bcmp_tx_fake.call_count, 3);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
 
     bm_dfu_send_heartbeat(0xdeadbeefbeeffeed);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.call_count, 4);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_HEARTBEAT);
+    EXPECT_EQ(bcmp_tx_fake.call_count, 4);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_HEARTBEAT);
 
     bm_dfu_img_info_t info;
     info.chunk_size = BM_DFU_MAX_CHUNK_SIZE;
@@ -251,9 +252,9 @@ TEST_F(BcmpDfuTest, clientGolden) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
-    libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
-    bm_dfu_event_t evt = {
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
         .buf = NULL,
         .len = 0,
@@ -278,8 +279,8 @@ TEST_F(BcmpDfuTest, clientGolden) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(bcmp_dfu_start_t));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
@@ -294,13 +295,13 @@ TEST_F(BcmpDfuTest, clientGolden) {
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
@@ -311,7 +312,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_REBOOT_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_REBOOT_REQ);
 
     // Reboot
     evt.type = DFU_EVENT_REBOOT;
@@ -332,9 +333,9 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
-    libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
-    bm_dfu_event_t evt = {
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
         .buf = NULL,
         .len = 0,
@@ -359,7 +360,7 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(bcmp_dfu_start_t));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_ACK);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE); // We don't progress to RECEIVING.
 }
 
@@ -368,9 +369,9 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
-    libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
-    bm_dfu_event_t evt = {
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
         .buf = NULL,
         .len = 0,
@@ -396,8 +397,8 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(bcmp_dfu_start_t));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 }
 
@@ -413,7 +414,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -422,7 +423,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_BOOT_COMPLETE);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_BOOT_COMPLETE);
 
     // REBOOT_DONE
     evt.type = DFU_EVENT_UPDATE_END;
@@ -437,16 +438,16 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     memcpy(evt.buf, &bcmp_end_msg, sizeof(bcmp_end_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_END);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
 }
 
 TEST_F(BcmpDfuTest, clientResyncHost) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
-    libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
-    bm_dfu_event_t evt = {
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
         .buf = NULL,
         .len = 0,
@@ -471,13 +472,13 @@ TEST_F(BcmpDfuTest, clientResyncHost) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(bcmp_dfu_start_t));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // Get a DFU_EVENT_RECEIVED_UPDATE_REQUEST in BM_DFU_STATE_CLIENT_RECEIVING state
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 }
 
@@ -486,9 +487,9 @@ TEST_F(BcmpDfuTest, hostGolden) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
-    libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
-    bm_dfu_event_t evt = {
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
         .buf = NULL,
         .len = 0,
@@ -516,7 +517,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // HOST UPDATE
     evt.type = DFU_EVENT_ACK_RECEIVED;
@@ -544,7 +545,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     memcpy(evt.buf, &dfu_payload_req_msg, sizeof(dfu_payload_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD);
 
     // REBOOT REQUEST
     evt.type = DFU_EVENT_REBOOT_REQUEST;
@@ -557,7 +558,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     memcpy(evt.buf, &dfu_reboot_req_msg, sizeof(dfu_reboot_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_REBOOT);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_REBOOT);
 
     // REBOOT COMPLETE
     evt.type = DFU_EVENT_BOOT_COMPLETE;
@@ -570,7 +571,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_END);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
 
     // DFU EVENT
     evt.type = DFU_EVENT_UPDATE_END;
@@ -592,7 +593,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -622,7 +623,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     evt.type = DFU_EVENT_ACK_TIMEOUT;
     evt.buf = NULL;
@@ -643,7 +644,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // ABORT
     evt.type = DFU_EVENT_ABORT;
@@ -660,7 +661,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -690,7 +691,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // HOST UPDATE
     evt.type = DFU_EVENT_ACK_RECEIVED;
@@ -724,7 +725,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // HOST UPDATE
     evt.type = DFU_EVENT_ACK_RECEIVED;
@@ -739,7 +740,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -769,7 +770,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // HOST UPDATE
     evt.type = DFU_EVENT_ACK_RECEIVED;
@@ -796,7 +797,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     memcpy(evt.buf, &dfu_reboot_req_msg, sizeof(dfu_reboot_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_REBOOT);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_REBOOT);
 
     // REBOOT COMPLETE
     evt.type = DFU_EVENT_BOOT_COMPLETE;
@@ -809,7 +810,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_END);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
 
     // ABORT REBOOT CHECK
     bcmp_dfu_abort_t *abort = (bcmp_dfu_abort_t *)malloc(sizeof(bcmp_dfu_abort_t));
@@ -829,7 +830,7 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -856,8 +857,8 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(bcmp_dfu_start_t));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     evt.type = DFU_EVENT_CHUNK_TIMEOUT;
@@ -882,7 +883,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -909,8 +910,8 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(bcmp_dfu_start_t));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
@@ -925,13 +926,13 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
@@ -954,8 +955,8 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(bcmp_dfu_start_t));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
@@ -965,13 +966,13 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     dfu_payload_msg.chunk.payload_length = 1;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
@@ -995,7 +996,7 @@ TEST_F(BcmpDfuTest, ChunksTooBig){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -1030,7 +1031,7 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -1057,8 +1058,8 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(bcmp_dfu_start_t));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
@@ -1073,13 +1074,13 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
@@ -1090,7 +1091,7 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_REBOOT_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_REBOOT_REQ);
 
     evt.type = DFU_EVENT_CHUNK_TIMEOUT;
     evt.buf = NULL;
@@ -1121,7 +1122,7 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,
@@ -1144,10 +1145,10 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
-    EXPECT_EQ(fake_bcmp_tx_func_fake.arg0_val, BCMP_DFU_BOOT_COMPLETE);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_BOOT_COMPLETE);
     evt.type = DFU_EVENT_CHUNK_TIMEOUT;
     evt.buf = NULL;
     evt.len = 0;
@@ -1179,7 +1180,7 @@ TEST_F(BcmpDfuTest, ClientConfirmSkip) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(fake_bcmp_tx_func, testPartition, testConfig);
+    bm_dfu_init(bcmp_tx, testPartition, testConfig);
     libSmContext_t* ctx = bm_dfu_test_get_sm_ctx();
     bm_dfu_event_t evt = {
         .type = DFU_EVENT_INIT_SUCCESS,

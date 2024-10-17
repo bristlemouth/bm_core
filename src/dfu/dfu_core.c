@@ -21,11 +21,11 @@ typedef struct dfu_core_ctx_t {
     UpdateFinishCb update_finish_callback;
 } dfu_core_ctx_t;
 
-#ifndef CI_TEST
+#ifndef ENABLE_TESTING
 ReboootClientUpdateInfo client_update_reboot_info __attribute__((section(".noinit")));
-#else // CI_TEST
+#else // ENABLE_TESTING
 ReboootClientUpdateInfo client_update_reboot_info;
-#endif // CI_TEST
+#endif // ENABLE_TESTING
 
 static dfu_core_ctx_t dfu_ctx;
 
@@ -499,7 +499,8 @@ void bm_dfu_send_heartbeat(uint64_t dst_node_id) {
 }
 
 /* This thread consumes events from the event queue and progresses the state machine */
-static void bm_dfu_event_thread(void*) {
+static void bm_dfu_event_thread(void* parameters) {
+    (void) parameters;
     printf("BM DFU Subsystem thread started\n");
 
     while (1) {

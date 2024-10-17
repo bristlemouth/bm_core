@@ -584,8 +584,8 @@ bool bm_dfu_client_host_node_valid(uint64_t host_node_id) {
 /*!
  * UNIT TEST FUNCTIONS BELOW HERE
  */
-#ifdef CI_TEST
-void bm_dfu_test_set_client_fa(const struct flash_area *fa) {
+#ifdef ENABLE_TESTING
+void bm_dfu_test_set_client_fa(void *fa) {
     CLIENT_CTX.fa = fa;
 }
-#endif //CI_TEST
+#endif //ENABLE_TESTING
