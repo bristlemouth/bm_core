@@ -17,12 +17,12 @@
 #define bcmp_table_max_len 1024
 
 typedef enum {
-  BCMP_TOPO_EVT_START,
-  BCMP_TOPO_EVT_CHECK_NODE,
-  BCMP_TOPO_EVT_ADD_NODE,
-  BCMP_TOPO_EVT_TIMEOUT,
-  BCMP_TOPO_EVT_RESTART,
-  BCMP_TOPO_EVT_END,
+  BcmpTopoEvtStart,
+  BcmpTopoEvtCheckNode,
+  BcmpTopoEvtAddNode,
+  BcmpTopoEvtTimeout,
+  BcmpTopoEvtRestart,
+  BcmpTopoEvtEnd,
 } BcmpTopoQueueType;
 
 typedef struct {
@@ -141,7 +141,7 @@ static void process_start_topology_event(void) {
     network_topology_append(CTX.network_topology, neighbor_entry);
     network_topology_move_to_front(CTX.network_topology);
 
-    BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+    BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
     bm_queue_send(CTX.evt_queue, &check_item, 0);
   }
 }
@@ -149,7 +149,7 @@ static void process_start_topology_event(void) {
 static void process_check_node_event(void) {
   if (network_topology_check_all_ports_explored(CTX.network_topology)) {
     if (network_topology_is_root(CTX.network_topology)) {
-      BcmpTopoQueueItem end_item = {BCMP_TOPO_EVT_END, NULL, NULL};
+      BcmpTopoQueueItem end_item = {BcmpTopoEvtEnd, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &end_item, 0);
     } else {
       if (INSERT_BEFORE) {
@@ -157,7 +157,7 @@ static void process_check_node_event(void) {
       } else {
         network_topology_move_prev(CTX.network_topology);
       }
-      BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+      BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
     }
   } else {
@@ -176,7 +176,7 @@ static void process_check_node_event(void) {
       } else {
         network_topology_move_prev(CTX.network_topology);
       }
-      BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+      BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
     }
   }
@@ -190,13 +190,15 @@ static void process_check_node_event(void) {
   @ret ERR_OK if successful
 */
 BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr) {
+  BmErr err = BmOK;
   BcmpNeighborTableRequest neighbor_table_req = {.target_node_id =
                                                      target_node_id};
   TARGET_NODE_ID = target_node_id;
-  bm_timer_start(CTX.topo_timer, 10);
-  return bcmp_tx(addr, BcmpNeighborTableRequestMessage,
-                 (uint8_t *)&neighbor_table_req, sizeof(neighbor_table_req), 0,
-                 NULL);
+  err = bm_timer_start(CTX.topo_timer, 10);
+  bm_err_check(err, bcmp_tx(addr, BcmpNeighborTableRequestMessage,
+                            (uint8_t *)&neighbor_table_req,
+                            sizeof(neighbor_table_req), 0, NULL));
+  return err;
 }
 
 /*!
@@ -302,7 +304,7 @@ static BmErr bcmp_process_neighbor_table_reply(BcmpProcessData data) {
 
       memcpy(neighbor_entry->neighbor_table_reply, reply, neighbor_table_len);
 
-      BcmpTopoQueueItem item = {.type = BCMP_TOPO_EVT_ADD_NODE,
+      BcmpTopoQueueItem item = {.type = BcmpTopoEvtAddNode,
                                 .neighbor_entry = neighbor_entry,
                                 .callback = NULL};
 
@@ -327,7 +329,7 @@ static BmErr bcmp_process_neighbor_table_reply(BcmpProcessData data) {
 static void topology_timer_handler(BmTimer tmr) {
   (void)tmr;
 
-  BcmpTopoQueueItem item = {BCMP_TOPO_EVT_TIMEOUT, NULL, NULL};
+  BcmpTopoQueueItem item = {BcmpTopoEvtTimeout, NULL, NULL};
 
   bm_queue_send(CTX.evt_queue, &item, 0);
 }
@@ -354,7 +356,7 @@ static void bcmp_topology_thread(void *parameters) {
     bm_queue_receive(CTX.evt_queue, &item, UINT32_MAX);
 
     switch (item.type) {
-    case BCMP_TOPO_EVT_START: {
+    case BcmpTopoEvtStart: {
       if (!CTX.in_progress) {
         CTX.in_progress = true;
         SENT_REQUEST = true;
@@ -366,7 +368,7 @@ static void bcmp_topology_thread(void *parameters) {
       break;
     }
 
-    case BCMP_TOPO_EVT_ADD_NODE: {
+    case BcmpTopoEvtAddNode: {
       if (item.neighbor_entry) {
         if (!network_topology_node_id_in_topology(
                 CTX.network_topology,
@@ -384,17 +386,17 @@ static void bcmp_topology_thread(void *parameters) {
               CTX.network_topology); // we have come from one of the ports so it must have been checked
         }
       }
-      BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+      BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
       break;
     }
 
-    case BCMP_TOPO_EVT_CHECK_NODE: {
+    case BcmpTopoEvtCheckNode: {
       process_check_node_event();
       break;
     }
 
-    case BCMP_TOPO_EVT_END: {
+    case BcmpTopoEvtEnd: {
       if (CTX.callback) {
         CTX.callback(CTX.network_topology);
       }
@@ -406,13 +408,13 @@ static void bcmp_topology_thread(void *parameters) {
       break;
     }
 
-    case BCMP_TOPO_EVT_TIMEOUT: {
+    case BcmpTopoEvtTimeout: {
       if (INSERT_BEFORE) {
         network_topology_move_next(CTX.network_topology);
       } else {
         network_topology_move_prev(CTX.network_topology);
       }
-      BcmpTopoQueueItem check_item = {BCMP_TOPO_EVT_CHECK_NODE, NULL, NULL};
+      BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
       break;
     }
@@ -456,14 +458,14 @@ BmErr bcmp_topology_start(BcmpTopoCb callback) {
   if (!BCMP_TOPOLOGY_TASK) {
     CTX.evt_queue =
         bm_queue_create(bcmp_topo_evt_queue_len, sizeof(BcmpTopoQueueItem));
-
+    err = !CTX.evt_queue ? BmENOMEM : BmOK;
     bm_err_check(err,
                  bm_task_create(bcmp_topology_thread, "BCMP_TOPO", 1024, NULL,
                                 bcmp_topo_task_priority, &BCMP_TOPOLOGY_TASK));
   }
 
   // send the first request out
-  BcmpTopoQueueItem item = {BCMP_TOPO_EVT_START, NULL, callback};
+  BcmpTopoQueueItem item = {BcmpTopoEvtStart, NULL, callback};
   bm_err_check(err, bm_queue_send(CTX.evt_queue, &item, 0));
 
   return err;
