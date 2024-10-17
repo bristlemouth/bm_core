@@ -66,6 +66,7 @@ if(ENABLE_TESTING)
     set(CMAKE_CXX_FLAGS "-g -Wall")
     set(CMAKE_C_FLAGS "-g -Wall -W")
     set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
+    add_compile_options(-DENABLE_TESTING)
 
     enable_testing()
     add_subdirectory("test")
