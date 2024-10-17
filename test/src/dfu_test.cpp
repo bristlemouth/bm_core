@@ -5,6 +5,7 @@
 #include "mock_device.h"
 #include "mock_bcmp.h"
 // #include "mock_timer_callback_handler.h"
+#include "lib_state_machine.h"
 extern "C" {
 #include "mock_bm_os.h"
 }
@@ -146,7 +147,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // dfu start
     BcmpDfuStart* start_msg = (BcmpDfuStart*) malloc (sizeof(BcmpDfuStart));
-    start_msg->header.frame_type = BcmpDfuStartMessage;
+    start_msg->header.frame_type = BcmpDFUStartMessage;
     start_msg->info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     start_msg->info.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)start_msg, sizeof(BcmpDfuStart));
@@ -155,7 +156,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // payload req
     BcmpDfuPayloadReq* payload_req_msg = (BcmpDfuPayloadReq*) malloc (sizeof(BcmpDfuPayloadReq));
-    payload_req_msg->header.frame_type = BcmpDfuPayloadReqMessage;
+    payload_req_msg->header.frame_type = BcmpDFUPayloadReqMessage;
     payload_req_msg->chunk_req.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     payload_req_msg->chunk_req.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)payload_req_msg, sizeof(BcmpDfuPayloadReq));
@@ -164,7 +165,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // payload
     BcmpDfuPayload* payload_msg = (BcmpDfuPayload*) malloc (sizeof(BcmpDfuPayload));
-    payload_msg->header.frame_type = BcmpDfuPayloadMessage;
+    payload_msg->header.frame_type = BcmpDFUPayloadMessage;
     payload_msg->chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     payload_msg->chunk.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)payload_msg, sizeof(BcmpDfuPayload));
@@ -173,7 +174,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // dfu end
     BcmpDfuEnd* end_msg = (BcmpDfuEnd*) malloc (sizeof(BcmpDfuEnd));
-    end_msg->header.frame_type = BcmpDfuEndMessage;
+    end_msg->header.frame_type = BcmpDFUEndMessage;
     end_msg->result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     end_msg->result.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)end_msg, sizeof(BcmpDfuEnd));
@@ -182,7 +183,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // dfu ack
     BcmpDfuAck* ack_msg = (BcmpDfuAck*) malloc (sizeof(BcmpDfuAck));
-    ack_msg->header.frame_type = BcmpDfuAckMessage;
+    ack_msg->header.frame_type = BcmpDFUAckMessage;
     ack_msg->ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     ack_msg->ack.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)ack_msg, sizeof(BcmpDfuAck));
@@ -190,7 +191,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     free(ack_msg);
     // dfu abort
     BcmpDfuAbort* abort_msg = (BcmpDfuAbort*) malloc (sizeof(BcmpDfuAbort));
-    abort_msg->header.frame_type = BcmpDfuAbortMessage;
+    abort_msg->header.frame_type = BcmpDFUAbortMessage;
     abort_msg->err.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     abort_msg->err.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)abort_msg, sizeof(BcmpDfuAbort));
@@ -198,7 +199,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     free(abort_msg);
     // dfu heartbeat
     BcmpDfuHeartbeat* hb_msg = (BcmpDfuHeartbeat*) malloc (sizeof(BcmpDfuHeartbeat));
-    hb_msg->header.frame_type = BcmpDfuHeartbeatMessage;
+    hb_msg->header.frame_type = BcmpDFUHeartbeatMessage;
     hb_msg->addr.dst_node_id = 0xdeadbeefbeeffeed;
     hb_msg->addr.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)hb_msg, sizeof(BcmpDfuHeartbeat));
@@ -223,19 +224,19 @@ TEST_F(BcmpDfuTest, DfuApiTest){
 
     bm_dfu_send_ack(0xdeadbeefbeeffeed, 1, BmDfuErrNone);
     EXPECT_EQ(bcmp_tx_fake.call_count, 1);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUAckMessage);
 
     bm_dfu_req_next_chunk(0xdeadbeefbeeffeed, 0);
     EXPECT_EQ(bcmp_tx_fake.call_count, 2);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
 
     bm_dfu_update_end(0xdeadbeefbeeffeed, 1, BmDfuErrNone);
     EXPECT_EQ(bcmp_tx_fake.call_count, 3);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuEndMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUEndMessage);
 
     bm_dfu_send_heartbeat(0xdeadbeefbeeffeed);
     EXPECT_EQ(bcmp_tx_fake.call_count, 4);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuHeartbeatMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUHeartbeatMessage);
 
     BmDfuImgInfo info;
     info.chunk_size = BM_DFU_MAX_CHUNK_SIZE;
@@ -260,14 +261,14 @@ TEST_F(BcmpDfuTest, clientGolden) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -279,39 +280,39 @@ TEST_F(BcmpDfuTest, clientGolden) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDfuAckMessage);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 
     // Chunk
     evt.type = DfuEventImageChunk;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
     evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
     BcmpDfuPayload dfu_payload_msg;
-    dfu_payload_msg.header.frame_type = BcmpDfuPayloadMessage;
+    dfu_payload_msg.header.frame_type = BcmpDFUPayloadMessage;
     dfu_payload_msg.chunk.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_payload_msg.chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_payload_msg.chunk.payload_length = CHUNK_SIZE;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientValidating);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientValidating);
 
     // Validating
     evt.type = DfuEventNone;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootReq);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootReq);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFURebootReqMessage);
 
     // Reboot
@@ -324,7 +325,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
     dfu_reboot_msg.addr.dst_node_id = 0xdeadbeefbeeffeed;
     memcpy(evt.buf, &dfu_reboot_msg, sizeof(dfu_reboot_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientActivating); // We reboot in this step.
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientActivating); // We reboot in this step.
     // See ClientImageHasUpdated for state behavior after reboot.
 }
 
@@ -341,14 +342,14 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -360,8 +361,8 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuAckMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle); // We don't progress to RECEIVING.
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUAckMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle); // We don't progress to RECEIVING.
 }
 
 TEST_F(BcmpDfuTest, clientForceUpdate) {
@@ -377,14 +378,14 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -397,9 +398,9 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDfuAckMessage);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 }
 
 TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
@@ -422,7 +423,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuBootCompleteMessage);
 
     // REBOOT_DONE
@@ -430,15 +431,15 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuEnd));
     evt.len = sizeof(BcmpDfuEnd);
     BcmpDfuEnd bcmp_end_msg;
-    bcmp_end_msg.header.frame_type = BcmpDfuEndMessage;
+    bcmp_end_msg.header.frame_type = BcmpDFUEndMessage;
     bcmp_end_msg.result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     bcmp_end_msg.result.addresses.src_node_id = 0xbeefbeefdaadbaad;
     bcmp_end_msg.result.err_code = BmDfuErrNone;
     bcmp_end_msg.result.success = 1;
     memcpy(evt.buf, &bcmp_end_msg, sizeof(bcmp_end_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuEndMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUEndMessage);
 }
 
 TEST_F(BcmpDfuTest, clientResyncHost) {
@@ -453,14 +454,14 @@ TEST_F(BcmpDfuTest, clientResyncHost) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -472,14 +473,14 @@ TEST_F(BcmpDfuTest, clientResyncHost) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDfuAckMessage);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // Get a DfuEventReceivedUpdateRequest in BmDfuStateClientReceiving state
-    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDfuAckMessage);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 }
 
 
@@ -495,14 +496,14 @@ TEST_F(BcmpDfuTest, hostGolden) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // HOST REQUEST
     evt.type = DfuEventBeginHost;
     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
     evt.len = sizeof(DfuHostStartEvent);
     DfuHostStartEvent dfu_start_msg;
-    dfu_start_msg.start.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.start.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
@@ -516,36 +517,36 @@ TEST_F(BcmpDfuTest, hostGolden) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostReqUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUStartMessage);
 
     // HOST UPDATE
     evt.type = DfuEventAckReceived;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
     evt.len = sizeof(BcmpDfuAck);
     BcmpDfuAck dfu_ack_msg;
-    dfu_ack_msg.header.frame_type = BcmpDfuAckMessage;
+    dfu_ack_msg.header.frame_type = BcmpDFUAckMessage;
     dfu_ack_msg.ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_ack_msg.ack.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_ack_msg.ack.err_code = BmDfuErrNone;
     dfu_ack_msg.ack.success = 1;
     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
 
     // CHUNK REQUEST
     evt.type = DFU_EVENT_CHUNK_REQUEST;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayloadReq));
     evt.len = sizeof(BcmpDfuPayloadReq);
     BcmpDfuPayloadReq dfu_payload_req_msg;
-    dfu_payload_req_msg.header.frame_type = BcmpDfuPayloadReqMessage;
+    dfu_payload_req_msg.header.frame_type = BcmpDFUPayloadReqMessage;
     dfu_payload_req_msg.chunk_req.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_payload_req_msg.chunk_req.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_payload_req_msg.chunk_req.seq_num  = 0;
     memcpy(evt.buf, &dfu_payload_req_msg, sizeof(dfu_payload_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadMessage);
 
     // REBOOT REQUEST
     evt.type = DfuEventRebootRequest;
@@ -557,7 +558,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     dfu_reboot_req_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
     memcpy(evt.buf, &dfu_reboot_req_msg, sizeof(dfu_reboot_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFURebootMessage);
 
     // REBOOT COMPLETE
@@ -570,22 +571,22 @@ TEST_F(BcmpDfuTest, hostGolden) {
     dfu_reboot_done_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuEndMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUEndMessage);
 
     // DFU EVENT
     evt.type = DFU_EVENT_UPDATE_END;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuEnd));
     evt.len = sizeof(BcmpDfuEnd);
     BcmpDfuEnd dfu_end_msg;
-    dfu_end_msg.header.frame_type = BcmpDfuEndMessage;
+    dfu_end_msg.header.frame_type = BcmpDFUEndMessage;
     dfu_end_msg.result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_end_msg.result.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_end_msg.result.err_code = BmDfuErrNone;
     dfu_end_msg.result.success = 1;
     memcpy(evt.buf, &dfu_end_msg, sizeof(dfu_end_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
 }
 
@@ -601,14 +602,14 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // HOST REQUEST
     evt.type = DfuEventBeginHost;
     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
     evt.len = sizeof(DfuHostStartEvent);
     DfuHostStartEvent dfu_start_msg;
-    dfu_start_msg.start.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.start.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
@@ -622,19 +623,19 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostReqUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUStartMessage);
 
     evt.type = DfuEventAckTimeout;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostReqUpdate); // retry 1
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate); // retry 1
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
     evt.type = DfuEventNone;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // HOST REQUEST
     evt.type = DfuEventBeginHost;
@@ -643,18 +644,18 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(DfuHostStartEvent));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostReqUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUStartMessage);
 
     // ABORT
     evt.type = DfuEventAbort;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
     evt.type = DfuEventNone;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
 TEST_F(BcmpDfuTest, HostUpdateFail){
@@ -669,14 +670,14 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // HOST REQUEST
     evt.type = DfuEventBeginHost;
     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
     evt.len = sizeof(DfuHostStartEvent);
     DfuHostStartEvent dfu_start_msg;
-    dfu_start_msg.start.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.start.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
@@ -690,32 +691,32 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostReqUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUStartMessage);
 
     // HOST UPDATE
     evt.type = DfuEventAckReceived;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
     evt.len = sizeof(BcmpDfuAck);
     BcmpDfuAck dfu_ack_msg;
-    dfu_ack_msg.header.frame_type = BcmpDfuAckMessage;
+    dfu_ack_msg.header.frame_type = BcmpDFUAckMessage;
     dfu_ack_msg.ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_ack_msg.ack.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_ack_msg.ack.err_code = BmDfuErrNone;
     dfu_ack_msg.ack.success = 1;
     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
 
     // ABORT
     evt.type = DfuEventAbort;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
     evt.type = DfuEventNone;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
    // HOST REQUEST
     evt.type = DfuEventBeginHost;
@@ -724,8 +725,8 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostReqUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUStartMessage);
 
     // HOST UPDATE
     evt.type = DfuEventAckReceived;
@@ -733,7 +734,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     evt.len = sizeof(BcmpDfuAck);
     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
 }
 
 TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
@@ -748,14 +749,14 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // HOST REQUEST
     evt.type = DfuEventBeginHost;
     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
     evt.len = sizeof(DfuHostStartEvent);
     DfuHostStartEvent dfu_start_msg;
-    dfu_start_msg.start.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.start.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
@@ -769,22 +770,22 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostReqUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUStartMessage);
 
     // HOST UPDATE
     evt.type = DfuEventAckReceived;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
     evt.len = sizeof(BcmpDfuAck);
     BcmpDfuAck dfu_ack_msg;
-    dfu_ack_msg.header.frame_type = BcmpDfuAckMessage;
+    dfu_ack_msg.header.frame_type = BcmpDFUAckMessage;
     dfu_ack_msg.ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_ack_msg.ack.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_ack_msg.ack.err_code = BmDfuErrNone;
     dfu_ack_msg.ack.success = 1;
     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
 
     // REBOOT REQUEST
     evt.type = DfuEventRebootRequest;
@@ -796,7 +797,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     dfu_reboot_req_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
     memcpy(evt.buf, &dfu_reboot_req_msg, sizeof(dfu_reboot_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFURebootMessage);
 
     // REBOOT COMPLETE
@@ -809,8 +810,8 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     dfu_reboot_done_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateHostUpdate);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuEndMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUEndMessage);
 
     // ABORT REBOOT CHECK
     BcmpDfuAbort *abort = (BcmpDfuAbort *)malloc(sizeof(BcmpDfuAbort));
@@ -819,11 +820,11 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     evt.buf = (uint8_t *)abort;
     evt.len = sizeof(BcmpDfuBootComplete);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
     EXPECT_EQ(bm_dfu_get_error(), BmDfuErrConfirmationAbort);
     evt.type = DfuEventNone;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
 TEST_F(BcmpDfuTest, ClientRecvFail){
@@ -838,14 +839,14 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -857,26 +858,26 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDfuAckMessage);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 
     evt.type = DfuEventChunkTimeout;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 1
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 2
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 3
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
     evt.type = DfuEventNone;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
 TEST_F(BcmpDfuTest, ClientValidateFail){
@@ -891,14 +892,14 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -910,43 +911,43 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDfuAckMessage);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 
     // Chunk
     evt.type = DfuEventImageChunk;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
     evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
     BcmpDfuPayload dfu_payload_msg;
-    dfu_payload_msg.header.frame_type = BcmpDfuPayloadMessage;
+    dfu_payload_msg.header.frame_type = BcmpDFUPayloadMessage;
     dfu_payload_msg.chunk.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_payload_msg.chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_payload_msg.chunk.payload_length = CHUNK_SIZE;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientValidating);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientValidating);
 
    // Validating
     evt.type = DfuEventNone;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError); // FAILED to validate CRC
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // FAILED to validate CRC
     evt.type = DfuEventNone;
     EXPECT_EQ(bm_dfu_get_error(),BM_DFU_ERR_BAD_CRC);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
@@ -955,9 +956,9 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDfuAckMessage);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 
     // Chunk
     evt.type = DfuEventImageChunk;
@@ -966,29 +967,29 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     dfu_payload_msg.chunk.payload_length = 1;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1537
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientValidating);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientValidating);
 
    // Validating
     evt.type = DfuEventNone;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError); // Image offest does not equal image length.
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // Image offest does not equal image length.
     evt.type = DfuEventNone;
     EXPECT_EQ(bm_dfu_get_error(),BmDfuErrMismatchLen);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
 
@@ -1004,14 +1005,14 @@ TEST_F(BcmpDfuTest, ChunksTooBig){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -1023,7 +1024,7 @@ TEST_F(BcmpDfuTest, ChunksTooBig){
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError); // FAILED to validate CRC
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // FAILED to validate CRC
     EXPECT_EQ(bm_dfu_get_error(),BmDfuErrChunkSize);
 }
 
@@ -1039,14 +1040,14 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
     // DFU REQUEST
     evt.type = DfuEventReceivedUpdateRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -1058,57 +1059,57 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDfuAckMessage);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 
     // Chunk
     evt.type = DfuEventImageChunk;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
     evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
     BcmpDfuPayload dfu_payload_msg;
-    dfu_payload_msg.header.frame_type = BcmpDfuPayloadMessage;
+    dfu_payload_msg.header.frame_type = BcmpDFUPayloadMessage;
     dfu_payload_msg.chunk.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_payload_msg.chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_payload_msg.chunk.payload_length = CHUNK_SIZE;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientReceiving);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientValidating);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientValidating);
 
     // Validating
     evt.type = DfuEventNone;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootReq);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootReq);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFURebootReqMessage);
 
     evt.type = DfuEventChunkTimeout;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 1
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootReq);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootReq);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 2
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootReq);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootReq);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 3
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootReq);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootReq);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootReq);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootReq);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateError);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
     evt.type = DfuEventNone;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateIdle);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
 TEST_F(BcmpDfuTest, RebootDoneFail) {
@@ -1130,7 +1131,7 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     EXPECT_EQ(resetSystem_fake.arg0_val, RESET_REASON_UPDATE_FAILED);
 
     // Set the reboot info.
@@ -1147,19 +1148,19 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     // INIT SUCCESS
     bm_dfu_init(bcmp_tx);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuBootCompleteMessage);
     evt.type = DfuEventChunkTimeout;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 1
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 2
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 3
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
     EXPECT_EQ(resetSystem_fake.arg0_val, RESET_REASON_UPDATE_FAILED);
 }
@@ -1188,7 +1189,7 @@ TEST_F(BcmpDfuTest, ClientConfirmSkip) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(get_current_state_enum(*ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     // The reboot info should now be cleared.
     EXPECT_EQ(client_update_reboot_info.magic, 0);
     EXPECT_EQ(client_update_reboot_info.host_node_id, 0);
