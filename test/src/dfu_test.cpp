@@ -260,7 +260,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -281,7 +281,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
     evt.type = DFU_EVENT_IMAGE_CHUNK;
@@ -296,22 +296,22 @@ TEST_F(BcmpDfuTest, clientGolden) {
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
 
     // Validating
     evt.type = DFU_EVENT_NONE;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_REBOOT_REQ);
 
     // Reboot
@@ -324,7 +324,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
     dfu_reboot_msg.addr.dst_node_id = 0xdeadbeefbeeffeed;
     memcpy(evt.buf, &dfu_reboot_msg, sizeof(dfu_reboot_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_ACTIVATING); // We reboot in this step.
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_ACTIVATING); // We reboot in this step.
     // See ClientImageHasUpdated for state behavior after reboot.
 }
 
@@ -341,7 +341,7 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -361,7 +361,7 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA) {
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_ACK);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE); // We don't progress to RECEIVING.
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE); // We don't progress to RECEIVING.
 }
 
 TEST_F(BcmpDfuTest, clientForceUpdate) {
@@ -377,7 +377,7 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -399,7 +399,7 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 }
 
 TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
@@ -422,7 +422,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_BOOT_COMPLETE);
 
     // REBOOT_DONE
@@ -437,7 +437,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     bcmp_end_msg.result.success = 1;
     memcpy(evt.buf, &bcmp_end_msg, sizeof(bcmp_end_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
 }
 
@@ -453,7 +453,7 @@ TEST_F(BcmpDfuTest, clientResyncHost) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -474,12 +474,12 @@ TEST_F(BcmpDfuTest, clientResyncHost) {
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // Get a DFU_EVENT_RECEIVED_UPDATE_REQUEST in BM_DFU_STATE_CLIENT_RECEIVING state
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 }
 
 
@@ -495,7 +495,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // HOST REQUEST
     evt.type = DFU_EVENT_BEGIN_HOST;
@@ -516,7 +516,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // HOST UPDATE
@@ -531,7 +531,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     dfu_ack_msg.ack.success = 1;
     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
 
     // CHUNK REQUEST
     evt.type = DFU_EVENT_CHUNK_REQUEST;
@@ -544,7 +544,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     dfu_payload_req_msg.chunk_req.seq_num  = 0;
     memcpy(evt.buf, &dfu_payload_req_msg, sizeof(dfu_payload_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD);
 
     // REBOOT REQUEST
@@ -557,7 +557,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     dfu_reboot_req_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
     memcpy(evt.buf, &dfu_reboot_req_msg, sizeof(dfu_reboot_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_REBOOT);
 
     // REBOOT COMPLETE
@@ -570,7 +570,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     dfu_reboot_done_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
 
     // DFU EVENT
@@ -585,7 +585,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     dfu_end_msg.result.success = 1;
     memcpy(evt.buf, &dfu_end_msg, sizeof(dfu_end_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
 }
 
@@ -601,7 +601,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // HOST REQUEST
     evt.type = DFU_EVENT_BEGIN_HOST;
@@ -622,19 +622,19 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     evt.type = DFU_EVENT_ACK_TIMEOUT;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE); // retry 1
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE); // retry 1
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR);
     evt.type = DFU_EVENT_NONE;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // HOST REQUEST
     evt.type = DFU_EVENT_BEGIN_HOST;
@@ -643,7 +643,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(DfuHostStartEvent));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // ABORT
@@ -651,10 +651,10 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR);
     evt.type = DFU_EVENT_NONE;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 }
 
 TEST_F(BcmpDfuTest, HostUpdateFail){
@@ -669,7 +669,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // HOST REQUEST
     evt.type = DFU_EVENT_BEGIN_HOST;
@@ -690,7 +690,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // HOST UPDATE
@@ -705,17 +705,17 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     dfu_ack_msg.ack.success = 1;
     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
 
     // ABORT
     evt.type = DFU_EVENT_ABORT;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR);
     evt.type = DFU_EVENT_NONE;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
    // HOST REQUEST
     evt.type = DFU_EVENT_BEGIN_HOST;
@@ -724,7 +724,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // HOST UPDATE
@@ -733,7 +733,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     evt.len = sizeof(BcmpDfuAck);
     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
 }
 
 TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
@@ -748,7 +748,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // HOST REQUEST
     evt.type = DFU_EVENT_BEGIN_HOST;
@@ -769,7 +769,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
 
     // HOST UPDATE
@@ -784,7 +784,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     dfu_ack_msg.ack.success = 1;
     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
 
     // REBOOT REQUEST
     evt.type = DFU_EVENT_REBOOT_REQUEST;
@@ -796,7 +796,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     dfu_reboot_req_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
     memcpy(evt.buf, &dfu_reboot_req_msg, sizeof(dfu_reboot_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_REBOOT);
 
     // REBOOT COMPLETE
@@ -809,7 +809,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     dfu_reboot_done_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_HOST_UPDATE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
 
     // ABORT REBOOT CHECK
@@ -819,11 +819,11 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     evt.buf = (uint8_t *)abort;
     evt.len = sizeof(BcmpDfuBootComplete);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR);
     EXPECT_EQ(bm_dfu_get_error(), BM_DFU_ERR_CONFIRMATION_ABORT);
     evt.type = DFU_EVENT_NONE;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 }
 
 TEST_F(BcmpDfuTest, ClientRecvFail){
@@ -838,7 +838,7 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -859,24 +859,24 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     evt.type = DFU_EVENT_CHUNK_TIMEOUT;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 1
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 2
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 3
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR);
     evt.type = DFU_EVENT_NONE;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 }
 
 TEST_F(BcmpDfuTest, ClientValidateFail){
@@ -891,7 +891,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -912,7 +912,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
     evt.type = DFU_EVENT_IMAGE_CHUNK;
@@ -927,26 +927,26 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
 
    // Validating
     evt.type = DFU_EVENT_NONE;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR); // FAILED to validate CRC
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR); // FAILED to validate CRC
     evt.type = DFU_EVENT_NONE;
     EXPECT_EQ(bm_dfu_get_error(),BM_DFU_ERR_BAD_CRC);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -957,7 +957,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
     evt.type = DFU_EVENT_IMAGE_CHUNK;
@@ -967,28 +967,28 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     dfu_payload_msg.chunk.payload_length = 1;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1537
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
 
    // Validating
     evt.type = DFU_EVENT_NONE;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR); // Image offest does not equal image length.
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR); // Image offest does not equal image length.
     evt.type = DFU_EVENT_NONE;
     EXPECT_EQ(bm_dfu_get_error(),BM_DFU_ERR_MISMATCH_LEN);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 }
 
 
@@ -1004,7 +1004,7 @@ TEST_F(BcmpDfuTest, ChunksTooBig){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -1023,7 +1023,7 @@ TEST_F(BcmpDfuTest, ChunksTooBig){
     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR); // FAILED to validate CRC
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR); // FAILED to validate CRC
     EXPECT_EQ(bm_dfu_get_error(),BM_DFU_ERR_CHUNK_SIZE);
 }
 
@@ -1039,7 +1039,7 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 
     // DFU REQUEST
     evt.type = DFU_EVENT_RECEIVED_UPDATE_REQUEST;
@@ -1060,7 +1060,7 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
     evt.type = DFU_EVENT_IMAGE_CHUNK;
@@ -1075,40 +1075,40 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
 
     // Validating
     evt.type = DFU_EVENT_NONE;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_REBOOT_REQ);
 
     evt.type = DFU_EVENT_CHUNK_TIMEOUT;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 1
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 2
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 3
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_REQ);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_ERROR);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_ERROR);
     evt.type = DFU_EVENT_NONE;
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_IDLE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
 }
 
 TEST_F(BcmpDfuTest, RebootDoneFail) {
@@ -1130,7 +1130,7 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
     EXPECT_EQ(resetSystem_fake.arg0_val, RESET_REASON_UPDATE_FAILED);
 
     // Set the reboot info.
@@ -1147,19 +1147,19 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     // INIT SUCCESS
     bm_dfu_init(bcmp_tx);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_BOOT_COMPLETE);
     evt.type = DFU_EVENT_CHUNK_TIMEOUT;
     evt.buf = NULL;
     evt.len = 0;
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 1
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 2
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 3
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
     EXPECT_EQ(resetSystem_fake.arg0_val, RESET_REASON_UPDATE_FAILED);
 }
@@ -1188,7 +1188,7 @@ TEST_F(BcmpDfuTest, ClientConfirmSkip) {
         .len = 0,
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-    EXPECT_EQ(getCurrentStateEnum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
+    EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_REBOOT_DONE);
     // The reboot info should now be cleared.
     EXPECT_EQ(client_update_reboot_info.magic, 0);
     EXPECT_EQ(client_update_reboot_info.host_node_id, 0);
