@@ -33,9 +33,9 @@ typedef enum {
   TOPO_EMPTY,
 } networkTopology_status_t;
 
-typedef void (*BcmpTopoCb)(networkTopology_t *networkTopology);
+typedef void (*BcmpTopoCb)(networkTopology_t *network_topology);
 
-void network_topology_print(networkTopology_t *networkTopology);
+void network_topology_print(networkTopology_t *network_topology);
 
 // Neighbor table request defines, used to create the network topology
 BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr);
