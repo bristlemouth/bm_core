@@ -23,6 +23,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fff)
 include(GoogleTest)
 set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../src)
+set(THIRD_PARTY_DIR ${CMAKE_CURRENT_LIST_DIR}/../third_party)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
 set(STUB_DIR ${CMAKE_CURRENT_LIST_DIR}/stubs)
 set(BM_COMMON_MOCK_DIR ${bm_common_SOURCE_DIR}/test/mocks)
@@ -51,11 +52,9 @@ file(GLOB TEST_STUBS_BM_COMMON ${bm_common_SOURCE_DIR}/test/stubs/*.c)
 # Coverage report information is compiled in for the file to be tested.
 #
 # test_name - the name to call the test
-# test_src - test file that is to be unit tested
-# srcs sources - necessary to build the application, if no external sources
-#                are used, fill this in with the ${DUMMY} variable
+# srcs - list of sources necessary to build the test including the file to be tested
 
-function(create_gtest test_name test_src srcs)
+function(create_gtest test_name  srcs)
     set(GTEST_NAME ${test_name}_test)
     file(GLOB TEST_STUBS stubs/*.c)
     list(FILTER TEST_STUBS EXCLUDE REGEX "${test_name}")
@@ -66,7 +65,6 @@ function(create_gtest test_name test_src srcs)
     target_sources(${GTEST_NAME}
         PRIVATE
         ${srcs}
-        ${test_src}
         src/${test_name}_test.cpp
         ${BM_COMMON_SOURCE_DIR}/ll.c
     )
@@ -87,15 +85,23 @@ set (SRCS
 
 # PACKET TESTS
 set (PACKET_SRCS
+    # File we're testing
+    ${SRC_DIR}/packet.c
+
+    # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
 
     # Stubs
     ${BM_COMMON_STUBS_DIR}/bm_os.c
 )
-create_gtest("packet" "${SRC_DIR}/packet.c" "${PACKET_SRCS}")
+create_gtest("packet" "${PACKET_SRCS}")
 
 # BCMP TESTS
 set (BCMP_SRCS
+    # File we're testing
+    ${SRC_DIR}/bcmp.c
+
+    # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
 
     # Stubs
@@ -111,10 +117,14 @@ set (BCMP_SRCS
     ${STUB_DIR}/topology_stub.c
     ${STUB_DIR}/bm_ip_stub.c
 )
-create_gtest("bcmp" "${SRC_DIR}/bcmp.c" "${BCMP_SRCS}")
+create_gtest("bcmp" "${BCMP_SRCS}")
 
 # HEARTBEAT TESTS
 set (HEARTBEAT_SRCS
+    # File we're testing
+    ${SRC_DIR}/heartbeat.c
+
+    # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
 
     # Stubs
@@ -124,10 +134,14 @@ set (HEARTBEAT_SRCS
     ${STUB_DIR}/info_stub.c
     ${STUB_DIR}/bcmp_stub.c
 )
-create_gtest("heartbeat" "${SRC_DIR}/heartbeat.c" "${HEARTBEAT_SRCS}")
+create_gtest("heartbeat" "${HEARTBEAT_SRCS}")
 
 # INFO TESTS
 set (INFO_SRCS
+    # File we're testing
+    ${SRC_DIR}/info.c
+
+    # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
 
     # Stubs
@@ -137,10 +151,14 @@ set (INFO_SRCS
     ${STUB_DIR}/neighbors_stub.c
     ${STUB_DIR}/bcmp_stub.c
 )
-create_gtest("info" "${SRC_DIR}/info.c" "${INFO_SRCS}")
+create_gtest("info" "${INFO_SRCS}")
 
 # RESOURCE DISCOVERY TESTS
 set (RESOURCE_SRCS
+    # File we're testing
+    ${SRC_DIR}/resource_discovery.c
+
+    # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
 
     # Stubs
@@ -149,10 +167,14 @@ set (RESOURCE_SRCS
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/bcmp_stub.c
 )
-create_gtest("resource_discovery" "${SRC_DIR}/resource_discovery.c" "${RESOURCE_SRCS}")
+create_gtest("resource_discovery" "${RESOURCE_SRCS}")
 
 # PING TESTS
 set (PING_SRCS
+    # File we're testing
+    ${SRC_DIR}/ping.c
+
+    # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
 
     # Stubs
@@ -161,76 +183,47 @@ set (PING_SRCS
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/bcmp_stub.c
 )
-create_gtest("ping" "${SRC_DIR}/ping.c" "${PING_SRCS}")
+create_gtest("ping" "${PING_SRCS}")
 
 # NEIGHBORS TESTS
 set (NEIGHBORS_SRCS
+    # File we're testing
+    ${SRC_DIR}/neighbors.c
+
+    # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
 
     # Stubs
     ${BM_COMMON_STUBS_DIR}/bm_os.c
     ${STUB_DIR}/info_stub.c
 )
-create_gtest("neighbors" "${SRC_DIR}/neighbors.c" "${NEIGHBORS_SRCS}")
+create_gtest("neighbors" "${NEIGHBORS_SRCS}")
 
-# create_gtest("dfu" "${SRC_DIR}/dfu.c" "${SRCS}")
 
-#
-# BCMP DFU
-#
+# DFU TESTS
 
-# add_executable(bcmp_dfu_tests)
-# target_include_directories(bcmp_dfu_tests
-#     PRIVATE
-#     ${SRC_DIR}/lib/common
-#     ${TEST_DIR}/header_overrides
-#     ${TEST_DIR}/mocks
-#     ${SRC_DIR}/third_party/FreeRTOS/Source/include
-#     ${SRC_DIR}/lib/sys
-#     ${SRC_DIR}/third_party/crc
-#     ${SRC_DIR}/third_party/tinycbor/src
-#     ${TEST_DIR}/third_party/fff
-#     ${SRC_DIR}/lib/sys
-#     ${SRC_DIR}/lib/bcmp/dfu
-#     ${SRC_DIR}/lib/bcmp
-#     ${SRC_DIR}/third_party/mcuboot/boot/bootutil/include
-#     ${SRC_DIR}/lib/mcuboot/include
-#     ${SRC_DIR}/lib/drivers
-#     ${SRC_DIR}/lib/drivers/abstract
-#     ${SRC_DIR}/apps/bringup
-#     ${SRC_DIR}/lib/mcuboot/include/flash_map_backend
-# )
-
-# target_sources(bcmp_dfu_tests
-#     PRIVATE
-#     # File we're testing
-#     ${SRC_DIR}/lib/bcmp/dfu/bm_dfu_core.cpp # TODO - get this from where ever it is in bm_core
-#     ${SRC_DIR}/lib/bcmp/dfu/bm_dfu_client.cpp # TODO - get this from where ever it is in bm_core
-#     ${SRC_DIR}/lib/bcmp/dfu/bm_dfu_host.cpp # TODO - get this from where ever it is in bm_core
+# set (DFU_SRCS
+#     # Files we're testing
+#     ${SRC_DIR}dfu/dfu_core.c
+#     ${SRC_DIR}/dfu/dfu_client.c
+#     ${SRC_DIR}/dfu/bm_dfu_host.c
 
 #     # Support files
-#     ${SRC_DIR}/third_party/crc/crc16.c # TODO - get this from where ever it is in bm_core
-#     ${SRC_DIR}/third_party/crc/crc32.c # TODO - get this from where ever it is in bm_core
-#     ${SRC_DIR}/lib/common/lib_state_machine.cpp # TODO - get this from where ever it is in bm_common
-#     # ${SRC_DIR}/lib/common/nvmPartition.cpp
-#     # ${SRC_DIR}/lib/sys/configuration.cpp
-#     ${SRC_DIR}/third_party/tinycbor/src/cborparser.c # TODO - get this from where ever it is in bm_core
-#     ${SRC_DIR}/third_party/tinycbor/src/cborencoder_float.c # TODO - get this from where ever it is in bm_core
-#     ${SRC_DIR}/third_party/tinycbor/src/cborencoder.c # TODO - get this from where ever it is in bm_core
-#     ${SRC_DIR}/third_party/tinycbor/src/cborerrorstrings.c # TODO - get this from where ever it is in bm_core
-#     ${SRC_DIR}/third_party/tinycbor/src/cborvalidation.c # TODO - get this from where ever it is in bm_core
+#     ${THIRD_PARTY_DIR}/crc/crc16.c
+#     ${THIRD_PARTY_DIR}/crc/crc32.c
+#     ${SRC_DIR}/lib/common/lib_state_machine.cpp
+#     ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
+#     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
+#     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
+#     ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
+#     ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
 
-#     # Mocks
-#     # ${TEST_DIR}/stubs/mock_mcu_boot.cpp
-#     # ${TEST_DIR}/stubs/mock_FreeRTOS.c
-#     # ${TEST_DIR}/stubs/mock_reset_reason.cpp
-#     # ${TEST_DIR}/stubs/mock_device_info.cpp
-#     # ${TEST_DIR}/stubs/mock_timer_callback_handler.cpp
-#     # ${TEST_DIR}/stubs/mock_lpm.cpp
 #     # Stubs
+#     # TODO - probably need to mock the generic/wrapper functions!
 #     ${BM_COMMON_STUBS_DIR}/bm_os.c
-
-#     # Unit test wrapper for test
-#     bcmp_dfu_ut.cpp
+#     ${STUB_DIR}/device_stub.c
+#     # ${TEST_DIR}/stubs/mock_timer_callback_handler.cpp # TODO - mock this
+#     ${BM_COMMON_STUBS_DIR}/bm_os.c
 # )
 
+# create_gtest("dfu" "${DFU_SRCS}")
