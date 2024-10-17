@@ -146,7 +146,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // dfu start
     BcmpDfuStart* start_msg = (BcmpDfuStart*) malloc (sizeof(BcmpDfuStart));
-    start_msg->header.frame_type = BCMP_DFU_START;
+    start_msg->header.frame_type = BcmpDfuStartMessage;
     start_msg->info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     start_msg->info.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)start_msg, sizeof(BcmpDfuStart));
@@ -155,7 +155,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // payload req
     BcmpDfuPayloadReq* payload_req_msg = (BcmpDfuPayloadReq*) malloc (sizeof(BcmpDfuPayloadReq));
-    payload_req_msg->header.frame_type = BCMP_DFU_PAYLOAD_REQ;
+    payload_req_msg->header.frame_type = BcmpDfuPayloadReqMessage;
     payload_req_msg->chunk_req.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     payload_req_msg->chunk_req.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)payload_req_msg, sizeof(BcmpDfuPayloadReq));
@@ -164,7 +164,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // payload
     BcmpDfuPayload* payload_msg = (BcmpDfuPayload*) malloc (sizeof(BcmpDfuPayload));
-    payload_msg->header.frame_type = BCMP_DFU_PAYLOAD;
+    payload_msg->header.frame_type = BcmpDfuPayloadMessage;
     payload_msg->chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     payload_msg->chunk.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)payload_msg, sizeof(BcmpDfuPayload));
@@ -173,7 +173,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 
     // dfu end
     BcmpDfuEnd* end_msg = (BcmpDfuEnd*) malloc (sizeof(BcmpDfuEnd));
-    end_msg->header.frame_type = BCMP_DFU_END;
+    end_msg->header.frame_type = BcmpDfuEndMessage;
     end_msg->result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     end_msg->result.addresses.src_node_id = 0xdeaddeaddeaddead;
     bm_dfu_process_message((uint8_t*)end_msg, sizeof(BcmpDfuEnd));
@@ -227,11 +227,11 @@ TEST_F(BcmpDfuTest, DfuApiTest){
 
     bm_dfu_req_next_chunk(0xdeadbeefbeeffeed, 0);
     EXPECT_EQ(bcmp_tx_fake.call_count, 2);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
 
     bm_dfu_update_end(0xdeadbeefbeeffeed, 1, BM_DFU_ERR_NONE);
     EXPECT_EQ(bcmp_tx_fake.call_count, 3);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuEndMessage);
 
     bm_dfu_send_heartbeat(0xdeadbeefbeeffeed);
     EXPECT_EQ(bcmp_tx_fake.call_count, 4);
@@ -267,7 +267,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -280,7 +280,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
@@ -288,20 +288,20 @@ TEST_F(BcmpDfuTest, clientGolden) {
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
     evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
     BcmpDfuPayload dfu_payload_msg;
-    dfu_payload_msg.header.frame_type = BCMP_DFU_PAYLOAD;
+    dfu_payload_msg.header.frame_type = BcmpDfuPayloadMessage;
     dfu_payload_msg.chunk.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_payload_msg.chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_payload_msg.chunk.payload_length = CHUNK_SIZE;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
@@ -348,7 +348,7 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA) {
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -384,7 +384,7 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -398,7 +398,7 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 }
 
@@ -430,7 +430,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuEnd));
     evt.len = sizeof(BcmpDfuEnd);
     BcmpDfuEnd bcmp_end_msg;
-    bcmp_end_msg.header.frame_type = BCMP_DFU_END;
+    bcmp_end_msg.header.frame_type = BcmpDfuEndMessage;
     bcmp_end_msg.result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     bcmp_end_msg.result.addresses.src_node_id = 0xbeefbeefdaadbaad;
     bcmp_end_msg.result.err_code = BM_DFU_ERR_NONE;
@@ -438,7 +438,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     memcpy(evt.buf, &bcmp_end_msg, sizeof(bcmp_end_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_IDLE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuEndMessage);
 }
 
 TEST_F(BcmpDfuTest, clientResyncHost) {
@@ -460,7 +460,7 @@ TEST_F(BcmpDfuTest, clientResyncHost) {
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -473,12 +473,12 @@ TEST_F(BcmpDfuTest, clientResyncHost) {
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // Get a DFU_EVENT_RECEIVED_UPDATE_REQUEST in BM_DFU_STATE_CLIENT_RECEIVING state
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 }
 
@@ -502,7 +502,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
     evt.len = sizeof(DfuHostStartEvent);
     DfuHostStartEvent dfu_start_msg;
-    dfu_start_msg.start.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.start.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
@@ -517,7 +517,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
 
     // HOST UPDATE
     evt.type = DFU_EVENT_ACK_RECEIVED;
@@ -538,14 +538,14 @@ TEST_F(BcmpDfuTest, hostGolden) {
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayloadReq));
     evt.len = sizeof(BcmpDfuPayloadReq);
     BcmpDfuPayloadReq dfu_payload_req_msg;
-    dfu_payload_req_msg.header.frame_type = BCMP_DFU_PAYLOAD_REQ;
+    dfu_payload_req_msg.header.frame_type = BcmpDfuPayloadReqMessage;
     dfu_payload_req_msg.chunk_req.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_payload_req_msg.chunk_req.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_payload_req_msg.chunk_req.seq_num  = 0;
     memcpy(evt.buf, &dfu_payload_req_msg, sizeof(dfu_payload_req_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadMessage);
 
     // REBOOT REQUEST
     evt.type = DFU_EVENT_REBOOT_REQUEST;
@@ -571,14 +571,14 @@ TEST_F(BcmpDfuTest, hostGolden) {
     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuEndMessage);
 
     // DFU EVENT
     evt.type = DFU_EVENT_UPDATE_END;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuEnd));
     evt.len = sizeof(BcmpDfuEnd);
     BcmpDfuEnd dfu_end_msg;
-    dfu_end_msg.header.frame_type = BCMP_DFU_END;
+    dfu_end_msg.header.frame_type = BcmpDfuEndMessage;
     dfu_end_msg.result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_end_msg.result.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_end_msg.result.err_code = BM_DFU_ERR_NONE;
@@ -608,7 +608,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
     evt.len = sizeof(DfuHostStartEvent);
     DfuHostStartEvent dfu_start_msg;
-    dfu_start_msg.start.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.start.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
@@ -623,7 +623,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
 
     evt.type = DFU_EVENT_ACK_TIMEOUT;
     evt.buf = NULL;
@@ -644,7 +644,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
 
     // ABORT
     evt.type = DFU_EVENT_ABORT;
@@ -676,7 +676,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
     evt.len = sizeof(DfuHostStartEvent);
     DfuHostStartEvent dfu_start_msg;
-    dfu_start_msg.start.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.start.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
@@ -691,7 +691,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
 
     // HOST UPDATE
     evt.type = DFU_EVENT_ACK_RECEIVED;
@@ -725,7 +725,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
 
     // HOST UPDATE
     evt.type = DFU_EVENT_ACK_RECEIVED;
@@ -755,7 +755,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
     evt.len = sizeof(DfuHostStartEvent);
     DfuHostStartEvent dfu_start_msg;
-    dfu_start_msg.start.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.start.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
@@ -770,7 +770,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_REQ_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_START);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuStartMessage);
 
     // HOST UPDATE
     evt.type = DFU_EVENT_ACK_RECEIVED;
@@ -810,7 +810,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_HOST_UPDATE);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_END);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuEndMessage);
 
     // ABORT REBOOT CHECK
     BcmpDfuAbort *abort = (BcmpDfuAbort *)malloc(sizeof(BcmpDfuAbort));
@@ -845,7 +845,7 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -858,7 +858,7 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     evt.type = DFU_EVENT_CHUNK_TIMEOUT;
@@ -898,7 +898,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -911,7 +911,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
@@ -919,20 +919,20 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
     evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
     BcmpDfuPayload dfu_payload_msg;
-    dfu_payload_msg.header.frame_type = BCMP_DFU_PAYLOAD;
+    dfu_payload_msg.header.frame_type = BcmpDfuPayloadMessage;
     dfu_payload_msg.chunk.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_payload_msg.chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_payload_msg.chunk.payload_length = CHUNK_SIZE;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
@@ -956,7 +956,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
@@ -966,13 +966,13 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     dfu_payload_msg.chunk.payload_length = 1;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
@@ -1011,7 +1011,7 @@ TEST_F(BcmpDfuTest, ChunksTooBig){
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -1046,7 +1046,7 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
     evt.len = sizeof(BcmpDfuStart);
     BcmpDfuStart dfu_start_msg;
-    dfu_start_msg.header.frame_type = BCMP_DFU_START;
+    dfu_start_msg.header.frame_type = BcmpDfuStartMessage;
     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
@@ -1059,7 +1059,7 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
 
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(bcmp_tx_fake.arg0_history[0], BCMP_DFU_ACK);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
 
     // Chunk
@@ -1067,20 +1067,20 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
     evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
     BcmpDfuPayload dfu_payload_msg;
-    dfu_payload_msg.header.frame_type = BCMP_DFU_PAYLOAD;
+    dfu_payload_msg.header.frame_type = BcmpDfuPayloadMessage;
     dfu_payload_msg.chunk.addresses.src_node_id = 0xbeefbeefdaadbaad;
     dfu_payload_msg.chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
     dfu_payload_msg.chunk.payload_length = CHUNK_SIZE;
     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BCMP_DFU_PAYLOAD_REQ);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuPayloadReqMessage);
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_RECEIVING);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
     EXPECT_EQ(get_current_state_enum(*ctx), BM_DFU_STATE_CLIENT_VALIDATING);
