@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include "bcmp.h"
 #include "bm_os.h"
 #include "dfu.h"
 #include "dfu_client.h"

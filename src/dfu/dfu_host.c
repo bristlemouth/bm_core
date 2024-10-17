@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include "bcmp.h"
 #include "bm_os.h"
 #include "dfu.h"
 #include "bm_dfu_generic.h"
@@ -112,7 +113,7 @@ static void bm_dfu_host_req_update() {
     update_start_req_evt.info.addresses.src_node_id = host_ctx.self_node_id;
     update_start_req_evt.info.addresses.dst_node_id = host_ctx.client_node_id;
     update_start_req_evt.header.frame_type = BcmpDFUStartMessage;
-    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(update_start_req_evt.header.frame_type), (uint8_t *)(&update_start_req_evt), sizeof(update_start_req_evt))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(update_start_req_evt.header.frame_type), (uint8_t *)(&update_start_req_evt), sizeof(update_start_req_evt), 0, NULL)){
         printf("Message %d sent \n",update_start_req_evt.header.frame_type);
     } else {
         printf("Failed to send message %d\n",update_start_req_evt.header.frame_type);
@@ -145,7 +146,7 @@ static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest* req) {
             bm_dfu_host_transition_to_error(BmDfuErrFlashAccess);
             break;
         }
-        if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(payload_header->header.frame_type), buf, payload_len_plus_header)){
+        if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(payload_header->header.frame_type), buf, payload_len_plus_header, 0, NULL)){
             host_ctx.bytes_remaining -= payload_len;
             printf("Message %d sent, payload size: %" PRIX32 ", remaining: %" PRIX32 "\n",payload_header->header.frame_type, payload_len, host_ctx.bytes_remaining);
         } else {
@@ -167,7 +168,7 @@ static void bm_dfu_host_send_reboot() {
     reboot_msg.addr.src_node_id = host_ctx.self_node_id;
     reboot_msg.addr.dst_node_id = host_ctx.client_node_id;
     reboot_msg.header.frame_type = BcmpDFURebootMessage;
-    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(reboot_msg.header.frame_type), (uint8_t*)(&reboot_msg), sizeof(BcmpDfuReboot))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(reboot_msg.header.frame_type), (uint8_t*)(&reboot_msg), sizeof(BcmpDfuReboot), 0, NULL)){
         printf("Message %d sent \n",reboot_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_msg.header.frame_type);

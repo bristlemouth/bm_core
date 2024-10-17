@@ -109,6 +109,8 @@ class BcmpDfuTest : public ::testing::Test {
     //     .fa_off = 0,
     //     .fa_size = 2000000,
     // };
+    // TODO - will this work???
+    const void *fa = (void*)0xdeadbeef;
 
     // TODO - this changed so need to update
     const versionInfo_t test_info = {
@@ -128,7 +130,7 @@ class BcmpDfuTest : public ::testing::Test {
 
 TEST_F(BcmpDfuTest, InitTest)
 {
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     EXPECT_EQ(bm_queue_send_fake.call_count, 1);
     EXPECT_EQ(bm_task_create_fake.call_count, 1);
     EXPECT_EQ(bm_queue_create_fake.call_count, 1);
@@ -138,7 +140,7 @@ TEST_F(BcmpDfuTest, InitTest)
 
 TEST_F(BcmpDfuTest, processMessageTest)
 {
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     EXPECT_EQ(bm_queue_send_fake.call_count, 1);
     EXPECT_EQ(bm_task_create_fake.call_count, 1);
     EXPECT_EQ(bm_queue_create_fake.call_count, 1);
@@ -215,7 +217,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
 }
 
 TEST_F(BcmpDfuTest, DfuApiTest){
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     EXPECT_EQ(bm_queue_send_fake.call_count, 1);
     EXPECT_EQ(bm_task_create_fake.call_count, 1);
     EXPECT_EQ(bm_queue_create_fake.call_count, 1);
@@ -239,7 +241,7 @@ TEST_F(BcmpDfuTest, DfuApiTest){
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUHeartbeatMessage);
 
     BmDfuImgInfo info;
-    info.chunk_size = BM_DFU_MAX_CHUNK_SIZE;
+    info.chunk_size = bm_dfu_max_chunk_size;
     info.crc16 = 0xbaad;
     info.image_size = 2 * 1000 * 1024;
     info.major_ver = 0;
@@ -253,7 +255,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -334,7 +336,7 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -370,7 +372,7 @@ TEST_F(BcmpDfuTest, clientForceUpdate) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -415,7 +417,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -424,10 +426,10 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
     };
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuBootCompleteMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUBootCompleteMessage);
 
     // REBOOT_DONE
-    evt.type = DFU_EVENT_UPDATE_END;
+    evt.type = DfuEventUpdateEnd;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuEnd));
     evt.len = sizeof(BcmpDfuEnd);
     BcmpDfuEnd bcmp_end_msg;
@@ -446,7 +448,7 @@ TEST_F(BcmpDfuTest, clientResyncHost) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -488,7 +490,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -535,7 +537,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
 
     // CHUNK REQUEST
-    evt.type = DFU_EVENT_CHUNK_REQUEST;
+    evt.type = DfuEventChunkRequest;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayloadReq));
     evt.len = sizeof(BcmpDfuPayloadReq);
     BcmpDfuPayloadReq dfu_payload_req_msg;
@@ -575,7 +577,7 @@ TEST_F(BcmpDfuTest, hostGolden) {
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUEndMessage);
 
     // DFU EVENT
-    evt.type = DFU_EVENT_UPDATE_END;
+    evt.type = DfuEventUpdateEnd;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuEnd));
     evt.len = sizeof(BcmpDfuEnd);
     BcmpDfuEnd dfu_end_msg;
@@ -594,7 +596,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -662,7 +664,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -741,7 +743,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -831,7 +833,7 @@ TEST_F(BcmpDfuTest, ClientRecvFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -884,7 +886,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -945,7 +947,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail){
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // FAILED to validate CRC
     evt.type = DfuEventNone;
-    EXPECT_EQ(bm_dfu_get_error(),BM_DFU_ERR_BAD_CRC);
+    EXPECT_EQ(bm_dfu_get_error(),BmDfuErrBadCrc);
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
@@ -997,7 +999,7 @@ TEST_F(BcmpDfuTest, ChunksTooBig){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -1032,7 +1034,7 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail){
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -1123,7 +1125,7 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,
@@ -1146,10 +1148,10 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     bm_dfu_test_set_dfu_event_and_run_sm(evt);
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDfuBootCompleteMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFUBootCompleteMessage);
     evt.type = DfuEventChunkTimeout;
     evt.buf = NULL;
     evt.len = 0;
@@ -1181,7 +1183,7 @@ TEST_F(BcmpDfuTest, ClientConfirmSkip) {
     bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
-    bm_dfu_init(bcmp_tx);
+    bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
     BmDfuEvent evt = {
         .type = DfuEventInitSuccess,

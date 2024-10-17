@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include "bcmp.h"
 #include "bm_os.h"
 #include "dfu.h"
 #include "dfu_client.h"
@@ -547,8 +548,8 @@ void bm_dfu_init(void) {
     dfu_event_queue = bm_queue_create( 5, sizeof(BmDfuEvent));
     // configASSERT(dfu_event_queue);
 
-    bm_dfu_client_init(bcmp_dfu_tx);
-    bm_dfu_host_init(bcmp_dfu_tx);
+    bm_dfu_client_init();
+    bm_dfu_host_init();
 
     evt.type = DfuEventInitSuccess;
     evt.buf = NULL;
