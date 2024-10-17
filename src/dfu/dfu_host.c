@@ -15,7 +15,6 @@ typedef struct dfu_host_ctx_t {
     BmDfuImgInfo img_info;
     uint64_t self_node_id;
     uint64_t client_node_id;
-    BcmpDfuTxFunc bcmp_dfu_tx;
     uint32_t bytes_remaining;
     UpdateFinishCb update_complete_callback;
     BmTimer update_timer;
@@ -113,7 +112,7 @@ static void bm_dfu_host_req_update() {
     update_start_req_evt.info.addresses.src_node_id = host_ctx.self_node_id;
     update_start_req_evt.info.addresses.dst_node_id = host_ctx.client_node_id;
     update_start_req_evt.header.frame_type = BcmpDFUStartMessage;
-    if(host_ctx.bcmp_dfu_tx((BcmpMessageType)(update_start_req_evt.header.frame_type), (uint8_t *)(&update_start_req_evt), sizeof(update_start_req_evt))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(update_start_req_evt.header.frame_type), (uint8_t *)(&update_start_req_evt), sizeof(update_start_req_evt))){
         printf("Message %d sent \n",update_start_req_evt.header.frame_type);
     } else {
         printf("Failed to send message %d\n",update_start_req_evt.header.frame_type);
@@ -146,7 +145,7 @@ static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest* req) {
             bm_dfu_host_transition_to_error(BmDfuErrFlashAccess);
             break;
         }
-        if(host_ctx.bcmp_dfu_tx((BcmpMessageType)(payload_header->header.frame_type), buf, payload_len_plus_header)){
+        if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(payload_header->header.frame_type), buf, payload_len_plus_header)){
             host_ctx.bytes_remaining -= payload_len;
             printf("Message %d sent, payload size: %" PRIX32 ", remaining: %" PRIX32 "\n",payload_header->header.frame_type, payload_len, host_ctx.bytes_remaining);
         } else {
@@ -168,7 +167,7 @@ static void bm_dfu_host_send_reboot() {
     reboot_msg.addr.src_node_id = host_ctx.self_node_id;
     reboot_msg.addr.dst_node_id = host_ctx.client_node_id;
     reboot_msg.header.frame_type = BcmpDFURebootMessage;
-    if(host_ctx.bcmp_dfu_tx((BcmpMessageType)(reboot_msg.header.frame_type), (uint8_t*)(&reboot_msg), sizeof(BcmpDfuReboot))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(reboot_msg.header.frame_type), (uint8_t*)(&reboot_msg), sizeof(BcmpDfuReboot))){
         printf("Message %d sent \n",reboot_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_msg.header.frame_type);
@@ -329,9 +328,7 @@ void s_host_update_run(void) {
     }
 }
 
-void bm_dfu_host_init(BcmpDfuTxFunc bcmp_dfu_tx) {
-    // configASSERT(bcmp_dfu_tx);
-    host_ctx.bcmp_dfu_tx = bcmp_dfu_tx;
+void bm_dfu_host_init(void) {
     int tmr_id = 0;
 
     /* Store relevant variables */

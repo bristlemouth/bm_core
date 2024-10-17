@@ -316,7 +316,7 @@ TEST_F(BcmpDfuTest, clientGolden) {
     EXPECT_EQ(bcmp_tx_fake.arg0_val, BcmpDFURebootReqMessage);
 
     // Reboot
-    evt.type = DFU_EVENT_REBOOT;
+    evt.type = DfuEventReboot;
     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuReboot));
     evt.len = sizeof(BcmpDfuReboot);
     BcmpDfuReboot dfu_reboot_msg;

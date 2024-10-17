@@ -30,7 +30,6 @@ typedef struct DfuClientCtx {
     BmTimer chunk_timer;
     uint64_t self_node_id;
     uint64_t host_node_id;
-    BcmpDfuTxFunc bcmp_dfu_tx;
 } DfuClientCtx;
 
 static DfuClientCtx CLIENT_CTX;
@@ -62,7 +61,7 @@ static void bm_dfu_client_abort(BmDfuErr err) {
     abort_msg.err.err_code = err;
     abort_msg.err.success = 0;
     abort_msg.header.frame_type = BcmpDFUAbortMessage;
-    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(abort_msg.header.frame_type), (uint8_t*)(&abort_msg), sizeof(abort_msg))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(abort_msg.header.frame_type), (uint8_t*)(&abort_msg), sizeof(abort_msg), 0, NULL)){
         printf("Message %d sent \n",abort_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",abort_msg.header.frame_type);
@@ -74,7 +73,7 @@ static void bm_dfu_client_send_reboot_request() {
     reboot_req.addr.src_node_id = CLIENT_CTX.self_node_id;
     reboot_req.addr.dst_node_id = CLIENT_CTX.host_node_id;
     reboot_req.header.frame_type = BcmpDFURebootReqMessage;
-    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(BcmpDfuRebootReq))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(BcmpDfuRebootReq), 0, NULL)){
         printf("Message %d sent \n",reboot_req.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_req.header.frame_type);
@@ -86,7 +85,7 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
     boot_compl.addr.src_node_id = CLIENT_CTX.self_node_id;
     boot_compl.addr.dst_node_id = host_node_id;
     boot_compl.header.frame_type = BcmpDFUBootCompleteMessage;
-    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(BcmpDfuBootComplete))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(BcmpDfuBootComplete), 0, NULL)){
         printf("Message %d sent \n",boot_compl.header.frame_type);
     } else {
         printf("Failed to send message %d\n",boot_compl.header.frame_type);
@@ -547,10 +546,8 @@ void s_client_update_done_run(void) {
  * @return none
  */
 
-void bm_dfu_client_init(BcmpDfuTxFunc bcmp_dfu_tx)
+void bm_dfu_client_init(void)
 {
-    // configASSERT(bcmp_dfu_tx);
-    CLIENT_CTX.bcmp_dfu_tx = bcmp_dfu_tx;
     int32_t tmr_id = 0;
 
     /* Store relevant variables */
