@@ -109,6 +109,7 @@ set (BCMP_SRCS
     ${BM_COMMON_STUBS_DIR}/bm_os.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/time_stub.c
+    ${STUB_DIR}/dfu_stub.c
     ${STUB_DIR}/config_stub.c
     ${STUB_DIR}/heartbeat_stub.c
     ${STUB_DIR}/info_stub.c

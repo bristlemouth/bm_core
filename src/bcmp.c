@@ -3,6 +3,7 @@
 #include "bcmp.h"
 #include "bm_ip.h"
 #include "bm_os.h"
+#include "dfu/dfu.h"
 #include "messages/config.h"
 #include "messages/heartbeat.h"
 #include "messages/info.h"
@@ -99,6 +100,7 @@ BmErr bcmp_init(void) {
   bcmp_heartbeat_init();
   ping_init();
   time_init();
+  bm_dfu_init();
   bcmp_config_init();
   bcmp_topology_init();
   bcmp_device_info_init();

@@ -10,6 +10,7 @@ extern "C" {
 #include "mock_bm_ip.h"
 #include "mock_bm_os.h"
 #include "mock_config.h"
+#include "mock_dfu.h"
 #include "mock_heartbeat.h"
 #include "mock_info.h"
 #include "mock_neighbors.h"
@@ -40,6 +41,7 @@ TEST_F(bcmp_test, init) {
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_config_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);
+  ASSERT_EQ(bm_dfu_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_topology_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_device_info_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_resource_discovery_init_fake.call_count, 1);
@@ -49,6 +51,7 @@ TEST_F(bcmp_test, init) {
   RESET_FAKE(time_init);
   RESET_FAKE(bcmp_config_init);
   RESET_FAKE(ping_init);
+  RESET_FAKE(bm_dfu_init);
   RESET_FAKE(bcmp_topology_init);
   RESET_FAKE(bcmp_device_info_init);
   RESET_FAKE(bcmp_resource_discovery_init);
@@ -59,6 +62,7 @@ TEST_F(bcmp_test, init) {
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_config_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);
+  ASSERT_EQ(bm_dfu_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_topology_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_device_info_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_resource_discovery_init_fake.call_count, 1);
