@@ -1,7 +1,6 @@
 #include "l2.h"
 #include "bm_ip.h"
 #include "bm_os.h"
-#include "task_priorities.h"
 #include "util.h"
 
 #define ethernet_packet_size_byte 14
@@ -117,8 +116,8 @@ static BmErr bm_l2_tx(void *buf, uint32_t length, uint8_t port_mask) {
 
   // device_handle not needed for tx
   // Don't send to ports that are offline
-  L2QueueElement tx_evt = {NULL, port_mask & CTX.enabled_port_mask, buf, L2Tx,
-                           length};
+  L2QueueElement tx_evt = {NULL, (uint8_t)port_mask & CTX.enabled_port_mask,
+                           buf, L2Tx, length};
 
   bm_l2_tx_prep(buf, length);
   if (bm_queue_send(CTX.evt_queue, &tx_evt, 10) != BmOK) {
@@ -142,25 +141,25 @@ static BmErr bm_l2_tx(void *buf, uint32_t length, uint8_t port_mask) {
 */
 static BmErr bm_l2_rx(void *device_handle, uint8_t *payload,
                       uint16_t payload_len, uint8_t port_mask) {
-  BmErr err = BmOK;
+  BmErr err = BmEINVAL;
+  L2QueueElement rx_evt = {device_handle, port_mask, NULL, L2Rx, payload_len};
 
-  L2QueueElement tx_evt = {device_handle, port_mask, NULL, L2Rx, payload_len};
-
-  do {
-    tx_evt.buf = bm_l2_new(payload_len);
-    if (tx_evt.buf == NULL) {
+  if (device_handle && payload) {
+    err = BmOK;
+    rx_evt.buf = bm_l2_new(payload_len);
+    if (rx_evt.buf == NULL) {
       printf("No mem for buf in RX pathway\n");
       err = BmENOMEM;
-      break;
-    }
-    memcpy(bm_l2_get_payload(tx_evt.buf), payload, payload_len);
+    } else {
+      memcpy(bm_l2_get_payload(rx_evt.buf), payload, payload_len);
 
-    if (bm_queue_send(CTX.evt_queue, (void *)&tx_evt, 0) != BmOK) {
-      bm_l2_free(tx_evt.buf);
-      err = BmENOMEM;
-      break;
+      if (bm_queue_send(CTX.evt_queue, (void *)&rx_evt, 0) != BmOK) {
+        bm_l2_free(rx_evt.buf);
+        err = BmENOMEM;
+      }
     }
-  } while (0);
+  }
+
   return err;
 }
 
@@ -356,10 +355,20 @@ static void bm_l2_thread(void *parameters) {
 }
 
 /*!
+  @brief Deinitialize L2 Layer
+
+  @details Frees and deinitializes all things L2
+ */
+void bm_l2_deinit(void) {
+  bm_free(CTX.devices);
+  memset(&CTX, 0, sizeof(BmL2Ctx));
+}
+
+/*!
   @brief Initialize L2 layer
 
-  @details This should only be called once as it allocates memory for the
-           devices configured for this function
+  @details bm_l2_deinit must be called before this is called again to free
+           resources
 
   @param cb link change callback that will be called when the ethernet driver
             changes the link status
@@ -401,11 +410,14 @@ BmErr bm_l2_init(BmL2ModuleLinkChangeCb cb, const BmNetDevCfg *cfg,
         printf("Failed to init module at index %d\n", idx);
       }
     }
+    CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
+    if (CTX.evt_queue) {
+      err = bm_task_create(bm_l2_thread, "L2 TX Thread", 2048, NULL,
+                           bm_l2_tx_task_priority, NULL);
+    } else {
+      err = BmENOMEM;
+    }
   }
-
-  CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
-  err = bm_task_create(bm_l2_thread, "L2 TX Thread", 2048, NULL,
-                       BM_L2_TX_TASK_PRIORITY, NULL);
 
   return err;
 }
@@ -467,16 +479,11 @@ uint8_t bm_l2_get_num_devices(void) { return CTX.num_devices; }
 bool bm_l2_get_device_handle(uint8_t dev_idx, void **device_handle,
                              uint32_t *start_port_idx) {
   bool rval = false;
-  if (device_handle && start_port_idx) {
-    do {
-      if (dev_idx >= CTX.num_devices) {
-        break;
-      }
 
-      *device_handle = CTX.devices[dev_idx].cfg.device_handle;
-      *start_port_idx = CTX.devices[dev_idx].start_port_idx;
-      rval = true;
-    } while (0);
+  if (device_handle && start_port_idx && dev_idx < CTX.num_devices) {
+    *device_handle = CTX.devices[dev_idx].cfg.device_handle;
+    *start_port_idx = CTX.devices[dev_idx].start_port_idx;
+    rval = true;
   }
 
   return rval;
@@ -497,19 +504,21 @@ bool bm_l2_get_port_state(uint8_t port) {
 /*!
   @brief Public api to set a particular network device on/off
 
-  \param device_handle eth driver handle
-  \param on - true to turn the interface on, false to turn the interface off.
-
-  \return none
+  @param device_handle eth driver handle
+  @param on - true to turn the interface on, false to turn the interface off.
 */
-void bm_l2_netif_set_power(void *dev, bool on) {
-  L2QueueElement pwr_evt = {dev, 0, NULL, L2SetNetifDown, 0};
-  if (dev) {
+BmErr bm_l2_netif_set_power(void *device_handle, bool on) {
+  BmErr err = BmEINVAL;
+  L2QueueElement pwr_evt = {device_handle, 0, NULL, L2SetNetifDown, 0};
+
+  if (device_handle) {
     if (on) {
       pwr_evt.type = L2SetNetifUp;
     }
 
     // Schedule netif pwr event
-    bm_queue_send(CTX.evt_queue, &pwr_evt, 10);
+    err = bm_queue_send(CTX.evt_queue, &pwr_evt, 10);
   }
+
+  return err;
 }
