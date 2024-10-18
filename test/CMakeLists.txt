@@ -211,6 +211,7 @@ set (DFU_SRCS
     ${SRC_DIR}/dfu/dfu_host.c
 
     # Support files
+    ${BM_COMMON_SOURCE_DIR}/util.c
     ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc16.c
     ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc32.c
     ${BM_COMMON_SOURCE_DIR}/lib_state_machine.c
@@ -223,9 +224,12 @@ set (DFU_SRCS
     # Stubs
     # TODO - probably need to mock the generic/wrapper functions!
     ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${BM_COMMON_STUBS_DIR}/timer_callback_handler_stub.c
     ${STUB_DIR}/device_stub.c
+    ${STUB_DIR}/packet_stub.c
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/dfu_generic_stub.c
     # ${TEST_DIR}/stubs/mock_timer_callback_handler.cpp # TODO - mock this
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
 )
 
 create_gtest("dfu" "${DFU_SRCS}")
