@@ -78,8 +78,10 @@ else()
         src/info.c
         src/neighbors.c
         src/l2.c
+        src/middleware.c
         src/packet.c
         src/ping.c
+        src/pubsub.c
         src/resource_discovery.c
         src/time.c
         src/topology.c
