@@ -146,7 +146,7 @@ static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest* req) {
             bm_dfu_host_transition_to_error(BmDfuErrFlashAccess);
             break;
         }
-        if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(payload_header->header.frame_type), buf, payload_len_plus_header, 0, NULL)){
+        if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(payload_header->header.frame_type), buf, payload_len_plus_header, 0, NULL) == BmOK){
             host_ctx.bytes_remaining -= payload_len;
             printf("Message %d sent, payload size: %" PRIX32 ", remaining: %" PRIX32 "\n",payload_header->header.frame_type, payload_len, host_ctx.bytes_remaining);
         } else {
