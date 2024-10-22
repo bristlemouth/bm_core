@@ -1036,41 +1036,41 @@ TEST_F(BcmpDfuTest, ClientValidateFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-// TEST_F(BcmpDfuTest, ChunksTooBig)
-// {
-//     bm_dfu_test_set_client_fa(&fa);
+TEST_F(BcmpDfuTest, ChunksTooBig)
+{
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
-//     BmDfuEvent evt = {
-//         .type = DfuEventInitSuccess,
-//         .buf = NULL,
-//         .len = 0,
-//     };
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+    // INIT SUCCESS
+    bm_dfu_init();
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
+        .type = DfuEventInitSuccess,
+        .buf = NULL,
+        .len = 0,
+    };
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
-//     // DFU REQUEST
-//     evt.type = DfuEventReceivedUpdateRequest;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
-//     evt.len = sizeof(BcmpDfuStart);
-//     BcmpDfuStart dfu_start_msg;
-//     dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
-//     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
-//     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
-//     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
-//     dfu_start_msg.info.img_info.chunk_size = CHUNK_SIZE * 100; // Chunk way too big
-//     dfu_start_msg.info.img_info.crc16 = 0xDEAD; // bad CRC
-//     dfu_start_msg.info.img_info.major_ver = 1;
-//     dfu_start_msg.info.img_info.minor_ver = 7;
-//     dfu_start_msg.info.img_info.gitSHA = 0xdeadd00d;
-//     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
+    // DFU REQUEST
+    evt.type = DfuEventReceivedUpdateRequest;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
+    evt.len = sizeof(BcmpDfuStart);
+    BcmpDfuStart dfu_start_msg;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
+    dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
+    dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
+    dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
+    dfu_start_msg.info.img_info.chunk_size = CHUNK_SIZE * 100; // Chunk way too big
+    dfu_start_msg.info.img_info.crc16 = 0xDEAD; // bad CRC
+    dfu_start_msg.info.img_info.major_ver = 1;
+    dfu_start_msg.info.img_info.minor_ver = 7;
+    dfu_start_msg.info.img_info.gitSHA = 0xdeadd00d;
+    memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // FAILED to validate CRC
-//     EXPECT_EQ(bm_dfu_get_error(),BmDfuErrChunkSize);
-// }
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // FAILED to validate CRC
+    EXPECT_EQ(bm_dfu_get_error(),BmDfuErrChunkSize);
+}
 
 // TEST_F(BcmpDfuTest, ClientRebootReqFail){
 //     bm_dfu_test_set_client_fa(&fa);
