@@ -83,6 +83,7 @@ class BcmpDfuTest : public ::testing::Test {
         bm_dfu_client_flash_area_write_fake.return_val = BmOK;
         bm_dfu_client_flash_area_close_fake.return_val = BmOK;
         bm_dfu_client_flash_area_open_fake.return_val = BmOK;
+        bm_dfu_client_confirm_is_enabled_fake.return_val = true;
         // xTimerGenericCommand_fake.return_val = pdPASS;
         node_id_fake.return_val = 0xdeadbeefbeeffeed;
         bcmp_tx_fake.return_val = BmOK;
@@ -439,44 +440,44 @@ TEST_F(BcmpDfuTest, clientForceUpdate)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 }
 
-// TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
-//     // Set the reboot info.
-//     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
-//     client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
-//     client_update_reboot_info.major = 1;
-//     client_update_reboot_info.minor = 7;
-//     client_update_reboot_info.gitSHA = 0xdeadd00d;
-//     git_sha_fake.return_val = 0xdeadd00d;
+TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated) {
+    // Set the reboot info.
+    client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
+    client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
+    client_update_reboot_info.major = 1;
+    client_update_reboot_info.minor = 7;
+    client_update_reboot_info.gitSHA = 0xdeadd00d;
+    git_sha_fake.return_val = 0xdeadd00d;
 
-//     bm_dfu_test_set_client_fa(&fa);
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
-//     BmDfuEvent evt = {
-//         .type = DfuEventInitSuccess,
-//         .buf = NULL,
-//         .len = 0,
-//     };
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUBootCompleteMessage);
+    // INIT SUCCESS
+    bm_dfu_init();
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
+        .type = DfuEventInitSuccess,
+        .buf = NULL,
+        .len = 0,
+    };
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUBootCompleteMessage);
 
-//     // REBOOT_DONE
-//     evt.type = DfuEventUpdateEnd;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuEnd));
-//     evt.len = sizeof(BcmpDfuEnd);
-//     BcmpDfuEnd bcmp_end_msg;
-//     bcmp_end_msg.header.frame_type = BcmpDFUEndMessage;
-//     bcmp_end_msg.result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
-//     bcmp_end_msg.result.addresses.src_node_id = 0xbeefbeefdaadbaad;
-//     bcmp_end_msg.result.err_code = BmDfuErrNone;
-//     bcmp_end_msg.result.success = 1;
-//     memcpy(evt.buf, &bcmp_end_msg, sizeof(bcmp_end_msg));
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUEndMessage);
-// }
+    // REBOOT_DONE
+    evt.type = DfuEventUpdateEnd;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuEnd));
+    evt.len = sizeof(BcmpDfuEnd);
+    BcmpDfuEnd bcmp_end_msg;
+    bcmp_end_msg.header.frame_type = BcmpDFUEndMessage;
+    bcmp_end_msg.result.addresses.dst_node_id = 0xdeadbeefbeeffeed;
+    bcmp_end_msg.result.addresses.src_node_id = 0xbeefbeefdaadbaad;
+    bcmp_end_msg.result.err_code = BmDfuErrNone;
+    bcmp_end_msg.result.success = 1;
+    memcpy(evt.buf, &bcmp_end_msg, sizeof(bcmp_end_msg));
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUEndMessage);
+}
 
 // TEST_F(BcmpDfuTest, clientResyncHost) {
 //     bm_dfu_test_set_client_fa(&fa);
