@@ -923,120 +923,121 @@ TEST_F(BcmpDfuTest, ClientRecvFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-// TEST_F(BcmpDfuTest, ClientValidateFail){
-//     bm_dfu_test_set_client_fa(&fa);
+TEST_F(BcmpDfuTest, ClientValidateFail)
+{
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
-//     BmDfuEvent evt = {
-//         .type = DfuEventInitSuccess,
-//         .buf = NULL,
-//         .len = 0,
-//     };
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+    // INIT SUCCESS
+    bm_dfu_init();
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
+        .type = DfuEventInitSuccess,
+        .buf = NULL,
+        .len = 0,
+    };
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
-//     // DFU REQUEST
-//     evt.type = DfuEventReceivedUpdateRequest;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
-//     evt.len = sizeof(BcmpDfuStart);
-//     BcmpDfuStart dfu_start_msg;
-//     dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
-//     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
-//     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
-//     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
-//     dfu_start_msg.info.img_info.chunk_size = CHUNK_SIZE;
-//     dfu_start_msg.info.img_info.crc16 = 0xDEAD; // bad CRC
-//     dfu_start_msg.info.img_info.major_ver = 1;
-//     dfu_start_msg.info.img_info.minor_ver = 7;
-//     dfu_start_msg.info.img_info.gitSHA = 0xdeadd00d;
-//     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
+    // DFU REQUEST
+    evt.type = DfuEventReceivedUpdateRequest;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
+    evt.len = sizeof(BcmpDfuStart);
+    BcmpDfuStart dfu_start_msg;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
+    dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
+    dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
+    dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
+    dfu_start_msg.info.img_info.chunk_size = CHUNK_SIZE;
+    dfu_start_msg.info.img_info.crc16 = 0xDEAD; // bad CRC
+    dfu_start_msg.info.img_info.major_ver = 1;
+    dfu_start_msg.info.img_info.minor_ver = 7;
+    dfu_start_msg.info.img_info.gitSHA = 0xdeadd00d;
+    memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_history[0], BcmpDFUAckMessage);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(bcmp_tx_fake.arg1_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 
-//     // Chunk
-//     evt.type = DfuEventImageChunk;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
-//     evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
-//     BcmpDfuPayload dfu_payload_msg;
-//     dfu_payload_msg.header.frame_type = BcmpDFUPayloadMessage;
-//     dfu_payload_msg.chunk.addresses.src_node_id = 0xbeefbeefdaadbaad;
-//     dfu_payload_msg.chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
-//     dfu_payload_msg.chunk.payload_length = CHUNK_SIZE;
-//     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
-//     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientValidating);
+    // Chunk
+    evt.type = DfuEventImageChunk;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
+    evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
+    BcmpDfuPayload dfu_payload_msg;
+    dfu_payload_msg.header.frame_type = BcmpDFUPayloadMessage;
+    dfu_payload_msg.chunk.addresses.src_node_id = 0xbeefbeefdaadbaad;
+    dfu_payload_msg.chunk.addresses.dst_node_id = 0xdeadbeefbeeffeed;
+    dfu_payload_msg.chunk.payload_length = CHUNK_SIZE;
+    memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
+    memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // 2048
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientValidating);
 
-//    // Validating
-//     evt.type = DfuEventNone;
-//     evt.buf = NULL;
-//     evt.len = 0;
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // FAILED to validate CRC
-//     evt.type = DfuEventNone;
-//     EXPECT_EQ(bm_dfu_get_error(),BmDfuErrBadCrc);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+   // Validating
+    evt.type = DfuEventNone;
+    evt.buf = NULL;
+    evt.len = 0;
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // FAILED to validate CRC
+    evt.type = DfuEventNone;
+    EXPECT_EQ(bm_dfu_get_error(),BmDfuErrBadCrc);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
-//     // DFU REQUEST
-//     evt.type = DfuEventReceivedUpdateRequest;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
-//     evt.len = sizeof(BcmpDfuStart);
-//     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
+    // DFU REQUEST
+    evt.type = DfuEventReceivedUpdateRequest;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
+    evt.len = sizeof(BcmpDfuStart);
+    memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_history[0], BcmpDFUAckMessage);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(bcmp_tx_fake.arg1_history[0], BcmpDFUAckMessage);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 
-//     // Chunk
-//     evt.type = DfuEventImageChunk;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
-//     evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
-//     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
-//     memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
-//     dfu_payload_msg.chunk.payload_length = 1;
-//     memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1537
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientValidating);
+    // Chunk
+    evt.type = DfuEventImageChunk;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuPayload) + CHUNK_SIZE);
+    evt.len = sizeof(BcmpDfuPayload) + CHUNK_SIZE;
+    memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
+    memset(evt.buf+sizeof(dfu_payload_msg),0xa5,CHUNK_SIZE);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // 512
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1024
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1536
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUPayloadReqMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
+    dfu_payload_msg.chunk.payload_length = 1;
+    memcpy(evt.buf, &dfu_payload_msg, sizeof(dfu_payload_msg));
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // 1537
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientValidating);
 
-//    // Validating
-//     evt.type = DfuEventNone;
-//     evt.buf = NULL;
-//     evt.len = 0;
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // Image offest does not equal image length.
-//     evt.type = DfuEventNone;
-//     EXPECT_EQ(bm_dfu_get_error(),BmDfuErrMismatchLen);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
-// }
+   // Validating
+    evt.type = DfuEventNone;
+    evt.buf = NULL;
+    evt.len = 0;
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError); // Image offest does not equal image length.
+    evt.type = DfuEventNone;
+    EXPECT_EQ(bm_dfu_get_error(),BmDfuErrMismatchLen);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+}
 
-
-// TEST_F(BcmpDfuTest, ChunksTooBig){
+// TEST_F(BcmpDfuTest, ChunksTooBig)
+// {
 //     bm_dfu_test_set_client_fa(&fa);
 
 //     // INIT SUCCESS
