@@ -555,7 +555,6 @@ void bm_dfu_init(void) {
     evt.buf = NULL;
     evt.len = 0;
 
-    // TODO - figure out how where it is best to define the priority... in bm_os.h?
     retval = bm_task_create(bm_dfu_event_thread,
                        "DFU Event",
                        1024,
@@ -640,13 +639,13 @@ BmDfuErr bm_dfu_get_error(void) {
 /*!
  * UNIT TEST FUNCTIONS BELOW HERE
  */
-#ifdef CI_TEST
+#ifdef ENABLE_TESTING
 LibSmContext* bm_dfu_test_get_sm_ctx(void) {
     return &dfu_ctx.sm_ctx;
 }
 
 void bm_dfu_test_set_dfu_event_and_run_sm(BmDfuEvent evt) {
     memcpy(&dfu_ctx.current_event, &evt, sizeof(BmDfuEvent));
-    lib_sm_run(dfu_ctx.sm_ctx);
+    lib_sm_run(&dfu_ctx.sm_ctx);
 }
-#endif //CI_TEST
+#endif //ENABLE_TESTING

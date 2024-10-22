@@ -242,7 +242,7 @@ void bm_dfu_client_process_update_request(void) {
         CLIENT_CTX.crc16 = img_info_evt->img_info.crc16;
 
             /* Open the secondary image slot */
-        if (bm_dfu_client_flash_area_open(&CLIENT_CTX.fa) != 0) {
+        if (bm_dfu_client_flash_area_open(&CLIENT_CTX.fa) != BmOK) {
             bm_dfu_send_ack(CLIENT_CTX.host_node_id, 0, BmDfuErrFlashAccess);
             bm_dfu_client_transition_to_error(BmDfuErrFlashAccess);
         } else {
@@ -250,7 +250,7 @@ void bm_dfu_client_process_update_request(void) {
             if(bm_dfu_client_flash_area_get_size(CLIENT_CTX.fa) > image_size) {
                 /* Erase memory in secondary image slot */
                 printf("Erasing flash\n");
-                if(bm_dfu_client_flash_area_erase(CLIENT_CTX.fa, 0, bm_dfu_client_flash_area_get_size(CLIENT_CTX.fa)) != 0) {
+                if(bm_dfu_client_flash_area_erase(CLIENT_CTX.fa, 0, bm_dfu_client_flash_area_get_size(CLIENT_CTX.fa)) != BmOK) {
                     printf("Error erasing flash!\n");
                     bm_dfu_send_ack(CLIENT_CTX.host_node_id, 0, BmDfuErrFlashAccess);
                     bm_dfu_client_transition_to_error(BmDfuErrFlashAccess);
