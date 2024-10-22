@@ -281,8 +281,6 @@ TEST_F(BcmpDfuTest, clientGolden) {
     bm_dfu_client_flash_area_write_fake.return_val = BmOK;
     bm_dfu_client_flash_area_close_fake.return_val = BmOK;
     bm_dfu_client_flash_area_open_fake.return_val = BmOK;
-    // I don't think this one is used so lets, but leaving as an example for one later
-    bm_dfu_client_confirm_is_enabled_fake.return_val = true;
 
     git_sha_fake.return_val = 0xbaaddaad;
     bm_dfu_test_set_client_fa(&fa);
@@ -364,41 +362,41 @@ TEST_F(BcmpDfuTest, clientGolden) {
     // See ClientImageHasUpdated for state behavior after reboot.
 }
 
-// TEST_F(BcmpDfuTest, clientRejectSameSHA) {
-//     git_sha_fake.return_val = 0xdeadd00d; // same SHA
-//     bm_dfu_test_set_client_fa(&fa);
+TEST_F(BcmpDfuTest, clientRejectSameSHA) {
+    git_sha_fake.return_val = 0xdeadd00d; // same SHA
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
-//     BmDfuEvent evt = {
-//         .type = DfuEventInitSuccess,
-//         .buf = NULL,
-//         .len = 0,
-//     };
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+    // INIT SUCCESS
+    bm_dfu_init();
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
+        .type = DfuEventInitSuccess,
+        .buf = NULL,
+        .len = 0,
+    };
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
-//     // DFU REQUEST
-//     evt.type = DfuEventReceivedUpdateRequest;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
-//     evt.len = sizeof(BcmpDfuStart);
-//     BcmpDfuStart dfu_start_msg;
-//     dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
-//     dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
-//     dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
-//     dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
-//     dfu_start_msg.info.img_info.chunk_size = CHUNK_SIZE;
-//     dfu_start_msg.info.img_info.crc16 = 0x2fDf;
-//     dfu_start_msg.info.img_info.major_ver = 1;
-//     dfu_start_msg.info.img_info.minor_ver = 7;
-//     dfu_start_msg.info.img_info.gitSHA = 0xdeadd00d;
-//     memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
+    // DFU REQUEST
+    evt.type = DfuEventReceivedUpdateRequest;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuStart));
+    evt.len = sizeof(BcmpDfuStart);
+    BcmpDfuStart dfu_start_msg;
+    dfu_start_msg.header.frame_type = BcmpDFUStartMessage;
+    dfu_start_msg.info.addresses.src_node_id = 0xbeefbeefdaadbaad;
+    dfu_start_msg.info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
+    dfu_start_msg.info.img_info.image_size = IMAGE_SIZE;
+    dfu_start_msg.info.img_info.chunk_size = CHUNK_SIZE;
+    dfu_start_msg.info.img_info.crc16 = 0x2fDf;
+    dfu_start_msg.info.img_info.major_ver = 1;
+    dfu_start_msg.info.img_info.minor_ver = 7;
+    dfu_start_msg.info.img_info.gitSHA = 0xdeadd00d;
+    memcpy(evt.buf, &dfu_start_msg, sizeof(BcmpDfuStart));
 
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUAckMessage);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle); // We don't progress to RECEIVING.
-// }
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUAckMessage);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle); // We don't progress to RECEIVING.
+}
 
 // TEST_F(BcmpDfuTest, clientForceUpdate) {
 //     git_sha_fake.return_val = 0xdeadd00d; // same SHA
