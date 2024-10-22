@@ -1157,60 +1157,57 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-// TEST_F(BcmpDfuTest, RebootDoneFail) {
-//     // Set the reboot info.
-//     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
-//     client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
-//     client_update_reboot_info.major = 0; // Incorrect major
-//     client_update_reboot_info.minor = 7;
-//     client_update_reboot_info.gitSHA = 0xbaaddead;
+TEST_F(BcmpDfuTest, RebootDoneFail) {
+    // Set the reboot info.
+    client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
+    client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
+    client_update_reboot_info.major = 0; // Incorrect major
+    client_update_reboot_info.minor = 7;
+    client_update_reboot_info.gitSHA = 0xbaaddead;
 
-//     bm_dfu_test_set_client_fa(&fa);
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
-//     BmDfuEvent evt = {
-//         .type = DfuEventInitSuccess,
-//         .buf = NULL,
-//         .len = 0,
-//     };
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-//     // TODO - check that we still need this when we are using the wrapper files
-//     // EXPECT_EQ(resetSystem_fake.arg0_val, RESET_REASON_UPDATE_FAILED);
+    // INIT SUCCESS
+    bm_dfu_init();
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
+        .type = DfuEventInitSuccess,
+        .buf = NULL,
+        .len = 0,
+    };
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(bm_dfu_client_fail_update_and_reset_fake.call_count, 1);
 
-//     // Set the reboot info.
-//     // RESET_FAKE(resetSystem);
-//     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
-//     client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
-//     client_update_reboot_info.major = 1;
-//     client_update_reboot_info.minor = 7;
-//     client_update_reboot_info.gitSHA = 0xdeadd00d;
-//     git_sha_fake.return_val = 0xdeadd00d;
+    // Set the reboot info.
+    client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
+    client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
+    client_update_reboot_info.major = 1;
+    client_update_reboot_info.minor = 7;
+    client_update_reboot_info.gitSHA = 0xdeadd00d;
+    git_sha_fake.return_val = 0xdeadd00d;
 
-//     bm_dfu_test_set_client_fa(&fa);
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUBootCompleteMessage);
-//     evt.type = DfuEventChunkTimeout;
-//     evt.buf = NULL;
-//     evt.len = 0;
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 1
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 2
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 3
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
-//     // TODO - check that we still need this when we are using the wrapper files
-//     // EXPECT_EQ(resetSystem_fake.arg0_val, RESET_REASON_UPDATE_FAILED);
-// }
+    // INIT SUCCESS
+    bm_dfu_init();
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUBootCompleteMessage);
+    evt.type = DfuEventChunkTimeout;
+    evt.buf = NULL;
+    evt.len = 0;
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 1
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 2
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 3
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
+    EXPECT_EQ(bm_dfu_client_fail_update_and_reset_fake.call_count, 2);
+}
 
 // TEST_F(BcmpDfuTest, ClientConfirmSkip) {
 //     // Set the reboot info.
