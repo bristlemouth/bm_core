@@ -699,174 +699,174 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-// TEST_F(BcmpDfuTest, HostUpdateFail){
-//     bm_dfu_test_set_client_fa(&fa);
+TEST_F(BcmpDfuTest, HostUpdateFail){
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
-//     BmDfuEvent evt = {
-//         .type = DfuEventInitSuccess,
-//         .buf = NULL,
-//         .len = 0,
-//     };
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+    // INIT SUCCESS
+    bm_dfu_init();
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
+        .type = DfuEventInitSuccess,
+        .buf = NULL,
+        .len = 0,
+    };
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
-//     // HOST REQUEST
-//     evt.type = DfuEventBeginHost;
-//     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
-//     evt.len = sizeof(DfuHostStartEvent);
-//     DfuHostStartEvent dfu_start_msg;
-//     dfu_start_msg.start.header.frame_type = BcmpDFUStartMessage;
-//     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
-//     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
-//     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
-//     dfu_start_msg.start.info.img_info.chunk_size = CHUNK_SIZE;
-//     dfu_start_msg.start.info.img_info.crc16 = 0x2fDf;
-//     dfu_start_msg.start.info.img_info.major_ver = 1;
-//     dfu_start_msg.start.info.img_info.minor_ver = 7;
-//     dfu_start_msg.timeoutMs = 30000;
-//     dfu_start_msg.finish_cb = NULL;
-//     dfu_start_msg.start.info.img_info.gitSHA = 0xdeadd00d;
-//     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
+    // HOST REQUEST
+    evt.type = DfuEventBeginHost;
+    evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
+    evt.len = sizeof(DfuHostStartEvent);
+    DfuHostStartEvent dfu_start_msg;
+    dfu_start_msg.start.header.frame_type = BcmpDFUStartMessage;
+    dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
+    dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
+    dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
+    dfu_start_msg.start.info.img_info.chunk_size = CHUNK_SIZE;
+    dfu_start_msg.start.info.img_info.crc16 = 0x2fDf;
+    dfu_start_msg.start.info.img_info.major_ver = 1;
+    dfu_start_msg.start.info.img_info.minor_ver = 7;
+    dfu_start_msg.timeoutMs = 30000;
+    dfu_start_msg.finish_cb = NULL;
+    dfu_start_msg.start.info.img_info.gitSHA = 0xdeadd00d;
+    memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUStartMessage);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUStartMessage);
 
-//     // HOST UPDATE
-//     evt.type = DfuEventAckReceived;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
-//     evt.len = sizeof(BcmpDfuAck);
-//     BcmpDfuAck dfu_ack_msg;
-//     dfu_ack_msg.header.frame_type = BcmpDFUAckMessage;
-//     dfu_ack_msg.ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
-//     dfu_ack_msg.ack.addresses.src_node_id = 0xbeefbeefdaadbaad;
-//     dfu_ack_msg.ack.err_code = BmDfuErrNone;
-//     dfu_ack_msg.ack.success = 1;
-//     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
+    // HOST UPDATE
+    evt.type = DfuEventAckReceived;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
+    evt.len = sizeof(BcmpDfuAck);
+    BcmpDfuAck dfu_ack_msg;
+    dfu_ack_msg.header.frame_type = BcmpDFUAckMessage;
+    dfu_ack_msg.ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
+    dfu_ack_msg.ack.addresses.src_node_id = 0xbeefbeefdaadbaad;
+    dfu_ack_msg.ack.err_code = BmDfuErrNone;
+    dfu_ack_msg.ack.success = 1;
+    memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
 
-//     // ABORT
-//     evt.type = DfuEventAbort;
-//     evt.buf = NULL;
-//     evt.len = 0;
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
-//     evt.type = DfuEventNone;
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+    // ABORT
+    evt.type = DfuEventAbort;
+    evt.buf = NULL;
+    evt.len = 0;
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
+    evt.type = DfuEventNone;
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
-//    // HOST REQUEST
-//     evt.type = DfuEventBeginHost;
-//     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
-//     evt.len = sizeof(DfuHostStartEvent);
-//     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
+   // HOST REQUEST
+    evt.type = DfuEventBeginHost;
+    evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
+    evt.len = sizeof(DfuHostStartEvent);
+    memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUStartMessage);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUStartMessage);
 
-//     // HOST UPDATE
-//     evt.type = DfuEventAckReceived;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
-//     evt.len = sizeof(BcmpDfuAck);
-//     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
-// }
+    // HOST UPDATE
+    evt.type = DfuEventAckReceived;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
+    evt.len = sizeof(BcmpDfuAck);
+    memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
+}
 
-// TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
-//     bm_dfu_test_set_client_fa(&fa);
+TEST_F(BcmpDfuTest, HostUpdateFailUponReboot){
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
-//     BmDfuEvent evt = {
-//         .type = DfuEventInitSuccess,
-//         .buf = NULL,
-//         .len = 0,
-//     };
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+    // INIT SUCCESS
+    bm_dfu_init();
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
+        .type = DfuEventInitSuccess,
+        .buf = NULL,
+        .len = 0,
+    };
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
-//     // HOST REQUEST
-//     evt.type = DfuEventBeginHost;
-//     evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
-//     evt.len = sizeof(DfuHostStartEvent);
-//     DfuHostStartEvent dfu_start_msg;
-//     dfu_start_msg.start.header.frame_type = BcmpDFUStartMessage;
-//     dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
-//     dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
-//     dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
-//     dfu_start_msg.start.info.img_info.chunk_size = CHUNK_SIZE;
-//     dfu_start_msg.start.info.img_info.crc16 = 0x2fDf;
-//     dfu_start_msg.start.info.img_info.major_ver = 1;
-//     dfu_start_msg.start.info.img_info.minor_ver = 7;
-//     dfu_start_msg.timeoutMs = 30000;
-//     dfu_start_msg.finish_cb = NULL;
-//     dfu_start_msg.start.info.img_info.gitSHA = 0xdeadd00d;
-//     memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
+    // HOST REQUEST
+    evt.type = DfuEventBeginHost;
+    evt.buf = (uint8_t*)malloc(sizeof(DfuHostStartEvent));
+    evt.len = sizeof(DfuHostStartEvent);
+    DfuHostStartEvent dfu_start_msg;
+    dfu_start_msg.start.header.frame_type = BcmpDFUStartMessage;
+    dfu_start_msg.start.info.addresses.src_node_id = 0xdeadbeefbeeffeed;
+    dfu_start_msg.start.info.addresses.dst_node_id = 0xbeefbeefdaadbaad;
+    dfu_start_msg.start.info.img_info.image_size = IMAGE_SIZE;
+    dfu_start_msg.start.info.img_info.chunk_size = CHUNK_SIZE;
+    dfu_start_msg.start.info.img_info.crc16 = 0x2fDf;
+    dfu_start_msg.start.info.img_info.major_ver = 1;
+    dfu_start_msg.start.info.img_info.minor_ver = 7;
+    dfu_start_msg.timeoutMs = 30000;
+    dfu_start_msg.finish_cb = NULL;
+    dfu_start_msg.start.info.img_info.gitSHA = 0xdeadd00d;
+    memcpy(evt.buf, &dfu_start_msg, sizeof(dfu_start_msg));
 
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUStartMessage);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostReqUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUStartMessage);
 
-//     // HOST UPDATE
-//     evt.type = DfuEventAckReceived;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
-//     evt.len = sizeof(BcmpDfuAck);
-//     BcmpDfuAck dfu_ack_msg;
-//     dfu_ack_msg.header.frame_type = BcmpDFUAckMessage;
-//     dfu_ack_msg.ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
-//     dfu_ack_msg.ack.addresses.src_node_id = 0xbeefbeefdaadbaad;
-//     dfu_ack_msg.ack.err_code = BmDfuErrNone;
-//     dfu_ack_msg.ack.success = 1;
-//     memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
+    // HOST UPDATE
+    evt.type = DfuEventAckReceived;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuAck));
+    evt.len = sizeof(BcmpDfuAck);
+    BcmpDfuAck dfu_ack_msg;
+    dfu_ack_msg.header.frame_type = BcmpDFUAckMessage;
+    dfu_ack_msg.ack.addresses.dst_node_id = 0xdeadbeefbeeffeed;
+    dfu_ack_msg.ack.addresses.src_node_id = 0xbeefbeefdaadbaad;
+    dfu_ack_msg.ack.err_code = BmDfuErrNone;
+    dfu_ack_msg.ack.success = 1;
+    memcpy(evt.buf, &dfu_ack_msg, sizeof(BcmpDfuAck));
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
 
-//     // REBOOT REQUEST
-//     evt.type = DfuEventRebootRequest;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuRebootReq));
-//     evt.len = sizeof(BcmpDfuRebootReq);
-//     BcmpDfuRebootReq dfu_reboot_req_msg;
-//     dfu_reboot_req_msg.header.frame_type = BcmpRebootRequestMessage;
-//     dfu_reboot_req_msg.addr.dst_node_id = 0xdeadbeefbeeffeed;
-//     dfu_reboot_req_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
-//     memcpy(evt.buf, &dfu_reboot_req_msg, sizeof(dfu_reboot_req_msg));
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFURebootMessage);
+    // REBOOT REQUEST
+    evt.type = DfuEventRebootRequest;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuRebootReq));
+    evt.len = sizeof(BcmpDfuRebootReq);
+    BcmpDfuRebootReq dfu_reboot_req_msg;
+    dfu_reboot_req_msg.header.frame_type = BcmpRebootRequestMessage;
+    dfu_reboot_req_msg.addr.dst_node_id = 0xdeadbeefbeeffeed;
+    dfu_reboot_req_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
+    memcpy(evt.buf, &dfu_reboot_req_msg, sizeof(dfu_reboot_req_msg));
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFURebootMessage);
 
-//     // REBOOT COMPLETE
-//     evt.type = DfuEventBootComplete;
-//     evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuBootComplete));
-//     evt.len = sizeof(BcmpDfuBootComplete);
-//     BcmpDfuBootComplete dfu_reboot_done_msg;
-//     dfu_reboot_done_msg.header.frame_type = BcmpRebootRequestMessage;
-//     dfu_reboot_done_msg.addr.dst_node_id = 0xdeadbeefbeeffeed;
-//     dfu_reboot_done_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
-//     memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
-//     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUEndMessage);
+    // REBOOT COMPLETE
+    evt.type = DfuEventBootComplete;
+    evt.buf = (uint8_t*)malloc(sizeof(BcmpDfuBootComplete));
+    evt.len = sizeof(BcmpDfuBootComplete);
+    BcmpDfuBootComplete dfu_reboot_done_msg;
+    dfu_reboot_done_msg.header.frame_type = BcmpRebootRequestMessage;
+    dfu_reboot_done_msg.addr.dst_node_id = 0xdeadbeefbeeffeed;
+    dfu_reboot_done_msg.addr.src_node_id = 0xbeefbeefdaadbaad;
+    memcpy(evt.buf, &dfu_reboot_done_msg, sizeof(dfu_reboot_done_msg));
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
+    EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUEndMessage);
 
-//     // ABORT REBOOT CHECK
-//     BcmpDfuAbort *abort = (BcmpDfuAbort *)malloc(sizeof(BcmpDfuAbort));
-//     abort->err.err_code = BmDfuErrConfirmationAbort;
-//     evt.type = DfuEventAbort;
-//     evt.buf = (uint8_t *)abort;
-//     evt.len = sizeof(BcmpDfuBootComplete);
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
-//     EXPECT_EQ(bm_dfu_get_error(), BmDfuErrConfirmationAbort);
-//     evt.type = DfuEventNone;
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
-// }
+    // ABORT REBOOT CHECK
+    BcmpDfuAbort *abort = (BcmpDfuAbort *)malloc(sizeof(BcmpDfuAbort));
+    abort->err.err_code = BmDfuErrConfirmationAbort;
+    evt.type = DfuEventAbort;
+    evt.buf = (uint8_t *)abort;
+    evt.len = sizeof(BcmpDfuBootComplete);
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateError);
+    EXPECT_EQ(bm_dfu_get_error(), BmDfuErrConfirmationAbort);
+    evt.type = DfuEventNone;
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+}
 
 // TEST_F(BcmpDfuTest, ClientRecvFail){
 //     bm_dfu_test_set_client_fa(&fa);
