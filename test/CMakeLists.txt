@@ -236,9 +236,6 @@ set (L2_SRCS
     # File we're testing
     ${SRC_DIR}/l2.c
 
-    # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
-
     # Stubs
     ${BM_COMMON_STUBS_DIR}/bm_os.c
     ${STUB_DIR}/bm_ip_stub.c

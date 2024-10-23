@@ -360,8 +360,10 @@ static void bm_l2_thread(void *parameters) {
   @details Frees and deinitializes all things L2
  */
 void bm_l2_deinit(void) {
-  bm_free(CTX.devices);
-  memset(&CTX, 0, sizeof(BmL2Ctx));
+  if (CTX.devices) {
+    bm_free(CTX.devices);
+    memset(&CTX, 0, sizeof(BmL2Ctx));
+  }
 }
 
 /*!
