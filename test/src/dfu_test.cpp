@@ -1179,6 +1179,9 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     EXPECT_EQ(bm_dfu_client_fail_update_and_reset_fake.call_count, 1);
 
+    // Reset the bm_dfu_client_fail_update_and_reset_fake call count
+    RESET_FAKE(bm_dfu_client_fail_update_and_reset);
+
     // Set the reboot info.
     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
     client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
@@ -1206,7 +1209,7 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 4
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
     bm_dfu_test_set_dfu_event_and_run_sm(evt); // retry 5
-    EXPECT_EQ(bm_dfu_client_fail_update_and_reset_fake.call_count, 2);
+    EXPECT_EQ(bm_dfu_client_fail_update_and_reset_fake.call_count, 1);
 }
 
 // TEST_F(BcmpDfuTest, ClientConfirmSkip) {
