@@ -2,6 +2,7 @@
 #include "messages/neighbors.h"
 #include "util.h"
 
+DECLARE_FAKE_VALUE_FUNC(BcmpNeighbor *, bcmp_get_neighbors, uint8_t *);
 DECLARE_FAKE_VOID_FUNC(bcmp_check_neighbors);
 DECLARE_FAKE_VOID_FUNC(bcmp_print_neighbor_info, BcmpNeighbor *);
 DECLARE_FAKE_VALUE_FUNC(bool, bcmp_remove_neighbor_from_table, BcmpNeighbor *);

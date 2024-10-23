@@ -229,3 +229,48 @@ set (DFU_SRCS
     ${STUB_DIR}/dfu_generic_stub.c
 )
 create_gtest("dfu" "${DFU_SRCS}")
+
+
+# L2 Tests
+# set (L2_SRCS
+#     # File we're testing
+#     ${SRC_DIR}/l2.c
+
+#     # Supporting Files
+#     # ${BM_COMMON_SOURCE_DIR}/util.c
+
+#     # Stubs
+#     # ${BM_COMMON_STUBS_DIR}/bm_os.c
+#     # ${STUB_DIR}/packet_stub.c
+#     # ${STUB_DIR}/device_stub.c
+#     # ${STUB_DIR}/bcmp_stub.c
+#     # ${STUB_DIR}/neighbors_stub.c
+#     # ${STUB_DIR}/info_stub.c
+#     # ${STUB_DIR}/resource_discovery_stub.c
+#     # ${STUB_DIR}/ping_stub.c
+#     # ${STUB_DIR}/heartbeat_stub.c
+#     # ${STUB_DIR}/topology_stub.c
+#     # ${STUB_DIR}/bm_ip_stub.c
+# )
+# create_gtest("l2" "${L2_SRCS}")
+
+# TOPOLOGY TESTS
+# set (TOPOLOGY_SRCS
+#     # File we're testing
+#     ${SRC_DIR}/topology.c
+
+#     # Supporting Files
+#     # ${BM_COMMON_SOURCE_DIR}/util.c
+
+#     # # Stubs
+#     # ${BM_COMMON_STUBS_DIR}/bm_os.c
+#     # ${STUB_DIR}/packet_stub.c
+#     # ${STUB_DIR}/device_stub.c
+#     # ${STUB_DIR}/bcmp_stub.c
+#     # ${STUB_DIR}/neighbors_stub.c
+#     # ${STUB_DIR}/info_stub.c
+#     # ${STUB_DIR}/resource_discovery_stub.c
+#     # ${STUB_DIR}/ping_stub.c
+#     # ${STUB_DIR}/heartbeat_stub.c
+# )
+# create_gtest("topology" "${TOPOLOGY_SRCS}")
