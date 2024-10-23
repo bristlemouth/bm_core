@@ -39,7 +39,6 @@ TEST_F(bcmp_test, init) {
   bm_task_create_fake.return_val = BmOK;
   ASSERT_EQ(bcmp_init(), BmOK);
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
-  ASSERT_EQ(bcmp_config_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);
   ASSERT_EQ(bm_dfu_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_topology_init_fake.call_count, 1);
@@ -49,8 +48,6 @@ TEST_F(bcmp_test, init) {
   ASSERT_EQ(time_init_fake.call_count, 1);
 
   RESET_FAKE(bcmp_heartbeat_init);
-  RESET_FAKE(time_init);
-  RESET_FAKE(bcmp_config_init);
   RESET_FAKE(ping_init);
   RESET_FAKE(bm_dfu_init);
   RESET_FAKE(bcmp_topology_init);
@@ -63,7 +60,6 @@ TEST_F(bcmp_test, init) {
   bm_task_create_fake.return_val = BmENOMEM;
   ASSERT_EQ(bcmp_init(), BmENOMEM);
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
-  ASSERT_EQ(bcmp_config_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);
   ASSERT_EQ(bm_dfu_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_topology_init_fake.call_count, 1);

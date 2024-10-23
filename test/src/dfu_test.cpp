@@ -52,27 +52,10 @@ class BcmpDfuTest : public ::testing::Test {
         RESET_FAKE(bm_dfu_host_get_chunk);
         RESET_FAKE(bm_dfu_core_lpm_peripheral_active);
         RESET_FAKE(bm_dfu_core_lpm_peripheral_inactive);
-
-        // TODO - is this still needed?
-        // RESET_FAKE(xTimerGenericCommand);
         RESET_FAKE(firmware_version);
         RESET_FAKE(git_sha);
-        // TODO - are these valid?
         fake_q = (BmQueue)malloc(sizeof(BmQueue));
         fake_timer = (BmTimer)malloc(sizeof(BmTimer));
-        // TODO - are these needed?
-        // EXPECT_CALL(_storage, getAlignmentBytes())
-        //     .Times(AtLeast(0))
-        //     .WillRepeatedly(Return(4096));
-        // EXPECT_CALL(_storage, getStorageSizeBytes())
-        //     .Times(AtLeast(0))
-        //     .WillRepeatedly(Return(8000000));
-        // EXPECT_CALL(_storage, write)
-        //     .Times(AtLeast(0))
-        //     .WillRepeatedly(Return(true));
-        // EXPECT_CALL(_storage, read)
-        //     .Times(AtLeast(0))
-        //     .WillRepeatedly(Return(true));
         bm_queue_send_fake.return_val = BmOK;
         bm_task_create_fake.return_val = BmOK;
         bm_queue_create_fake.return_val = fake_q;
@@ -85,10 +68,8 @@ class BcmpDfuTest : public ::testing::Test {
         bm_dfu_client_flash_area_open_fake.return_val = BmOK;
         bm_dfu_client_confirm_is_enabled_fake.return_val = true;
         bm_dfu_host_get_chunk_fake.return_val = BmOK;
-        // xTimerGenericCommand_fake.return_val = pdPASS;
         node_id_fake.return_val = 0xdeadbeefbeeffeed;
         bcmp_tx_fake.return_val = BmOK;
-        // firmware_version_fake.return_val = &test_info;
         git_sha_fake.return_val = 0xd00dd00d;
         memset(&client_update_reboot_info, 0, sizeof(client_update_reboot_info));
     }
@@ -97,60 +78,11 @@ class BcmpDfuTest : public ::testing::Test {
      // Code here will be called immediately after each test (right
      // before the destructor).
         free(fake_q);
-        // delete testPartition;
   }
 
   // Objects declared here can be used by all tests in the test suite for Foo.
     BmQueue fake_q;
     BmTimer fake_timer;
-
-    // TODO - this is no longer used here so we need to figure out how to change this
-    // I need to figure out how to use the wrapper/generic functions here... may need to
-    // create some fake functions for these!
-    // MockStorageDriver _storage;
-    // NvmPartition *testPartition;
-    // const ext_flash_partition_t _test_configuration = {
-    //     .fa_off = 4096,
-    //     .fa_size = 10000,
-    // };
-    // const ext_flash_partition_t _config_nvm = {
-    //     .fa_off = 4096,
-    //     .fa_size = 10000,
-    // };
-    uint8_t config_ram[10000];
-
-    // TODO - this is no longer used here so we need to figure out how to change this
-    // NvmPartition *configNvm;
-    // Configuration *testConfig;
-
-    // TODO - this is no longer used here so we need to figure out how to change this
-    // I need to figure out how to use the wrapper/generic functions here... may need to
-    // create some fake functions for these!
-    // const struct flash_area fa = {
-    //     .fa_id = 1,
-    //     .fa_device_id = 2,
-    //     .pad16 = 0,
-    //     .fa_off = 0,
-    //     .fa_size = 2000000,
-    // };
-    // TODO - will this work???
-    const void *fa = (void*)0xdeadbeef;
-
-    // TODO - this changed so need to update
-    // const versionInfo_t test_info = {
-    // TODO - these were turned into funcitons so I think I need to
-    //        make these fake functions and provide these ase the return values
-    //     .magic = 0xbaadd00dd00dbaad,
-    //     .gitSHA = 0xd00dd00d,
-    //     .maj = 1,
-    //     .min = 7,
-    //     .rev = 0,
-    //     .hwVersion = 1,
-    //     .flags = 0,
-    //     .versionStrLen = 5,
-    //     .versionStr = {"test"},
-    // };
-    // void *test_info = (void*)0xdeadbeef;
     static constexpr size_t CHUNK_SIZE = 512;
     static constexpr size_t IMAGE_SIZE = 2048;
 };
@@ -286,7 +218,6 @@ TEST_F(BcmpDfuTest, DfuApiTest)
 TEST_F(BcmpDfuTest, clientGolden)
 {
     git_sha_fake.return_val = 0xbaaddaad;
-    bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
     bm_dfu_init();
@@ -368,7 +299,6 @@ TEST_F(BcmpDfuTest, clientGolden)
 TEST_F(BcmpDfuTest, clientRejectSameSHA)
 {
     git_sha_fake.return_val = 0xdeadd00d; // same SHA
-    bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
     bm_dfu_init();
@@ -405,7 +335,6 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA)
 TEST_F(BcmpDfuTest, clientForceUpdate)
 {
     git_sha_fake.return_val = 0xdeadd00d; // same SHA
-    bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
     bm_dfu_init();
@@ -451,8 +380,6 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated)
     client_update_reboot_info.gitSHA = 0xdeadd00d;
     git_sha_fake.return_val = 0xdeadd00d;
 
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -483,8 +410,6 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated)
 
 TEST_F(BcmpDfuTest, clientResyncHost)
 {
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -525,8 +450,6 @@ TEST_F(BcmpDfuTest, clientResyncHost)
 
 TEST_F(BcmpDfuTest, hostGolden)
 {
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -632,8 +555,6 @@ TEST_F(BcmpDfuTest, hostGolden)
 
 TEST_F(BcmpDfuTest, HostReqUpdateFail)
 {
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -699,9 +620,8 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-TEST_F(BcmpDfuTest, HostUpdateFail){
-    bm_dfu_test_set_client_fa(&fa);
-
+TEST_F(BcmpDfuTest, HostUpdateFail)
+{
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -780,8 +700,6 @@ TEST_F(BcmpDfuTest, HostUpdateFail){
 
 TEST_F(BcmpDfuTest, HostUpdateFailUponReboot)
 {
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -871,8 +789,6 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot)
 
 TEST_F(BcmpDfuTest, ClientRecvFail)
 {
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -925,8 +841,6 @@ TEST_F(BcmpDfuTest, ClientRecvFail)
 
 TEST_F(BcmpDfuTest, ClientValidateFail)
 {
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -1038,8 +952,6 @@ TEST_F(BcmpDfuTest, ClientValidateFail)
 
 TEST_F(BcmpDfuTest, ChunksTooBig)
 {
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -1074,8 +986,6 @@ TEST_F(BcmpDfuTest, ChunksTooBig)
 
 TEST_F(BcmpDfuTest, ClientRebootReqFail)
 {
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -1166,8 +1076,6 @@ TEST_F(BcmpDfuTest, RebootDoneFail)
     client_update_reboot_info.minor = 7;
     client_update_reboot_info.gitSHA = 0xbaaddead;
 
-    bm_dfu_test_set_client_fa(&fa);
-
     // INIT SUCCESS
     bm_dfu_init();
     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
@@ -1190,8 +1098,6 @@ TEST_F(BcmpDfuTest, RebootDoneFail)
     client_update_reboot_info.minor = 7;
     client_update_reboot_info.gitSHA = 0xdeadd00d;
     git_sha_fake.return_val = 0xdeadd00d;
-
-    bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
     bm_dfu_init();
@@ -1225,8 +1131,6 @@ TEST_F(BcmpDfuTest, ClientConfirmSkip)
     client_update_reboot_info.minor = 7;
     client_update_reboot_info.gitSHA = 0xdeadd00d;
     git_sha_fake.return_val = 0xdeadd00d;
-
-    bm_dfu_test_set_client_fa(&fa);
 
     // INIT SUCCESS
     bm_dfu_init();
