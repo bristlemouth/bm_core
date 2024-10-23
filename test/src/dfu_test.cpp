@@ -1245,6 +1245,6 @@ TEST_F(BcmpDfuTest, ClientConfirmSkip)
     EXPECT_EQ(client_update_reboot_info.minor, 0);
     EXPECT_EQ(client_update_reboot_info.gitSHA, 0);
     EXPECT_EQ(bm_dfu_client_set_confirmed_fake.call_count, 1);
-    EXPECT_EQ(bm_dfu_client_confirm_enable_fake.call_count = 1);
+    EXPECT_EQ(bm_dfu_client_confirm_enable_fake.call_count, 1);
     EXPECT_EQ(bm_dfu_client_confirm_enable_fake.arg0_val, true);
 }
