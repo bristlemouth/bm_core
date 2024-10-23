@@ -85,6 +85,7 @@ else()
         src/resource_discovery.c
         src/time.c
         src/topology.c
+        src/cbor_service_helper.c
         src/dfu/dfu_client.c
         src/dfu/dfu_core.c
         src/dfu/dfu_host.c
