@@ -23,9 +23,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fff)
 include(GoogleTest)
 set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../src)
+set(THIRD_PARTY_DIR ${CMAKE_CURRENT_LIST_DIR}/../third_party)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
 set(BM_COMMON_MOCK_DIR ${bm_common_SOURCE_DIR}/test/mocks)
 set(BM_COMMON_TEST_DIR ${bm_common_SOURCE_DIR}/test)
+set(BM_COMMON_THIRD_PARTY_DIR ${bm_common_SOURCE_DIR}/third_party)
 set(BM_COMMON_SOURCE_DIR ${bm_common_SOURCE_DIR}/src)
 
 include_directories(
@@ -94,3 +96,13 @@ create_gtest("ping" "${SRC_DIR}/ping.c" "${SRCS}")
 create_gtest("neighbors" "${SRC_DIR}/neighbors.c" "${SRCS}")
 create_gtest("l2" "${SRC_DIR}/l2.c" "${SRCS}")
 create_gtest("topology" "${SRC_DIR}/topology.c" "${SRCS}")
+set (SRCS
+    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc32.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
+)
+create_gtest("cbor_service_helper" "${SRC_DIR}/cbor_service_helper.c" "${SRCS}")
