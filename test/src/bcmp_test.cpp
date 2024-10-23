@@ -45,6 +45,7 @@ TEST_F(bcmp_test, init) {
   ASSERT_EQ(bcmp_topology_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_device_info_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_resource_discovery_init_fake.call_count, 1);
+  ASSERT_EQ(bcmp_config_init_fake.call_count, 1);
   ASSERT_EQ(time_init_fake.call_count, 1);
 
   RESET_FAKE(bcmp_heartbeat_init);
@@ -55,6 +56,8 @@ TEST_F(bcmp_test, init) {
   RESET_FAKE(bcmp_topology_init);
   RESET_FAKE(bcmp_device_info_init);
   RESET_FAKE(bcmp_resource_discovery_init);
+  RESET_FAKE(bcmp_config_init);
+  RESET_FAKE(time_init);
 
   // Test failure
   bm_task_create_fake.return_val = BmENOMEM;
@@ -66,6 +69,7 @@ TEST_F(bcmp_test, init) {
   ASSERT_EQ(bcmp_topology_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_device_info_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_resource_discovery_init_fake.call_count, 1);
+  ASSERT_EQ(bcmp_config_init_fake.call_count, 1);
   ASSERT_EQ(time_init_fake.call_count, 1);
 }
 

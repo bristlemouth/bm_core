@@ -3,13 +3,9 @@
 #include <inttypes.h>
 #include <string.h>
 
-//TODO: replace this once l2 is implemented
-//#include "bm_l2.h"
-extern uint8_t bm_l2_get_num_ports();
-extern bool bm_l2_get_port_state(uint8_t port);
-
 #include "bm_os.h"
 #include "device.h"
+#include "l2.h"
 #include "messages.h"
 #include "messages/neighbors.h"
 #include "packet.h"
