@@ -203,7 +203,6 @@ create_gtest("neighbors" "${NEIGHBORS_SRCS}")
 
 
 # DFU TESTS
-
 set (DFU_SRCS
     # Files we're testing
     ${SRC_DIR}/dfu/dfu_core.c
@@ -222,14 +221,12 @@ set (DFU_SRCS
     ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
 
     # Stubs
-    # TODO - probably need to mock the generic/wrapper functions!
     ${BM_COMMON_STUBS_DIR}/bm_os.c
     ${BM_COMMON_STUBS_DIR}/timer_callback_handler_stub.c
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/bcmp_stub.c
     ${STUB_DIR}/dfu_generic_stub.c
-    # ${TEST_DIR}/stubs/mock_timer_callback_handler.cpp # TODO - mock this
 )
 
 create_gtest("dfu" "${DFU_SRCS}")

@@ -1157,7 +1157,8 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-TEST_F(BcmpDfuTest, RebootDoneFail) {
+TEST_F(BcmpDfuTest, RebootDoneFail)
+{
     // Set the reboot info.
     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
     client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
@@ -1212,44 +1213,38 @@ TEST_F(BcmpDfuTest, RebootDoneFail) {
     EXPECT_EQ(bm_dfu_client_fail_update_and_reset_fake.call_count, 1);
 }
 
-// TEST_F(BcmpDfuTest, ClientConfirmSkip) {
-//     // Set the reboot info.
-//     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
-//     client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
-//     client_update_reboot_info.major = 1;
-//     client_update_reboot_info.minor = 7;
-//     client_update_reboot_info.gitSHA = 0xdeadd00d;
-//     git_sha_fake.return_val = 0xdeadd00d;
+TEST_F(BcmpDfuTest, ClientConfirmSkip)
+{
+    // The config should be 0 to enable the "skip" feature. So this needs to return false
+    bm_dfu_client_confirm_is_enabled_fake.return_val = false;
 
-//     // TODO - check that we still need this when we are using the wrapper files
-//     // Set confirm config
-//     // uint32_t confirm = 0;
-//     // testConfig->setConfig("dfu_confirm", sizeof("dfu_confirm"), confirm);
+    // Set the reboot info.
+    client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
+    client_update_reboot_info.host_node_id = 0xbeefbeefdaadbaad;
+    client_update_reboot_info.major = 1;
+    client_update_reboot_info.minor = 7;
+    client_update_reboot_info.gitSHA = 0xdeadd00d;
+    git_sha_fake.return_val = 0xdeadd00d;
 
-//     bm_dfu_test_set_client_fa(&fa);
+    bm_dfu_test_set_client_fa(&fa);
 
-//     // INIT SUCCESS
-//     bm_dfu_init();
-//     LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
-//     BmDfuEvent evt = {
-//         .type = DfuEventInitSuccess,
-//         .buf = NULL,
-//         .len = 0,
-//     };
-//     bm_dfu_test_set_dfu_event_and_run_sm(evt);
-//     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
-//     // The reboot info should now be cleared.
-//     EXPECT_EQ(client_update_reboot_info.magic, 0);
-//     EXPECT_EQ(client_update_reboot_info.host_node_id, 0);
-//     EXPECT_EQ(client_update_reboot_info.major, 0);
-//     EXPECT_EQ(client_update_reboot_info.minor, 0);
-//     EXPECT_EQ(client_update_reboot_info.gitSHA, 0);
-//     // TODO - check that we still need this when we are using the wrapper files
-//     // We should have reset due to a config change
-//     // EXPECT_EQ(resetSystem_fake.arg0_val, RESET_REASON_CONFIG);
-//     uint32_t confirm_val;
-//     // DFU confirm should now be on again.
-//     // TODO - check that we still need this when we are using the wrapper files
-//     // testConfig->getConfig("dfu_confirm", sizeof("dfu_confirm"), confirm_val);
-//     EXPECT_EQ(confirm_val, 1);
-// }
+    // INIT SUCCESS
+    bm_dfu_init();
+    LibSmContext* ctx = bm_dfu_test_get_sm_ctx();
+    BmDfuEvent evt = {
+        .type = DfuEventInitSuccess,
+        .buf = NULL,
+        .len = 0,
+    };
+    bm_dfu_test_set_dfu_event_and_run_sm(evt);
+    EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientRebootDone);
+    // The reboot info should now be cleared.
+    EXPECT_EQ(client_update_reboot_info.magic, 0);
+    EXPECT_EQ(client_update_reboot_info.host_node_id, 0);
+    EXPECT_EQ(client_update_reboot_info.major, 0);
+    EXPECT_EQ(client_update_reboot_info.minor, 0);
+    EXPECT_EQ(client_update_reboot_info.gitSHA, 0);
+    EXPECT_EQ(bm_dfu_client_set_confirmed_fake.call_count, 1);
+    EXPECT_EQ(bm_dfu_client_confirm_enable_fake.call_count = 1);
+    EXPECT_EQ(bm_dfu_client_confirm_enable_fake.arg0_val, true);
+}
