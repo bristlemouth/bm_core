@@ -48,6 +48,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(bm_common)
 
+# Update all submodules recursively
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)
+
 set(COMPILE_FLAGS
     -DCBOR_CUSTOM_ALLOC_INCLUDE="tinycbor_alloc.h"
     -DCBOR_PARSER_MAX_RECURSIONS=10
