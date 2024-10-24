@@ -37,7 +37,7 @@ When writing tests in your `my_file_to_test_test.cpp` our standard style is to u
 Example:
 
   ```cpp
-  TEST(MyFileToTest, my_test_name) {
+  TEST_F(MyFileToTest, my_test_name) {
     // Test code here
   }
   ```
