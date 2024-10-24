@@ -117,14 +117,20 @@ TEST_F(l2_test, init) {
 
   // Test failures
   bm_l2_deinit();
+  // Reset init count after deinit
+  init_count = 0;
   EXPECT_NE(bm_l2_init(NULL, NULL, num_devices), BmOK);
   EXPECT_NE(bm_l2_init(NULL, cfg, 0), BmOK);
   bm_task_create_fake.return_val = BmENOMEM;
   EXPECT_NE(bm_l2_init(NULL, cfg, num_devices), BmOK);
   bm_l2_deinit();
+  // Reset init count after deinit
+  init_count = 0;
   bm_queue_create_fake.return_val = NULL;
   EXPECT_NE(bm_l2_init(NULL, cfg, num_devices), BmOK);
   bm_l2_deinit();
+  // Reset init count after deinit
+  init_count = 0;
   RESET_FAKE(bm_task_create);
   RESET_FAKE(bm_queue_create);
 }
