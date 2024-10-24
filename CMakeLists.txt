@@ -89,6 +89,9 @@ else()
         src/dfu/dfu_client.c
         src/dfu/dfu_core.c
         src/dfu/dfu_host.c
+        src/echo_service.c
+        src/sys_info_service.c
+        src/config_cbor_map_service.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c
