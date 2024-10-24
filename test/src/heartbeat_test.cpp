@@ -20,18 +20,18 @@ extern "C" {
 #define gen_rnd_u16 ((uint16_t)RND.rnd_int(UINT16_MAX, 0))
 #define gen_rnd_u8 ((uint8_t)RND.rnd_int(UINT8_MAX, 0))
 
-class heartbeat_test : public ::testing::Test {
+class Heartbeat : public ::testing::Test {
 public:
   rnd_gen RND;
 
 protected:
-  heartbeat_test() {}
-  ~heartbeat_test() override {}
+  Heartbeat() {}
+  ~Heartbeat() override {}
   void SetUp() override {}
   void TearDown() override {}
 };
 
-TEST_F(heartbeat_test, bcmp_send_heartbeat) {
+TEST_F(Heartbeat, bcmp_send_heartbeat) {
   bcmp_tx_fake.return_val = BmOK;
   ASSERT_EQ(bcmp_send_heartbeat(hb_liveliness_s), BmOK);
   RESET_FAKE(bm_ticks_to_ms);
@@ -43,7 +43,7 @@ TEST_F(heartbeat_test, bcmp_send_heartbeat) {
   RESET_FAKE(bm_get_tick_count);
 }
 
-TEST_F(heartbeat_test, bcmp_process_heartbeat) {
+TEST_F(Heartbeat, bcmp_process_heartbeat) {
   ASSERT_EQ(bcmp_heartbeat_init(), BmOK);
   BcmpNeighbor neighbor = {
       NULL,

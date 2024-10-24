@@ -13,14 +13,14 @@ extern "C" {
 
 static uint32_t CALL_COUNT = 0;
 
-class neighbors_test : public ::testing::Test {
+class Neighbors : public ::testing::Test {
 public:
   rnd_gen RND;
 
 private:
 protected:
-  neighbors_test() {}
-  ~neighbors_test() override {}
+  Neighbors() {}
+  ~Neighbors() override {}
   void SetUp() override { CALL_COUNT = 0; }
   void TearDown() override {}
   static void neighbor_cb_tester(bool discovered, BcmpNeighbor *neighbor) {
@@ -30,7 +30,7 @@ protected:
   }
 };
 
-TEST_F(neighbors_test, update_neighbor) {
+TEST_F(Neighbors, update_neighbor) {
   uint64_t node_id = (uint64_t)RND.rnd_int(UINT64_MAX, UINT8_MAX);
   uint8_t neighbor_count = (uint8_t)RND.rnd_int(UINT8_MAX, 128);
   uint8_t num_neighbors = 0;
@@ -75,7 +75,7 @@ TEST_F(neighbors_test, update_neighbor) {
   RESET_FAKE(bcmp_request_info);
 }
 
-TEST_F(neighbors_test, neighbor_cb) {
+TEST_F(Neighbors, neighbor_cb) {
   bcmp_neighbor_register_discovery_callback(neighbor_cb_tester);
   bcmp_neighbor_invoke_discovery_cb(true, NULL);
   ASSERT_EQ(CALL_COUNT, 1);

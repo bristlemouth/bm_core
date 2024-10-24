@@ -17,16 +17,16 @@ using namespace testing;
 
 
 // The fixture for testing class Foo.
-class BcmpDfuTest : public ::testing::Test {
+class BcmpDfu : public ::testing::Test {
  protected:
   // You can remove any or all of the following functions if its body
   // is empty.
 
-  BcmpDfuTest() {
+  BcmpDfu() {
      // You can do set-up work for each test here.
   }
 
-  ~BcmpDfuTest() override {
+  ~BcmpDfu() override {
      // You can do clean-up work that doesn't throw exceptions here.
   }
 
@@ -87,7 +87,7 @@ class BcmpDfuTest : public ::testing::Test {
     static constexpr size_t IMAGE_SIZE = 2048;
 };
 
-TEST_F(BcmpDfuTest, InitTest)
+TEST_F(BcmpDfu, init_test)
 {
     bm_dfu_init();
     EXPECT_EQ(bm_queue_send_fake.call_count, 1);
@@ -97,7 +97,7 @@ TEST_F(BcmpDfuTest, InitTest)
     EXPECT_EQ(node_id_fake.call_count, 3);
 }
 
-TEST_F(BcmpDfuTest, processMessageTest)
+TEST_F(BcmpDfu, process_message_test)
 {
     bm_dfu_init();
     EXPECT_EQ(bm_queue_send_fake.call_count, 1);
@@ -180,7 +180,7 @@ TEST_F(BcmpDfuTest, processMessageTest)
     // free(bad_msg);
 }
 
-TEST_F(BcmpDfuTest, DfuApiTest)
+TEST_F(BcmpDfu, dfu_api_test)
 {
     bm_dfu_init();
     EXPECT_EQ(bm_queue_send_fake.call_count, 1);
@@ -215,7 +215,7 @@ TEST_F(BcmpDfuTest, DfuApiTest)
     EXPECT_EQ(bm_dfu_initiate_update(info, 0xdeadbeefbeeffeed, NULL, 1000), false);
 }
 
-TEST_F(BcmpDfuTest, clientGolden)
+TEST_F(BcmpDfu, client_golden)
 {
     git_sha_fake.return_val = 0xbaaddaad;
 
@@ -296,7 +296,7 @@ TEST_F(BcmpDfuTest, clientGolden)
     // See ClientImageHasUpdated for state behavior after reboot.
 }
 
-TEST_F(BcmpDfuTest, clientRejectSameSHA)
+TEST_F(BcmpDfu, client_reject_same_sha)
 {
     git_sha_fake.return_val = 0xdeadd00d; // same SHA
 
@@ -332,7 +332,7 @@ TEST_F(BcmpDfuTest, clientRejectSameSHA)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle); // We don't progress to RECEIVING.
 }
 
-TEST_F(BcmpDfuTest, clientForceUpdate)
+TEST_F(BcmpDfu, client_force_update)
 {
     git_sha_fake.return_val = 0xdeadd00d; // same SHA
 
@@ -370,7 +370,7 @@ TEST_F(BcmpDfuTest, clientForceUpdate)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 }
 
-TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated)
+TEST_F(BcmpDfu, client_golden_image_has_updated)
 {
     // Set the reboot info.
     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
@@ -408,7 +408,7 @@ TEST_F(BcmpDfuTest, clientGoldenImageHasUpdated)
     EXPECT_EQ(bcmp_tx_fake.arg1_val, BcmpDFUEndMessage);
 }
 
-TEST_F(BcmpDfuTest, clientResyncHost)
+TEST_F(BcmpDfu, client_resync_host)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -448,7 +448,7 @@ TEST_F(BcmpDfuTest, clientResyncHost)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateClientReceiving);
 }
 
-TEST_F(BcmpDfuTest, hostGolden)
+TEST_F(BcmpDfu, host_golden)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -553,7 +553,7 @@ TEST_F(BcmpDfuTest, hostGolden)
 
 }
 
-TEST_F(BcmpDfuTest, HostReqUpdateFail)
+TEST_F(BcmpDfu, host_req_update_fail)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -620,7 +620,7 @@ TEST_F(BcmpDfuTest, HostReqUpdateFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-TEST_F(BcmpDfuTest, HostUpdateFail)
+TEST_F(BcmpDfu, host_update_fail)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -698,7 +698,7 @@ TEST_F(BcmpDfuTest, HostUpdateFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateHostUpdate);
 }
 
-TEST_F(BcmpDfuTest, HostUpdateFailUponReboot)
+TEST_F(BcmpDfu, host_update_fail_upon_reboot)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -787,7 +787,7 @@ TEST_F(BcmpDfuTest, HostUpdateFailUponReboot)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-TEST_F(BcmpDfuTest, ClientRecvFail)
+TEST_F(BcmpDfu, client_recv_fail)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -839,7 +839,7 @@ TEST_F(BcmpDfuTest, ClientRecvFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-TEST_F(BcmpDfuTest, ClientValidateFail)
+TEST_F(BcmpDfu, client_validate_fail)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -950,7 +950,7 @@ TEST_F(BcmpDfuTest, ClientValidateFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-TEST_F(BcmpDfuTest, ChunksTooBig)
+TEST_F(BcmpDfu, chunks_too_big)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -984,7 +984,7 @@ TEST_F(BcmpDfuTest, ChunksTooBig)
     EXPECT_EQ(bm_dfu_get_error(),BmDfuErrChunkSize);
 }
 
-TEST_F(BcmpDfuTest, ClientRebootReqFail)
+TEST_F(BcmpDfu, client_reboot_req_fail)
 {
     // INIT SUCCESS
     bm_dfu_init();
@@ -1067,7 +1067,7 @@ TEST_F(BcmpDfuTest, ClientRebootReqFail)
     EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 }
 
-TEST_F(BcmpDfuTest, RebootDoneFail)
+TEST_F(BcmpDfu, reboot_done_fail)
 {
     // Set the reboot info.
     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
@@ -1119,7 +1119,7 @@ TEST_F(BcmpDfuTest, RebootDoneFail)
     EXPECT_EQ(bm_dfu_client_fail_update_and_reset_fake.call_count, 1);
 }
 
-TEST_F(BcmpDfuTest, ClientConfirmSkip)
+TEST_F(BcmpDfu, client_confirm_skip)
 {
     // The config should be 0 to enable the "skip" feature. So this needs to return false
     bm_dfu_client_confirm_is_enabled_fake.return_val = false;
