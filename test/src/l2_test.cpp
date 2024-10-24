@@ -121,6 +121,7 @@ TEST_F(l2_test, init) {
   EXPECT_NE(bm_l2_init(NULL, cfg, 0), BmOK);
   bm_task_create_fake.return_val = BmENOMEM;
   EXPECT_NE(bm_l2_init(NULL, cfg, num_devices), BmOK);
+  bm_l2_deinit();
   bm_queue_create_fake.return_val = NULL;
   EXPECT_NE(bm_l2_init(NULL, cfg, num_devices), BmOK);
   bm_l2_deinit();
