@@ -48,6 +48,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(bm_common)
 
+# Update all submodules recursively
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)
+
 set(COMPILE_FLAGS
     -DCBOR_CUSTOM_ALLOC_INCLUDE="tinycbor_alloc.h"
     -DCBOR_PARSER_MAX_RECURSIONS=10
@@ -79,11 +85,14 @@ else()
         src/info.c
         src/neighbors.c
         src/l2.c
+        src/middleware.c
         src/packet.c
         src/ping.c
+        src/pubsub.c
         src/resource_discovery.c
         src/time.c
         src/topology.c
+        src/cbor_service_helper.c
         src/dfu/dfu_client.c
         src/dfu/dfu_core.c
         src/dfu/dfu_host.c
@@ -93,6 +102,21 @@ else()
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborerrorstrings.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborvalidation.c
     )
+
+    # Ensure integrator called the functions necessary to configure bristlemouth
+    set(ERROR_MESSAGE "")
+    if("${BM_IP_STACK}" STREQUAL "" OR NOT BM_IP_INCLUDES)
+        set(ERROR_MESSAGE "IP Stack")
+    endif()
+    if("${BM_OS}" STREQUAL "" OR NOT BM_OS_INCLUDES)
+        set(ERROR_MESSAGE "Operating System")
+    endif()
+    if (NOT "${ERROR_MESSAGE}" STREQUAL "")
+        message(FATAL_ERROR "The ${ERROR_MESSAGE} must be chosen in order to\
+        build the application. To see how this is configured, please visit:\
+        https://bristlemouth.github.io/bm_core/usage.html#build-system-integration"
+        )
+    endif()
     append_platform_file(SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR})
     append_platform_file(SOURCES ${BM_OS} ${bm_common_SOURCE_DIR})
     include_directories(

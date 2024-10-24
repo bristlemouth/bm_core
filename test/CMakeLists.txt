@@ -77,13 +77,6 @@ function(create_gtest test_name  srcs)
     )
 endfunction()
 
-# Dummy variable for unit tests that require no source files
-set(DUMMY src)
-
-set (SRCS
-    ${BM_COMMON_SOURCE_DIR}/util.c
-)
-
 # PACKET TESTS
 set (PACKET_SRCS
     # File we're testing
@@ -214,11 +207,6 @@ set (DFU_SRCS
     ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc16.c
     ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc32.c
     ${BM_COMMON_SOURCE_DIR}/lib_state_machine.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
 
     # Stubs
     ${BM_COMMON_STUBS_DIR}/bm_os.c
@@ -259,3 +247,22 @@ set (TOPOLOGY_SRCS
     ${STUB_DIR}/neighbors_stub.c
 )
 create_gtest("topology" "${TOPOLOGY_SRCS}")
+
+# CBOR SERVICE HELPER TESTS
+set (CBOR_SEVICE_HELPER_SRCS
+    # File we're testing
+    ${SRC_DIR}/cbor_service_helper.c
+
+    # Supporting Files
+    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc32.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
+
+    # Stubs
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+)
+create_gtest("cbor_service_helper" "${CBOR_SEVICE_HELPER_SRCS}")
