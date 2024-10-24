@@ -16,14 +16,14 @@ extern "C" {
 
 static int CB_COUNT;
 
-class info_test : public ::testing::Test {
+class Info : public ::testing::Test {
 public:
   rnd_gen RND;
 
 private:
 protected:
-  info_test() {}
-  ~info_test() override {}
+  Info() {}
+  ~Info() override {}
   void SetUp() override { CB_COUNT = 0; }
   void TearDown() override {}
   static void request_info_cb_test(void *arg) {
@@ -32,7 +32,7 @@ protected:
   };
 };
 
-TEST_F(info_test, request_info) {
+TEST_F(Info, request_info) {
   uint64_t target = (uint64_t)RND.rnd_int(UINT64_MAX, 1);
   uint32_t addr = (uint32_t)RND.rnd_int(UINT32_MAX, 0);
   BcmpProcessData data;

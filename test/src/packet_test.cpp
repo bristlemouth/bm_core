@@ -24,7 +24,7 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpProcessData);
 
 static rnd_gen RND;
 
-class packet_test : public ::testing::Test {
+class Packet : public ::testing::Test {
 public:
   typedef struct {
     uint8_t *payload;
@@ -35,8 +35,8 @@ public:
   size_t test_payload_size;
 
 protected:
-  packet_test() {}
-  ~packet_test() override {}
+  Packet() {}
+  ~Packet() override {}
   static void *get_data(void *payload) {
     PacketTestData *ret = (PacketTestData *)payload;
     return (void *)ret->payload;
@@ -132,7 +132,7 @@ protected:
           serializes the message, ensures the payload matches this random
           message and the header populates the correct type of message
  */
-TEST_F(packet_test, serialize) {
+TEST_F(Packet, serialize) {
   PacketTestData data;
   data.payload = test_payload;
   RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
@@ -164,7 +164,7 @@ TEST_F(packet_test, serialize) {
           actually been called, as well as ensuring the data to the
           callback message is what was generated
  */
-TEST_F(packet_test, process) {
+TEST_F(Packet, process) {
   PacketTestData data;
   BcmpHeader header;
   data.payload = test_payload;
@@ -195,14 +195,14 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_info, BcmpProcessData);
 
 /*!
  @brief Test Sequence Requests
- 
+
  @details Tests a sequence request of a message with and without a
           callback function to ensure that items are added to the
           linked list properly and removed from the linked list.
           This ensures the callback function is getting called the
           expected number of times for both cases mentioned above.
  */
-TEST_F(packet_test, sequence_request) {
+TEST_F(Packet, sequence_request) {
   BcmpPacketCfg request_neighbor_info_packet = {
       false,
       true,
@@ -293,7 +293,7 @@ TEST_F(packet_test, sequence_request) {
   packet_remove(BcmpNeighborProtoReplyMessage);
 }
 
-TEST_F(packet_test, sequence_reply) {
+TEST_F(Packet, sequence_reply) {
   BcmpPacketCfg reply_neighbor_info_packet = {
       true,
       false,

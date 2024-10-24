@@ -16,14 +16,14 @@ extern "C" {
 
 static uint32_t CALL_COUNT = 0;
 
-class resource_discovery_test : public ::testing::Test {
+class ResourceDiscovery : public ::testing::Test {
 public:
   rnd_gen RND;
 
 private:
 protected:
-  resource_discovery_test() {}
-  ~resource_discovery_test() override {}
+  ResourceDiscovery() {}
+  ~ResourceDiscovery() override {}
   void SetUp() override { CALL_COUNT = 0; }
   void TearDown() override {}
   static void resource_discovery_cb(void *arg) {
@@ -32,7 +32,7 @@ protected:
   }
 };
 
-TEST_F(resource_discovery_test, resource_process_request) {
+TEST_F(ResourceDiscovery, resource_process_request) {
   BcmpResourceTableRequest request = {(uint64_t)RND.rnd_int(UINT64_MAX, 1)};
   BcmpProcessData data = {0};
   data.payload = (uint8_t *)&request;
@@ -91,7 +91,7 @@ TEST_F(resource_discovery_test, resource_process_request) {
   packet_cleanup();
 }
 
-TEST_F(resource_discovery_test, resource_process_reply) {
+TEST_F(ResourceDiscovery, resource_process_reply) {
   const char *resources_pub[] = {
       "bcmp/resource/pub1", "bcmp/resource/pub2", "bcmp/resource/pub3",
       "bcmp/resource/pub4", "bcmp/resource/pub5", "bcmp/resource/pub6",
@@ -193,7 +193,7 @@ TEST_F(resource_discovery_test, resource_process_reply) {
   free(reply);
 }
 
-TEST_F(resource_discovery_test, resource_adding_getting) {
+TEST_F(ResourceDiscovery, resource_adding_getting) {
   bool found = false;
   uint16_t num_resources = 0;
   const char *resources_pub[] = {

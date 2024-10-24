@@ -1,4 +1,4 @@
-#include "helpers.hpp"
+#include <helpers.hpp>
 #include <gtest/gtest.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -28,7 +28,7 @@ struct L2Meta {
 #error "num_devices must divide evenly into num_port"
 #endif
 
-class l2_test : public ::testing::Test {
+class L2 : public ::testing::Test {
 public:
   rnd_gen RND;
   static struct L2Meta META[num_devices];
@@ -75,8 +75,8 @@ public:
 
 private:
 protected:
-  l2_test() {}
-  ~l2_test() override {}
+  L2() {}
+  ~L2() override {}
 
   /*!
     @brief Create a configured number of devices and initialize driver
@@ -101,10 +101,10 @@ protected:
   void TearDown() override { bm_l2_deinit(); }
 };
 
-struct L2Meta l2_test::META[num_devices] = {};
-uint8_t l2_test::init_count;
+struct L2Meta L2::META[num_devices] = {};
+uint8_t L2::init_count;
 
-TEST_F(l2_test, init) {
+TEST_F(L2, init) {
   BmNetDevCfg cfg[num_devices];
   for (uint8_t i = 0; i < num_devices; i++) {
     cfg[i].device_handle = (void *)RND.rnd_int(UINT64_MAX, UINT32_MAX);
@@ -117,13 +117,20 @@ TEST_F(l2_test, init) {
 
   // Test failures
   bm_l2_deinit();
+  // Reset init count after deinit
+  init_count = 0;
   EXPECT_NE(bm_l2_init(NULL, NULL, num_devices), BmOK);
   EXPECT_NE(bm_l2_init(NULL, cfg, 0), BmOK);
   bm_task_create_fake.return_val = BmENOMEM;
   EXPECT_NE(bm_l2_init(NULL, cfg, num_devices), BmOK);
+  bm_l2_deinit();
+  // Reset init count after deinit
+  init_count = 0;
   bm_queue_create_fake.return_val = NULL;
   EXPECT_NE(bm_l2_init(NULL, cfg, num_devices), BmOK);
   bm_l2_deinit();
+  // Reset init count after deinit
+  init_count = 0;
   RESET_FAKE(bm_task_create);
   RESET_FAKE(bm_queue_create);
 }
@@ -131,7 +138,7 @@ TEST_F(l2_test, init) {
 /*!
   @brief Test the transmission wrapper of L2
 */
-TEST_F(l2_test, link_output) {
+TEST_F(L2, link_output) {
   uint16_t size = RND.rnd_int(UINT16_MAX, UINT8_MAX);
   uint8_t *buf = (uint8_t *)bm_malloc(size);
 
@@ -166,7 +173,7 @@ TEST_F(l2_test, link_output) {
 /*!
  @brief Get number of ports and devices configured for L2
 */
-TEST_F(l2_test, num_devices_ports) {
+TEST_F(L2, num_devices_ports) {
   EXPECT_EQ(bm_l2_get_num_ports(), num_port);
   EXPECT_EQ(bm_l2_get_num_devices(), num_devices);
 }
@@ -174,7 +181,7 @@ TEST_F(l2_test, num_devices_ports) {
 /*!
  @brief Get the device handle of all devices configured for L2
 */
-TEST_F(l2_test, get_device_handle) {
+TEST_F(L2, get_device_handle) {
   void *handle = NULL;
   uint32_t start_port_idx = 0;
   for (uint8_t i = 0; i < num_devices; i++) {
@@ -194,7 +201,7 @@ TEST_F(l2_test, get_device_handle) {
 /*!
   @brief Test setting the power (on/off) of the all devices
 */
-TEST_F(l2_test, set_power) {
+TEST_F(L2, set_power) {
   for (uint8_t i = 0; i < num_devices; i++) {
     EXPECT_EQ(bm_l2_netif_set_power(META[i].device_handle, true), BmOK);
     EXPECT_EQ(bm_l2_netif_set_power(META[i].device_handle, false), BmOK);
@@ -207,7 +214,7 @@ TEST_F(l2_test, set_power) {
 /*!
  @brief Test the callbacks initialized by the L2 interface
 */
-TEST_F(l2_test, test_callbacks) {
+TEST_F(L2, test_callbacks) {
   uint16_t size = RND.rnd_int(UINT16_MAX, UINT8_MAX);
   uint8_t *buf = (uint8_t *)bm_malloc(size);
   RND.rnd_array(buf, size);
@@ -249,6 +256,6 @@ TEST_F(l2_test, test_callbacks) {
           API in the thread is unreachable and therefore unable to disable
           the port
 */
-TEST_F(l2_test, port_state) {
+TEST_F(L2, port_state) {
   bm_l2_get_port_state(RND.rnd_int(port_per_device, 1));
 }
