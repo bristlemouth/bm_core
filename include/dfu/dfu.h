@@ -111,7 +111,7 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num);
 void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code);
 void bm_dfu_send_heartbeat(uint64_t dst_node_id);
 
-void bm_dfu_init();
+void bm_dfu_init(void);
 void bm_dfu_process_message(uint8_t *buf, size_t len);
 bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
                             UpdateFinishCb update_finish_callback, uint32_t timeoutMs);
