@@ -32,6 +32,15 @@ Create a new test file in the `test/src` directory.
 Name your test such that it is the file being tested with `_test` appended to the end. For example, if you are testing `my_file_to_test.c`, name your test file `my_file_to_test_test.cpp`.
 
 Reference the Google Test documentation for how to write tests using Google Test or use the existing tests as examples.
+When writing tests in your `my_file_to_test_test.cpp` our standard style is to use UpperCamelCase for the test suite name and lower_snake_case for the test name.
+
+Example:
+
+  ```cpp
+  TEST(MyFileToTest, my_test_name) {
+    // Test code here
+  }
+  ```
 
 
 Once you have created your new testing file you need to add it to the end of the `CMakeLists.txt` file in this directory.
