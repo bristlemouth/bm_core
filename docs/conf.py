@@ -44,3 +44,4 @@ html_theme_options = {
 html_logo = 'logo.png'
 html_scaled_image_link = False
 html_favicon = 'favicon.ico'
+toc_object_entries = False
