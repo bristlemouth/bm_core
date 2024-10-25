@@ -70,7 +70,6 @@ enum BmDfuEvtType {
   DfuEventBootComplete,
 };
 
-typedef bool (*BcmpDfuTxFunc)(BcmpMessageType type, uint8_t *buff, uint16_t len);
 typedef void (*UpdateFinishCb)(bool success, BmDfuErr error, uint64_t node_id);
 
 typedef struct {
@@ -95,12 +94,11 @@ typedef struct __attribute__((__packed__)) {
   uint32_t gitSHA;
 } ReboootClientUpdateInfo;
 
-// TODO - remove this if we no longer need it, or just leave it
-#ifndef CI_TEST
+#ifndef ENABLE_TESTING
 extern ReboootClientUpdateInfo client_update_reboot_info __attribute__((section(".noinit")));
-#else // CI_TEST
+#else // ENABLE_TESTING
 extern ReboootClientUpdateInfo client_update_reboot_info;
-#endif // CI_TEST
+#endif // ENABLE_TESTING
 
 BmQueue bm_dfu_get_event_queue(void);
 BmDfuEvent bm_dfu_get_current_event(void);
@@ -113,7 +111,7 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num);
 void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code);
 void bm_dfu_send_heartbeat(uint64_t dst_node_id);
 
-void bm_dfu_init(BcmpDfuTxFunc bcmp_dfu_tx);
+void bm_dfu_init(void);
 void bm_dfu_process_message(uint8_t *buf, size_t len);
 bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
                             UpdateFinishCb update_finish_callback, uint32_t timeoutMs);
@@ -121,11 +119,11 @@ bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
 /*!
  * UNIT TEST FUNCTIONS BELOW HERE
  */
-#ifdef CI_TEST
+#ifdef ENABLE_TESTING
 LibSmContext *bm_dfu_test_get_sm_ctx(void);
 void bm_dfu_test_set_dfu_event_and_run_sm(BmDfuEvent evt);
-void bm_dfu_test_set_client_fa(const struct flash_area *fa);
-#endif //CI_TEST
+void bm_dfu_test_set_client_fa(void *fa);
+#endif //ENABLE_TESTING
 
 #ifdef __cplusplus
 }

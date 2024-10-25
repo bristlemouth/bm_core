@@ -10,6 +10,7 @@ extern "C" {
 #include "mock_bm_ip.h"
 #include "mock_bm_os.h"
 #include "mock_config.h"
+#include "mock_dfu.h"
 #include "mock_heartbeat.h"
 #include "mock_info.h"
 #include "mock_neighbors.h"
@@ -20,25 +21,26 @@ extern "C" {
 #include "mock_topology.h"
 }
 
-class bcmp_test : public ::testing::Test {
+class Bcmp : public ::testing::Test {
 public:
   rnd_gen RND;
 
 protected:
-  bcmp_test() {}
-  ~bcmp_test() override {}
+  Bcmp() {}
+  ~Bcmp() override {}
   void SetUp() override {}
   void TearDown() override {}
 
   static BmErr bcmp_tx_fake_cb(uint8_t *payload) { return BmOK; }
 };
 
-TEST_F(bcmp_test, init) {
+TEST_F(Bcmp, init) {
   // Test success
   bm_task_create_fake.return_val = BmOK;
   ASSERT_EQ(bcmp_init(), BmOK);
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);
+  ASSERT_EQ(bm_dfu_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_topology_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_device_info_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_resource_discovery_init_fake.call_count, 1);
@@ -47,6 +49,7 @@ TEST_F(bcmp_test, init) {
 
   RESET_FAKE(bcmp_heartbeat_init);
   RESET_FAKE(ping_init);
+  RESET_FAKE(bm_dfu_init);
   RESET_FAKE(bcmp_topology_init);
   RESET_FAKE(bcmp_device_info_init);
   RESET_FAKE(bcmp_resource_discovery_init);
@@ -58,6 +61,7 @@ TEST_F(bcmp_test, init) {
   ASSERT_EQ(bcmp_init(), BmENOMEM);
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);
+  ASSERT_EQ(bm_dfu_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_topology_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_device_info_init_fake.call_count, 1);
   ASSERT_EQ(bcmp_resource_discovery_init_fake.call_count, 1);
@@ -65,7 +69,7 @@ TEST_F(bcmp_test, init) {
   ASSERT_EQ(time_init_fake.call_count, 1);
 }
 
-TEST_F(bcmp_test, bcmp_tx) {
+TEST_F(Bcmp, bcmp_tx) {
   const uint32_t dst = RND.rnd_int(UINT32_MAX, 1);
   const uint16_t size = RND.rnd_int(max_payload_len, UINT8_MAX);
   BcmpMessageType type = (BcmpMessageType)RND.rnd_int(UINT8_MAX, 0);
@@ -122,7 +126,7 @@ TEST_F(bcmp_test, bcmp_tx) {
   bm_free(data);
 }
 
-TEST_F(bcmp_test, bcmp_ll_forward) {
+TEST_F(Bcmp, bcmp_ll_forward) {
   BcmpHeader header = {};
   const uint16_t size = RND.rnd_int(max_payload_len, UINT8_MAX);
   uint8_t *data = (uint8_t *)bm_malloc(size);
@@ -163,7 +167,7 @@ TEST_F(bcmp_test, bcmp_ll_forward) {
   bm_free(data);
 }
 
-TEST_F(bcmp_test, bcmp_link_change) {
+TEST_F(Bcmp, bcmp_link_change) {
   bcmp_link_change(1, false);
 
   // Ensure heartbeat is sent on link change

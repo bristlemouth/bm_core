@@ -13,19 +13,19 @@ extern "C" {
 #include "mock_packet.h"
 }
 
-class ping_test : public ::testing::Test {
+class Ping : public ::testing::Test {
 public:
   rnd_gen RND;
 
 private:
 protected:
-  ping_test() {}
-  ~ping_test() override {}
+  Ping() {}
+  ~Ping() override {}
   void SetUp() override {}
   void TearDown() override {}
 };
 
-TEST_F(ping_test, request_ping) {
+TEST_F(Ping, request_ping) {
   BcmpEchoRequest request = {
       (uint64_t)RND.rnd_int(UINT64_MAX, UINT8_MAX),
       (uint16_t)RND.rnd_int(UINT16_MAX, UINT8_MAX),
@@ -68,7 +68,7 @@ TEST_F(ping_test, request_ping) {
   packet_cleanup();
 }
 
-TEST_F(ping_test, reply_ping) {
+TEST_F(Ping, reply_ping) {
   const char *str = "Ping Test String";
   BcmpEchoReply *reply =
       (BcmpEchoReply *)bm_malloc(sizeof(BcmpEchoRequest) + strlen(str));

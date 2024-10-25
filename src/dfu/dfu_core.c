@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include "bcmp.h"
 #include "bm_os.h"
 #include "dfu.h"
 #include "dfu_client.h"
@@ -17,15 +18,14 @@ typedef struct dfu_core_ctx_t {
     BmDfuErr error;
     uint64_t self_node_id;
     uint64_t client_node_id;
-    BcmpDfuTxFunc bcmp_dfu_tx;
     UpdateFinishCb update_finish_callback;
 } dfu_core_ctx_t;
 
-#ifndef CI_TEST
+#ifndef ENABLE_TESTING
 ReboootClientUpdateInfo client_update_reboot_info __attribute__((section(".noinit")));
-#else // CI_TEST
+#else // ENABLE_TESTING
 ReboootClientUpdateInfo client_update_reboot_info;
-#endif // CI_TEST
+#endif // ENABLE_TESTING
 
 static dfu_core_ctx_t dfu_ctx;
 
@@ -420,7 +420,7 @@ void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code) {
     ack_msg.ack.addresses.src_node_id = dfu_ctx.self_node_id;
     ack_msg.header.frame_type = BcmpDFUAckMessage;
 
-    if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(ack_msg.header.frame_type), (uint8_t*)(&ack_msg), sizeof(ack_msg))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(ack_msg.header.frame_type), (uint8_t*)(&ack_msg), sizeof(ack_msg), 0, NULL)){
         printf("Message %d sent \n",ack_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",ack_msg.header.frame_type);
@@ -445,7 +445,7 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num)
     chunk_req_msg.chunk_req.addresses.dst_node_id = dst_node_id;
     chunk_req_msg.header.frame_type = BcmpDFUPayloadReqMessage;
 
-    if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(chunk_req_msg.header.frame_type), (uint8_t*)(&chunk_req_msg), sizeof(chunk_req_msg))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(chunk_req_msg.header.frame_type), (uint8_t*)(&chunk_req_msg), sizeof(chunk_req_msg), 0, NULL)){
         printf("Message %d sent \n", chunk_req_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n", chunk_req_msg.header.frame_type);
@@ -471,7 +471,7 @@ void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code)
     update_end_msg.result.addresses.src_node_id = dfu_ctx.self_node_id;
     update_end_msg.header.frame_type = BcmpDFUEndMessage;
 
-    if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(update_end_msg.header.frame_type), (uint8_t*)(&update_end_msg), sizeof(update_end_msg))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(update_end_msg.header.frame_type), (uint8_t*)(&update_end_msg), sizeof(update_end_msg), 0, NULL)){
         printf("Message %d sent \n",update_end_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",update_end_msg.header.frame_type);
@@ -491,7 +491,7 @@ void bm_dfu_send_heartbeat(uint64_t dst_node_id) {
     heartbeat_msg.addr.src_node_id = dfu_ctx.self_node_id;
     heartbeat_msg.header.frame_type = BcmpDFUHeartbeatMessage;
 
-    if(dfu_ctx.bcmp_dfu_tx((BcmpMessageType)(heartbeat_msg.header.frame_type), (uint8_t*)(&heartbeat_msg), sizeof(heartbeat_msg))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(heartbeat_msg.header.frame_type), (uint8_t*)(&heartbeat_msg), sizeof(heartbeat_msg), 0, NULL)){
         printf("Message %d sent \n",heartbeat_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",heartbeat_msg.header.frame_type);
@@ -499,7 +499,8 @@ void bm_dfu_send_heartbeat(uint64_t dst_node_id) {
 }
 
 /* This thread consumes events from the event queue and progresses the state machine */
-static void bm_dfu_event_thread(void*) {
+static void bm_dfu_event_thread(void* parameters) {
+    (void) parameters;
     printf("BM DFU Subsystem thread started\n");
 
     while (1) {
@@ -529,9 +530,7 @@ static BmErr dfu_copy_and_process_message(BcmpProcessData data) {
   return err;
 }
 
-void bm_dfu_init(BcmpDfuTxFunc bcmp_dfu_tx) {
-    // configASSERT(bcmp_dfu_tx);
-    dfu_ctx.bcmp_dfu_tx = bcmp_dfu_tx;
+void bm_dfu_init(void) {
     BmDfuEvent evt;
     BmErr retval;
 
@@ -549,14 +548,13 @@ void bm_dfu_init(BcmpDfuTxFunc bcmp_dfu_tx) {
     dfu_event_queue = bm_queue_create( 5, sizeof(BmDfuEvent));
     // configASSERT(dfu_event_queue);
 
-    bm_dfu_client_init(bcmp_dfu_tx);
-    bm_dfu_host_init(bcmp_dfu_tx);
+    bm_dfu_client_init();
+    bm_dfu_host_init();
 
     evt.type = DfuEventInitSuccess;
     evt.buf = NULL;
     evt.len = 0;
 
-    // TODO - figure out how where it is best to define the priority... in bm_os.h?
     retval = bm_task_create(bm_dfu_event_thread,
                        "DFU Event",
                        1024,
@@ -641,13 +639,13 @@ BmDfuErr bm_dfu_get_error(void) {
 /*!
  * UNIT TEST FUNCTIONS BELOW HERE
  */
-#ifdef CI_TEST
+#ifdef ENABLE_TESTING
 LibSmContext* bm_dfu_test_get_sm_ctx(void) {
     return &dfu_ctx.sm_ctx;
 }
 
 void bm_dfu_test_set_dfu_event_and_run_sm(BmDfuEvent evt) {
     memcpy(&dfu_ctx.current_event, &evt, sizeof(BmDfuEvent));
-    lib_sm_run(dfu_ctx.sm_ctx);
+    lib_sm_run(&dfu_ctx.sm_ctx);
 }
-#endif //CI_TEST
+#endif //ENABLE_TESTING

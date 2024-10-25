@@ -151,13 +151,13 @@ bool bcmp_get_config(const char *key, size_t key_len, uint8_t *value,
   return rval;
 }
 
-class cbor_service_helper_test : public ::testing::Test {
+class CborServiceHelper : public ::testing::Test {
 protected:
-  cbor_service_helper_test() {}
-  ~cbor_service_helper_test() override {}
+  CborServiceHelper() {}
+  ~CborServiceHelper() override {}
 };
 
-TEST_F(cbor_service_helper_test, cbor_map) {
+TEST_F(CborServiceHelper, cbor_map) {
   CborEncoder encoder;
   uint8_t cbor_buf[BM_MAX_STR_LEN_BYTES];
 

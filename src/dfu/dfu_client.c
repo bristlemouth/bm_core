@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include "bcmp.h"
 #include "bm_os.h"
 #include "dfu.h"
 #include "dfu_client.h"
@@ -30,7 +31,6 @@ typedef struct DfuClientCtx {
     BmTimer chunk_timer;
     uint64_t self_node_id;
     uint64_t host_node_id;
-    BcmpDfuTxFunc bcmp_dfu_tx;
 } DfuClientCtx;
 
 static DfuClientCtx CLIENT_CTX;
@@ -62,7 +62,7 @@ static void bm_dfu_client_abort(BmDfuErr err) {
     abort_msg.err.err_code = err;
     abort_msg.err.success = 0;
     abort_msg.header.frame_type = BcmpDFUAbortMessage;
-    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(abort_msg.header.frame_type), (uint8_t*)(&abort_msg), sizeof(abort_msg))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(abort_msg.header.frame_type), (uint8_t*)(&abort_msg), sizeof(abort_msg), 0, NULL)){
         printf("Message %d sent \n",abort_msg.header.frame_type);
     } else {
         printf("Failed to send message %d\n",abort_msg.header.frame_type);
@@ -74,7 +74,7 @@ static void bm_dfu_client_send_reboot_request() {
     reboot_req.addr.src_node_id = CLIENT_CTX.self_node_id;
     reboot_req.addr.dst_node_id = CLIENT_CTX.host_node_id;
     reboot_req.header.frame_type = BcmpDFURebootReqMessage;
-    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(BcmpDfuRebootReq))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(reboot_req.header.frame_type), (uint8_t*)(&reboot_req), sizeof(BcmpDfuRebootReq), 0, NULL)){
         printf("Message %d sent \n",reboot_req.header.frame_type);
     } else {
         printf("Failed to send message %d\n",reboot_req.header.frame_type);
@@ -86,7 +86,7 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
     boot_compl.addr.src_node_id = CLIENT_CTX.self_node_id;
     boot_compl.addr.dst_node_id = host_node_id;
     boot_compl.header.frame_type = BcmpDFUBootCompleteMessage;
-    if(CLIENT_CTX.bcmp_dfu_tx((BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(BcmpDfuBootComplete))){
+    if(bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(boot_compl.header.frame_type), (uint8_t*)(&boot_compl), sizeof(BcmpDfuBootComplete), 0, NULL)){
         printf("Message %d sent \n",boot_compl.header.frame_type);
     } else {
         printf("Failed to send message %d\n",boot_compl.header.frame_type);
@@ -242,7 +242,7 @@ void bm_dfu_client_process_update_request(void) {
         CLIENT_CTX.crc16 = img_info_evt->img_info.crc16;
 
             /* Open the secondary image slot */
-        if (bm_dfu_client_flash_area_open(&CLIENT_CTX.fa) != 0) {
+        if (bm_dfu_client_flash_area_open(&CLIENT_CTX.fa) != BmOK) {
             bm_dfu_send_ack(CLIENT_CTX.host_node_id, 0, BmDfuErrFlashAccess);
             bm_dfu_client_transition_to_error(BmDfuErrFlashAccess);
         } else {
@@ -250,7 +250,7 @@ void bm_dfu_client_process_update_request(void) {
             if(bm_dfu_client_flash_area_get_size(CLIENT_CTX.fa) > image_size) {
                 /* Erase memory in secondary image slot */
                 printf("Erasing flash\n");
-                if(bm_dfu_client_flash_area_erase(CLIENT_CTX.fa, 0, bm_dfu_client_flash_area_get_size(CLIENT_CTX.fa)) != 0) {
+                if(bm_dfu_client_flash_area_erase(CLIENT_CTX.fa, 0, bm_dfu_client_flash_area_get_size(CLIENT_CTX.fa)) != BmOK) {
                     printf("Error erasing flash!\n");
                     bm_dfu_send_ack(CLIENT_CTX.host_node_id, 0, BmDfuErrFlashAccess);
                     bm_dfu_client_transition_to_error(BmDfuErrFlashAccess);
@@ -547,10 +547,8 @@ void s_client_update_done_run(void) {
  * @return none
  */
 
-void bm_dfu_client_init(BcmpDfuTxFunc bcmp_dfu_tx)
+void bm_dfu_client_init(void)
 {
-    // configASSERT(bcmp_dfu_tx);
-    CLIENT_CTX.bcmp_dfu_tx = bcmp_dfu_tx;
     int32_t tmr_id = 0;
 
     /* Store relevant variables */
@@ -584,8 +582,8 @@ bool bm_dfu_client_host_node_valid(uint64_t host_node_id) {
 /*!
  * UNIT TEST FUNCTIONS BELOW HERE
  */
-#ifdef CI_TEST
-void bm_dfu_test_set_client_fa(const struct flash_area *fa) {
+#ifdef ENABLE_TESTING
+void bm_dfu_test_set_client_fa(void *fa) {
     CLIENT_CTX.fa = fa;
 }
-#endif //CI_TEST
+#endif //ENABLE_TESTING

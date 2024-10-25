@@ -13,7 +13,7 @@ extern "C" {
 
 DEFINE_FFF_GLOBALS;
 
-class topology_test : public ::testing::Test {
+class Topology : public ::testing::Test {
 public:
   rnd_gen RND;
   static void topology_cb(networkTopology_t *topology) {}
@@ -24,8 +24,8 @@ protected:
   NeighborTableEntry *entries;
   uint32_t size_info;
   uint32_t size_reply;
-  topology_test() {}
-  ~topology_test() override {}
+  Topology() {}
+  ~Topology() override {}
   void SetUp() override {}
   void TearDown() override {}
 
@@ -124,7 +124,7 @@ protected:
 /*!
   @brief Test starting a topology request
 */
-TEST_F(topology_test, topology_start) {
+TEST_F(Topology, topology_start) {
   // Test passing conditions
   bm_task_create_fake.return_val = BmOK;
   bm_queue_create_fake.return_val = (void *)RND.rnd_int(UINT32_MAX, UINT16_MAX);
@@ -145,7 +145,7 @@ TEST_F(topology_test, topology_start) {
   @brief Test obtaining a neighbor table with a request call and processing
          the reply callback
 */
-TEST_F(topology_test, request_table) {
+TEST_F(Topology, request_table) {
   uint32_t addr = (uint32_t)RND.rnd_int(UINT32_MAX, UINT16_MAX);
   uint64_t node_id = (uint64_t)RND.rnd_int(UINT32_MAX, UINT16_MAX);
   BcmpNeighborTableReply *reply;
@@ -184,7 +184,7 @@ TEST_F(topology_test, request_table) {
 /*!
  @brief Test request message callback
 */
-TEST_F(topology_test, request_reply) {
+TEST_F(Topology, request_reply) {
   BcmpNeighborTableRequest request = {
       (uint64_t)RND.rnd_int(UINT32_MAX, UINT16_MAX),
   };
@@ -212,7 +212,7 @@ TEST_F(topology_test, request_reply) {
 /*!
  @brief Test printing the nodes of a topology
  */
-TEST_F(topology_test, print) {
+TEST_F(Topology, print) {
   networkTopology_t topology;
   topology_builder_helper(&topology);
 
