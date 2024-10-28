@@ -266,3 +266,86 @@ set (CBOR_SEVICE_HELPER_SRCS
     ${BM_COMMON_STUBS_DIR}/bm_os.c
 )
 create_gtest("cbor_service_helper" "${CBOR_SEVICE_HELPER_SRCS}")
+
+# ECHO SERVICE TESTS
+set (ECHO_SEVICE_SRCS
+    # File we're testing
+    ${SRC_DIR}/echo_service.c
+
+    # Supporting Files
+    ${BM_COMMON_SOURCE_DIR}/util.c
+
+    # Stubs
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_service_stub.c
+    ${STUB_DIR}/device_stub.c
+)
+create_gtest("echo_service" "${ECHO_SEVICE_SRCS}")
+
+# CONFIG CBOR MAP TESTS
+set (CONFIG_CBOR_MAP_SRCS
+    # File we're testing
+    ${SRC_DIR}/config_cbor_map_service.c
+
+    # Supporting Files
+    ${BM_COMMON_SOURCE_DIR}/util.c
+
+    # Stubs
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_service_stub.c
+    ${STUB_DIR}/bm_service_request_stub.c
+    ${STUB_DIR}/config_cbor_map_srv_reply_msg_stub.c
+    ${STUB_DIR}/config_cbor_map_srv_request_msg_stub.c
+    ${STUB_DIR}/cbor_service_helper_stub.c
+    ${STUB_DIR}/device_stub.c
+)
+create_gtest("config_cbor_map_service" "${CONFIG_CBOR_MAP_SRCS}")
+
+# SYS INFO SERVICE TESTS
+set (SYS_INFO_SERVICE_SRCS
+    # File we're testing
+    ${SRC_DIR}/sys_info_service.c
+
+    # Supporting Files
+    ${BM_COMMON_SOURCE_DIR}/util.c
+
+    # Stubs
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_service_stub.c
+    ${STUB_DIR}/bm_service_request_stub.c
+    ${STUB_DIR}/sys_info_svc_reply_msg_stub.c
+    ${STUB_DIR}/cbor_service_helper_stub.c
+    ${STUB_DIR}/device_stub.c
+)
+create_gtest("sys_info_service" "${SYS_INFO_SERVICE_SRCS}")
+
+# BM SERVICE TESTS
+set (BM_SERVICE_SRCS
+    # File we're testing
+    ${SRC_DIR}/bm_service.c
+
+    # Supporting Files
+    ${BM_COMMON_SOURCE_DIR}/util.c
+
+    # Stubs
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_service_request_stub.c
+    ${STUB_DIR}/pubsub_stub.c
+)
+create_gtest("bm_service" "${BM_SERVICE_SRCS}")
+
+# BM SERVICE REQUEST TESTS
+set (BM_SERVICE_REQUEST_SRCS
+    # File we're testing
+    ${SRC_DIR}/bm_service_request.c
+
+    # Supporting Files
+    ${BM_COMMON_SOURCE_DIR}/util.c
+
+    # Stubs
+    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${BM_COMMON_STUBS_DIR}/timer_callback_handler_stub.c
+    ${STUB_DIR}/pubsub_stub.c
+    ${STUB_DIR}/device_stub.c
+)
+create_gtest("bm_service_request" "${BM_SERVICE_REQUEST_SRCS}")

@@ -65,6 +65,7 @@ include_directories(
     ${bm_common_SOURCE_DIR}/include
     ${bm_common_SOURCE_DIR}/third_party/crc
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
+    bm_common_messages
 )
 
 
@@ -77,6 +78,10 @@ if(ENABLE_TESTING)
     enable_testing()
     add_subdirectory("test")
 else()
+    file(GLOB BM_COMMON_MESSAGES_SOURCES
+        bm_common_messages/*.c
+        bm_common_messages/*.cpp
+    )
     set(SOURCES
         src/bcmp.c
         src/config.c
@@ -106,6 +111,7 @@ else()
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborerrorstrings.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborvalidation.c
+        ${BM_COMMON_MESSAGES_SOURCES}
     )
 
     # Ensure integrator called the functions necessary to configure bristlemouth
