@@ -26,21 +26,47 @@ FAKE_VOID_FUNC(netif_power_cb, bool);
 FAKE_VOID_FUNC(link_changed_on_port, uint8_t, bool);
 FAKE_VALUE_FUNC(size_t, received_data_on_port, uint8_t, uint8_t *, size_t);
 
+static NetworkInterfaceCallbacks const callbacks = {
+    .power = netif_power_cb,
+    .link_change = link_changed_on_port,
+    .receive = received_data_on_port};
+
+static NetworkInterface setup(void) {
+  static Adin2111 adin = {.device_handle = nullptr, .callbacks = &callbacks};
+
+  // We can only call adin2111_init once per execution (test suite)
+  // because the device memory in the driver is static.
+  if (adin.device_handle == nullptr) {
+    BmErr err = adin2111_init(&adin);
+
+    // It would take a lot of mocking to pretend SPI transactions work.
+    // On a real device, this should return BmOK.
+    // This unit test is slow because the call to waitDeviceReady at adi_mac.c:808
+    // waits for the full timeout of 25000 iterations.
+    EXPECT_EQ(err, BmENODEV);
+  }
+
+  return prep_adin2111_netif(&adin);
+}
+
 TEST(Adin2111, send) {
-  static NetworkInterfaceCallbacks const callbacks = {
-      .power = netif_power_cb,
-      .link_change = link_changed_on_port,
-      .receive = received_data_on_port};
-  Adin2111 adin = {.device_handle = nullptr, .callbacks = &callbacks};
-
-  // It would take a lot of mocking to pretend SPI transactions work.
-  // On a real device, this should return BmOK.
-  // This unit test is slow because the call to waitDeviceReady at adi_mac.c:808
-  // waits for the full timeout of 25000 iterations.
-  BmErr err = adin2111_init(&adin);
-  EXPECT_EQ(err, BmENODEV);
-
-  NetworkInterface netif = prep_adin2111_netif(&adin);
-  err = netif.trait->send(netif.self, (unsigned char *)"hello", 5);
+  NetworkInterface netif = setup();
+  BmErr err = netif.trait->send(netif.self, (unsigned char *)"hello", 5);
   EXPECT_EQ(err, BmOK);
+}
+
+TEST(Adin2111, enable) {
+  NetworkInterface netif = setup();
+  // Expect the same BmENODEV error as in init
+  // because init calls enable internally.
+  // On a real device, this should return BmOK,
+  // but we don't have the SPI transactions mocked.
+  BmErr err = netif.trait->enable(netif.self);
+  EXPECT_EQ(err, BmENODEV);
+}
+
+TEST(Adin2111, disable) {
+  NetworkInterface netif = setup();
+  // SEGFAULT because PHY is NULL, because no real SPI transactions
+  EXPECT_DEATH(netif.trait->disable(netif.self), "");
 }

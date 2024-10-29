@@ -31,6 +31,7 @@ set(BM_COMMON_TEST_DIR ${bm_common_SOURCE_DIR}/test)
 set(BM_COMMON_SOURCE_DIR ${bm_common_SOURCE_DIR}/src)
 set(BM_COMMON_STUBS_DIR ${bm_common_SOURCE_DIR}/test/stubs)
 set(BM_COMMON_THIRD_PARTY_DIR ${bm_common_SOURCE_DIR}/third_party)
+set(ADIN2111_DIR ${CMAKE_CURRENT_LIST_DIR}/../drivers/adin2111)
 
 include_directories(
     ${MOCK_DIR}
@@ -353,10 +354,15 @@ create_gtest("bm_service_request" "${BM_SERVICE_REQUEST_SRCS}")
 # ADIN2111 DRIVER TESTS
 add_executable(bm_adin2111_test
     src/bm_adin2111_test.cpp
+    ${ADIN2111_DIR}/bm_adin2111.c
+    ${ADIN2111_DIR}/adin2111.c
+    ${ADIN2111_DIR}/adi_fcs.c
+    ${ADIN2111_DIR}/adi_mac.c
+    ${ADIN2111_DIR}/adi_phy.c
+    ${ADIN2111_DIR}/adi_spi_oa.c
     ${bm_common_SOURCE_DIR}/src/aligned_malloc.c)
 target_include_directories(bm_adin2111_test PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/../drivers/adin2111
+    ${ADIN2111_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/../network)
 target_link_libraries(bm_adin2111_test GTest::gtest_main)
-target_link_libraries(bm_adin2111_test bmadin2111)
 gtest_discover_tests(bm_adin2111_test)

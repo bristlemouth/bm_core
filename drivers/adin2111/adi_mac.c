@@ -1116,6 +1116,12 @@ adi_eth_Result_e waitDeviceReady(adi_mac_Device_t *hDevice)
     /* Poll PHYID register to establish the device has been brought up (powered up, out of reset). */
     retryCount = 0;
     commOk = false;
+
+#ifdef ENABLE_TESTING
+    // Speed up unit tests when there's no real SPI
+    retryCount = ADI_MAC_INIT_MAX_RETRIES;
+#endif
+
     while ((!commOk) && (retryCount++ < ADI_MAC_INIT_MAX_RETRIES))
     {
         result = MAC_ReadRegister(hDevice, ADDR_MAC_PHYID, &phyId);
