@@ -1,5 +1,6 @@
 #include "messages/heartbeat.h"
 #include "bcmp.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include "messages/info.h"
 #include "messages/neighbors.h"
@@ -46,8 +47,8 @@ static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
     // Neighbor restarted, let's get additional info
     if (heartbeat->time_since_boot_us < neighbor->last_time_since_boot_us) {
       bcmp_neighbor_invoke_discovery_cb(true, neighbor);
-      printf("🏘📡 Updating neighbor info! %016" PRIx64 "\n",
-             neighbor->node_id);
+      bm_debug("🏘📡 Updating neighbor info! %016" PRIx64 "\n",
+               neighbor->node_id);
       bcmp_request_info(neighbor->info.node_id, &multicast_ll_addr, NULL);
     }
 

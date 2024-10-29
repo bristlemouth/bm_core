@@ -71,10 +71,17 @@ function(create_gtest test_name  srcs)
     )
     gtest_discover_tests(${GTEST_NAME})
     # Generate artifacts for coverage report using lcov
-    set_source_files_properties(${test_src} PROPERTIES
-        COMPILE_FLAGS
-        "-fprofile-arcs -ftest-coverage"
-    )
+    file(GLOB_RECURSE FILES "../src/*")
+    foreach(FILE ${FILES})
+        get_filename_component(FILENAME "${FILE}" NAME)
+        message(WARNING "${FILENAME}")
+        if (FILENAME MATCHES ".*${test_name}.*")
+            set_source_files_properties(${FILE} PROPERTIES
+                COMPILE_FLAGS
+                "-fprofile-arcs -ftest-coverage"
+            )
+        endif()
+    endforeach()
 endfunction()
 
 # PACKET TESTS

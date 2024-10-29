@@ -1,5 +1,6 @@
 #include "messages/ping.h"
 #include "bcmp.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include "device.h"
 #include "packet.h"
@@ -57,8 +58,8 @@ BmErr bcmp_send_ping_request(uint64_t node, const void *addr,
       EXPECTED_PAYLOAD_LEN = payload_len;
     }
 
-    printf("PING (%016" PRIx64 "): %" PRIu16 " data bytes\n",
-           echo_req->target_node_id, echo_req->payload_len);
+    bm_debug("PING (%016" PRIx64 "): %" PRIu16 " data bytes\n",
+             echo_req->target_node_id, echo_req->payload_len);
 
     err = bcmp_tx(addr, BcmpEchoRequestMessage, (uint8_t *)echo_req, echo_len,
                   0, NULL);
@@ -136,10 +137,10 @@ static BmErr bcmp_process_ping_reply(BcmpProcessData data) {
     }
 
     uint64_t diff = bm_ticks_to_ms(bm_get_tick_count()) - PING_REQUEST_TIMEOUT;
-    printf("🏓 %" PRIu16 " bytes from %016" PRIx64 " bcmp_seq=%" PRIu32
-           " time=%" PRIu64 " ms\n",
-           echo_reply->payload_len, echo_reply->node_id, echo_reply->seq_num,
-           diff);
+    bm_debug("🏓 %" PRIu16 " bytes from %016" PRIx64 " bcmp_seq=%" PRIu32
+             " time=%" PRIu64 " ms\n",
+             echo_reply->payload_len, echo_reply->node_id, echo_reply->seq_num,
+             diff);
     err = BmOK;
   }
 

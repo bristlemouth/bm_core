@@ -1,6 +1,5 @@
-#include <string.h>
-
 #include "bcmp.h"
+#include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "dfu/dfu.h"
@@ -14,6 +13,7 @@
 #include "messages/topology.h"
 #include "packet.h"
 #include "util.h"
+#include <string.h>
 
 #define bcmp_evt_queue_len 32
 
@@ -139,16 +139,16 @@ BmErr bcmp_tx(const void *dst, BcmpMessageType type, uint8_t *data,
       if (err == BmOK) {
         err = bm_ip_tx_perform(buf, NULL);
         if (err != BmOK) {
-          printf("Error sending BMCP packet %d\n", err);
+          bm_debug("Error sending BMCP packet %d\n", err);
         }
       } else {
-        printf("Could not properly serialize message\n");
+        bm_debug("Could not properly serialize message\n");
       }
 
       bm_ip_tx_cleanup(buf);
     } else {
       err = BmENOMEM;
-      printf("Could not allocate memory for bcmp message\n");
+      bm_debug("Could not allocate memory for bcmp message\n");
     }
   }
 
@@ -193,7 +193,7 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
 
       err = bm_ip_tx_perform(forward, &port_specific_dst);
       if (err != BmOK) {
-        printf("Error forwarding BMCP packet link-locally: %d\n", err);
+        bm_debug("Error forwarding BMCP packet link-locally: %d\n", err);
       }
       bm_ip_tx_cleanup(forward);
     } else {

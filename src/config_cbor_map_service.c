@@ -1,4 +1,5 @@
 #include "config_cbor_map_service.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include "bm_service.h"
 #include "cbor_service_helper.h"
@@ -18,12 +19,12 @@ static bool config_map_service_handler(size_t service_strlen,
   bool rval = false;
   uint8_t *cbor_map = NULL;
   BmConfigPartition config;
-  printf("Data received on config map service\n");
+  bm_debug("Data received on config map service\n");
   do {
     ConfigCborMapRequestData req;
     if (config_cbor_map_request_decode(&req, req_data, req_data_len) !=
         CborNoError) {
-      printf("Failed to decode config map request\n");
+      bm_debug("Failed to decode config map request\n");
       break;
     }
     if (req.partition_id == CONFIG_CBOR_MAP_PARTITION_ID_SYS) {
@@ -34,7 +35,7 @@ static bool config_map_service_handler(size_t service_strlen,
       config = BM_CFG_PARTITION_USER;
     } else {
       config = (BmConfigPartition)0xFF;
-      printf("Invalid partition id\n");
+      bm_debug("Invalid partition id\n");
     }
     size_t buffer_size;
     if (config != (BmConfigPartition)0xFF) {
@@ -49,7 +50,7 @@ static bool config_map_service_handler(size_t service_strlen,
     size_t encoded_len;
     if (config_cbor_map_reply_encode(&reply, reply_data, *buffer_len,
                                      &encoded_len) != CborNoError) {
-      printf("Failed to encode config map reply\n");
+      bm_debug("Failed to encode config map reply\n");
       break;
     }
     *buffer_len = encoded_len;
@@ -70,7 +71,7 @@ void config_cbor_map_service_init(void) {
     bm_service_register(topic_strlen, config_map_str,
                         config_map_service_handler);
   } else {
-    printf("Failed to register sys info service\n");
+    bm_debug("Failed to register sys info service\n");
   }
 }
 
@@ -92,7 +93,7 @@ bool config_cbor_map_service_request(uint64_t target_node_id,
       size_t req_data_len;
       if (config_cbor_map_request_encode(&req, cbor_buffer, cbor_buflen,
                                          &req_data_len) != CborNoError) {
-        printf("Failed to encode config map request\n");
+        bm_debug("Failed to encode config map request\n");
       } else if (target_service_strlen > 0) {
         rval =
             bm_service_request(target_service_strlen, target_service_str,

@@ -1,5 +1,6 @@
 #include "middleware.h"
 #include "bcmp.h"
+#include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "pubsub.h"
@@ -46,7 +47,7 @@ static BmErr middleware_net_rx_cb(void *buf, uint64_t node_id, uint32_t size) {
       bm_udp_cleanup(buf);
     }
   } else {
-    printf("Error. Message has no payload buf\n");
+    bm_debug("Error. Message has no payload buf\n");
   }
 
   return err;
@@ -143,7 +144,7 @@ BmErr bm_middleware_local_pub(void *buf, uint32_t size) {
     // add one to reference count since we'll be using it in two places
     err = bm_udp_reference_update(buf);
     if (bm_queue_send(CTX.net_queue, &queue_item, 0) != BmOK) {
-      printf("Error sending to Queue\n");
+      bm_debug("Error sending to Queue\n");
       bm_udp_cleanup(buf);
       err = BmENODEV;
     }

@@ -1,4 +1,5 @@
 #include "l2.h"
+#include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "util.h"
@@ -148,7 +149,7 @@ static BmErr bm_l2_rx(void *device_handle, uint8_t *payload,
     err = BmOK;
     rx_evt.buf = bm_l2_new(payload_len);
     if (rx_evt.buf == NULL) {
-      printf("No mem for buf in RX pathway\n");
+      bm_debug("No mem for buf in RX pathway\n");
       err = BmENOMEM;
     } else {
       memcpy(bm_l2_get_payload(rx_evt.buf), payload, payload_len);
@@ -185,7 +186,7 @@ static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
             CTX.devices[idx].start_port_idx);
         mask_idx += CTX.devices[idx].cfg.num_ports;
         if (retv != BmOK) {
-          printf("Failed to submit TX buffer\n");
+          bm_debug("Failed to submit TX buffer\n");
         }
       }
     }
@@ -279,7 +280,7 @@ static void handle_link_change(const void *device_handle, uint8_t port,
         if (CTX.link_change_cb) {
           CTX.link_change_cb(port_idx, state);
         } else {
-          printf("port%u %s\n", port_idx, state ? "up" : "down");
+          bm_debug("port%u %s\n", port_idx, state ? "up" : "down");
         }
       }
     }
@@ -299,10 +300,10 @@ static void bm_l2_process_netif_evt(const void *device_handle, bool on) {
         if (CTX.devices[device].cfg.power_cb(
                 (void *)device_handle, on, CTX.devices[device].cfg.port_mask) ==
             0) {
-          printf("Powered device %d : %s\n", device, (on) ? "on" : "off");
+          bm_debug("Powered device %d : %s\n", device, (on) ? "on" : "off");
         } else {
-          printf("Failed to power device %d : %s\n", device,
-                 (on) ? "on" : "off");
+          bm_debug("Failed to power device %d : %s\n", device,
+                   (on) ? "on" : "off");
         }
       }
     }
@@ -409,7 +410,7 @@ BmErr bm_l2_init(BmL2ModuleLinkChangeCb cb, const BmNetDevCfg *cfg,
             (CTX.devices[idx].num_ports_mask << CTX.available_port_mask_idx);
         CTX.available_port_mask_idx += CTX.devices[idx].cfg.num_ports;
       } else {
-        printf("Failed to init module at index %d\n", idx);
+        bm_debug("Failed to init module at index %d\n", idx);
       }
     }
     CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
