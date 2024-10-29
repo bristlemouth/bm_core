@@ -355,7 +355,8 @@ add_executable(bm_adin2111_test
     src/bm_adin2111_test.cpp
     ${bm_common_SOURCE_DIR}/src/aligned_malloc.c)
 target_include_directories(bm_adin2111_test PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/../drivers/adin2111)
+    ${CMAKE_CURRENT_LIST_DIR}/../drivers/adin2111
+    ${CMAKE_CURRENT_LIST_DIR}/../network)
 target_link_libraries(bm_adin2111_test GTest::gtest_main)
 target_link_libraries(bm_adin2111_test bmadin2111)
 gtest_discover_tests(bm_adin2111_test)

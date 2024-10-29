@@ -1,5 +1,6 @@
 include_directories(
     .
+    ${CMAKE_CURRENT_LIST_DIR}/../../network
     ${bm_common_SOURCE_DIR}/include
 )
 
