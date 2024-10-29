@@ -3,6 +3,10 @@
 #include "util.h"
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 BmErr bcmp_config_init(void);
 bool bcmp_config_get(uint64_t target_node_id, BmConfigPartition partition,
                      size_t key_len, const char *key, BmErr *err,
@@ -22,3 +26,7 @@ bool bcmp_config_status_response(uint64_t target_node_id,
 bool bcmp_config_del_key(uint64_t target_node_id, BmConfigPartition partition,
                          size_t key_len, const char *key,
                          BmErr (*reply_cb)(uint8_t *));
+
+#ifdef __cplusplus
+}
+#endif

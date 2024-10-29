@@ -1,6 +1,10 @@
 #include "messages.h"
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NEIGHBOR_UUID_LEN (12)
 
 typedef struct BmNeighbor {
@@ -50,3 +54,7 @@ BcmpNeighbor *bcmp_update_neighbor(uint64_t node_id, uint8_t port);
 void bcmp_neighbor_foreach(NeighborCallback cb);
 void bcmp_neighbor_register_discovery_callback(NeighborDiscoveryCallback cb);
 void bcmp_neighbor_invoke_discovery_cb(bool discovered, BcmpNeighbor *neighbor);
+
+#ifdef __cplusplus
+}
+#endif

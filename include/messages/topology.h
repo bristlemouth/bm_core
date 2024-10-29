@@ -3,6 +3,10 @@
 #include "messages.h"
 #include "util.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct NeighborTableEntry {
   struct NeighborTableEntry *prevNode;
   struct NeighborTableEntry *nextNode;
@@ -25,17 +29,11 @@ typedef struct {
   NeighborTableEntry *cursor;
   uint8_t length;
   int16_t index;
-} networkTopology_t;
+} NetworkTopology;
 
-typedef enum {
-  TOPO_ASSEMBLED = 0,
-  TOPO_LOADING,
-  TOPO_EMPTY,
-} networkTopology_status_t;
+typedef void (*BcmpTopoCb)(NetworkTopology *network_topology);
 
-typedef void (*BcmpTopoCb)(networkTopology_t *network_topology);
-
-void network_topology_print(networkTopology_t *network_topology);
+void network_topology_print(NetworkTopology *network_topology);
 
 // Neighbor table request defines, used to create the network topology
 BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr);
@@ -43,3 +41,7 @@ BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr);
 BmErr bcmp_topology_init(void);
 // Topology task defines
 BmErr bcmp_topology_start(const BcmpTopoCb callback);
+
+#ifdef __cplusplus
+}
+#endif
