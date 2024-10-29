@@ -34,7 +34,7 @@ typedef struct {
 typedef struct {
   BmQueue evt_queue;
   BmTimer topo_timer;
-  networkTopology_t *network_topology;
+  NetworkTopology *network_topology;
   bool in_progress;
   BcmpTopoCb callback;
 } BcmpTopoContext;
@@ -48,33 +48,33 @@ static bool INSERT_BEFORE = false;
 
 static void bcmp_topology_thread(void *parameters);
 static void free_neighbor_table_entry(NeighborTableEntry **entry);
-static networkTopology_t *new_network_topology(void);
-static void free_network_topology(networkTopology_t **network_topology);
-static void network_topology_clear(networkTopology_t *network_topology);
-static void network_topology_move_to_front(networkTopology_t *network_topology);
-static void network_topology_move_prev(networkTopology_t *network_topology);
-static void network_topology_move_next(networkTopology_t *network_topology);
-static void network_topology_prepend(networkTopology_t *network_topology,
+static NetworkTopology *new_network_topology(void);
+static void free_network_topology(NetworkTopology **network_topology);
+static void network_topology_clear(NetworkTopology *network_topology);
+static void network_topology_move_to_front(NetworkTopology *network_topology);
+static void network_topology_move_prev(NetworkTopology *network_topology);
+static void network_topology_move_next(NetworkTopology *network_topology);
+static void network_topology_prepend(NetworkTopology *network_topology,
                                      NeighborTableEntry *entry);
-static void network_topology_append(networkTopology_t *network_topology,
+static void network_topology_append(NetworkTopology *network_topology,
                                     NeighborTableEntry *entry);
-static void network_topology_insert_after(networkTopology_t *network_topology,
+static void network_topology_insert_after(NetworkTopology *network_topology,
                                           NeighborTableEntry *entry);
-static void network_topology_insert_before(networkTopology_t *network_topology,
+static void network_topology_insert_before(NetworkTopology *network_topology,
                                            NeighborTableEntry *entry);
-static void network_topology_delete_back(networkTopology_t *network_topology);
+static void network_topology_delete_back(NetworkTopology *network_topology);
 static void
-network_topology_increment_port_count(networkTopology_t *network_topology);
+network_topology_increment_port_count(NetworkTopology *network_topology);
 static uint8_t
-network_topology_get_port_count(networkTopology_t *network_topology);
-static bool network_topology_is_root(networkTopology_t *network_topology);
+network_topology_get_port_count(NetworkTopology *network_topology);
+static bool network_topology_is_root(NetworkTopology *network_topology);
 static bool
-network_topology_node_id_in_topology(networkTopology_t *network_topology,
+network_topology_node_id_in_topology(NetworkTopology *network_topology,
                                      uint64_t node_id);
 static uint64_t
-network_topology_check_neighbor_node_ids(networkTopology_t *network_topology);
+network_topology_check_neighbor_node_ids(NetworkTopology *network_topology);
 static bool
-network_topology_check_all_ports_explored(networkTopology_t *network_topology);
+network_topology_check_all_ports_explored(NetworkTopology *network_topology);
 
 // assembles the neighbor info list
 static void assemble_neighbor_info_list(BcmpNeighborInfo *neighbor_info_list,
@@ -484,15 +484,15 @@ static void free_neighbor_table_entry(NeighborTableEntry **entry) {
     *entry = NULL;
   }
 }
-static networkTopology_t *new_network_topology(void) {
-  networkTopology_t *network_topology =
-      (networkTopology_t *)bm_malloc(sizeof(networkTopology_t));
-  memset(network_topology, 0, sizeof(networkTopology_t));
+static NetworkTopology *new_network_topology(void) {
+  NetworkTopology *network_topology =
+      (NetworkTopology *)bm_malloc(sizeof(NetworkTopology));
+  memset(network_topology, 0, sizeof(NetworkTopology));
   network_topology->index = -1;
   return network_topology;
 }
 
-static void free_network_topology(networkTopology_t **network_topology) {
+static void free_network_topology(NetworkTopology **network_topology) {
   if (network_topology != NULL && *network_topology != NULL) {
     network_topology_clear(*network_topology);
     bm_free(*network_topology);
@@ -500,7 +500,7 @@ static void free_network_topology(networkTopology_t **network_topology) {
   }
 }
 
-static void network_topology_clear(networkTopology_t *network_topology) {
+static void network_topology_clear(NetworkTopology *network_topology) {
   if (network_topology) {
     while (network_topology->length) {
       network_topology_delete_back(network_topology);
@@ -509,14 +509,14 @@ static void network_topology_clear(networkTopology_t *network_topology) {
 }
 
 static void
-network_topology_move_to_front(networkTopology_t *network_topology) {
+network_topology_move_to_front(NetworkTopology *network_topology) {
   if (network_topology && network_topology->length) {
     network_topology->cursor = network_topology->front;
     network_topology->index = 0;
   }
 }
 
-static void network_topology_move_prev(networkTopology_t *network_topology) {
+static void network_topology_move_prev(NetworkTopology *network_topology) {
   if (network_topology) {
     if (network_topology->index > 0) {
       network_topology->cursor = network_topology->cursor->prevNode;
@@ -525,7 +525,7 @@ static void network_topology_move_prev(networkTopology_t *network_topology) {
   }
 }
 
-static void network_topology_move_next(networkTopology_t *network_topology) {
+static void network_topology_move_next(NetworkTopology *network_topology) {
   if (network_topology) {
     if (network_topology->index < network_topology->length - 1) {
       network_topology->cursor = network_topology->cursor->nextNode;
@@ -535,7 +535,7 @@ static void network_topology_move_next(networkTopology_t *network_topology) {
 }
 
 // insert at the front
-static void network_topology_prepend(networkTopology_t *network_topology,
+static void network_topology_prepend(NetworkTopology *network_topology,
                                      NeighborTableEntry *entry) {
   if (network_topology && entry) {
     if (network_topology->length == 0) {
@@ -557,7 +557,7 @@ static void network_topology_prepend(networkTopology_t *network_topology,
 }
 
 // insert at the end
-static void network_topology_append(networkTopology_t *network_topology,
+static void network_topology_append(NetworkTopology *network_topology,
                                     NeighborTableEntry *entry) {
   if (network_topology && entry) {
     if (network_topology->length == 0) {
@@ -576,7 +576,7 @@ static void network_topology_append(networkTopology_t *network_topology,
 }
 
 // insert after the cursor entry
-static void network_topology_insert_after(networkTopology_t *network_topology,
+static void network_topology_insert_after(NetworkTopology *network_topology,
                                           NeighborTableEntry *entry) {
   if (network_topology && entry) {
     if (network_topology->length == 0) {
@@ -594,7 +594,7 @@ static void network_topology_insert_after(networkTopology_t *network_topology,
 }
 
 // insert before the cursor entry
-static void network_topology_insert_before(networkTopology_t *network_topology,
+static void network_topology_insert_before(NetworkTopology *network_topology,
                                            NeighborTableEntry *entry) {
   if (network_topology && entry) {
     if (network_topology->length == 0) {
@@ -613,7 +613,7 @@ static void network_topology_insert_before(networkTopology_t *network_topology,
 }
 
 // delete the last entry
-static void network_topology_delete_back(networkTopology_t *network_topology) {
+static void network_topology_delete_back(NetworkTopology *network_topology) {
   NeighborTableEntry *temp_entry = NULL;
 
   if (network_topology && network_topology->length) {
@@ -636,21 +636,21 @@ static void network_topology_delete_back(networkTopology_t *network_topology) {
 }
 
 static void
-network_topology_increment_port_count(networkTopology_t *network_topology) {
+network_topology_increment_port_count(NetworkTopology *network_topology) {
   if (network_topology && network_topology->cursor) {
     network_topology->cursor->ports_explored++;
   }
 }
 
 static uint8_t
-network_topology_get_port_count(networkTopology_t *network_topology) {
+network_topology_get_port_count(NetworkTopology *network_topology) {
   if (network_topology && network_topology->cursor) {
     return network_topology->cursor->ports_explored;
   }
   return -1;
 }
 
-static bool network_topology_is_root(networkTopology_t *network_topology) {
+static bool network_topology_is_root(NetworkTopology *network_topology) {
   if (network_topology && network_topology->cursor) {
     return network_topology->cursor->is_root;
   }
@@ -658,7 +658,7 @@ static bool network_topology_is_root(networkTopology_t *network_topology) {
 }
 
 static bool
-network_topology_node_id_in_topology(networkTopology_t *network_topology,
+network_topology_node_id_in_topology(NetworkTopology *network_topology,
                                      uint64_t node_id) {
   NeighborTableEntry *temp_entry;
   if (network_topology) {
@@ -673,7 +673,7 @@ network_topology_node_id_in_topology(networkTopology_t *network_topology,
 }
 
 static uint64_t
-network_topology_check_neighbor_node_ids(networkTopology_t *network_topology) {
+network_topology_check_neighbor_node_ids(NetworkTopology *network_topology) {
   if (network_topology) {
     for (uint8_t neighbors_count = 0;
          neighbors_count <
@@ -693,7 +693,7 @@ network_topology_check_neighbor_node_ids(networkTopology_t *network_topology) {
 }
 
 static bool
-network_topology_check_all_ports_explored(networkTopology_t *network_topology) {
+network_topology_check_all_ports_explored(NetworkTopology *network_topology) {
   if (network_topology) {
     uint16_t neighbors_online_count = 0;
     NeighborTableEntry *cursor_entry = network_topology->cursor;
@@ -725,7 +725,7 @@ network_topology_check_all_ports_explored(networkTopology_t *network_topology) {
   return false;
 }
 
-void network_topology_print(networkTopology_t *network_topology) {
+void network_topology_print(NetworkTopology *network_topology) {
   if (network_topology) {
     NeighborTableEntry *temp_entry;
     for (temp_entry = network_topology->front; temp_entry != NULL;

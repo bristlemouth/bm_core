@@ -16,7 +16,7 @@ DEFINE_FFF_GLOBALS;
 class Topology : public ::testing::Test {
 public:
   rnd_gen RND;
-  static void topology_cb(networkTopology_t *topology) {}
+  static void topology_cb(NetworkTopology *topology) {}
 
 private:
 protected:
@@ -37,7 +37,7 @@ protected:
 
     @param topology pointer to topology struct
   */
-  void topology_builder_helper(networkTopology_t *topology) {
+  void topology_builder_helper(NetworkTopology *topology) {
     uint8_t num_nodes = (uint8_t)RND.rnd_int(UINT8_MAX, UINT8_MAX / 2);
     uint8_t num_ports = 2;
     size_info =
@@ -149,7 +149,7 @@ TEST_F(Topology, request_table) {
   uint32_t addr = (uint32_t)RND.rnd_int(UINT32_MAX, UINT16_MAX);
   uint64_t node_id = (uint64_t)RND.rnd_int(UINT32_MAX, UINT16_MAX);
   BcmpNeighborTableReply *reply;
-  networkTopology_t topology;
+  NetworkTopology topology;
   BcmpProcessData data;
   topology_builder_helper(&topology);
   reply = (BcmpNeighborTableReply *)bm_malloc(sizeof(BcmpNeighborTableReply) +
@@ -213,7 +213,7 @@ TEST_F(Topology, request_reply) {
  @brief Test printing the nodes of a topology
  */
 TEST_F(Topology, print) {
-  networkTopology_t topology;
+  NetworkTopology topology;
   topology_builder_helper(&topology);
 
   network_topology_print(&topology);

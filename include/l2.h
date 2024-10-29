@@ -3,6 +3,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef bm_l2_tx_task_priority
 #define bm_l2_tx_task_priority 7
 #endif
@@ -45,3 +49,7 @@ uint8_t bm_l2_get_num_ports(void);
 uint8_t bm_l2_get_num_devices(void);
 bool bm_l2_get_port_state(uint8_t port);
 BmErr bm_l2_netif_set_power(void *device_handle, bool on);
+
+#ifdef __cplusplus
+}
+#endif
