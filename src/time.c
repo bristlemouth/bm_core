@@ -1,11 +1,11 @@
-#include <inttypes.h>
 #include "messages/time.h"
-#include "util.h"
 #include "bcmp.h"
+#include "bm_config.h"
 #include "bm_rtc.h"
 #include "device.h"
 #include "packet.h"
-
+#include "util.h"
+#include <inttypes.h>
 
 /*!
  @brief Sets the system time on a target node.
@@ -25,7 +25,7 @@ BmErr bcmp_time_set_time(uint64_t target_node_id, uint64_t utc_us) {
   set_msg.utc_time_us = utc_us;
   if (bcmp_tx(&multicast_ll_addr, BcmpSystemTimeSetMessage, (uint8_t *)&set_msg,
               sizeof(set_msg), 0, NULL) != BmOK) {
-    printf("Failed to send system time response\n");
+    bm_debug("Failed to send system time response\n");
     err = BmEINVAL;
   }
   return err;
@@ -45,9 +45,9 @@ BmErr bcmp_time_get_time(uint64_t target_node_id) {
   BcmpSystemTimeRequest get_msg;
   get_msg.header.target_node_id = target_node_id;
   get_msg.header.source_node_id = source_node_id;
-  if (bcmp_tx(&multicast_ll_addr, BcmpSystemTimeRequestMessage, (uint8_t *)&get_msg,
-              sizeof(get_msg), 0, NULL) != BmOK) {
-    printf("Failed to send system time response\n");
+  if (bcmp_tx(&multicast_ll_addr, BcmpSystemTimeRequestMessage,
+              (uint8_t *)&get_msg, sizeof(get_msg), 0, NULL) != BmOK) {
+    bm_debug("Failed to send system time response\n");
     err = BmEINVAL;
   }
   return err;
@@ -67,9 +67,9 @@ static void bcmp_time_send_response(uint64_t target_node_id, uint64_t utc_us) {
   response.header.target_node_id = target_node_id;
   response.header.source_node_id = source_node_id;
   response.utc_time_us = utc_us;
-  if (bcmp_tx(&multicast_ll_addr, BcmpSystemTimeResponseMessage, (uint8_t *)&response,
-              sizeof(response), 0, NULL) != BmOK) {
-    printf("Failed to send system time response\n");
+  if (bcmp_tx(&multicast_ll_addr, BcmpSystemTimeResponseMessage,
+              (uint8_t *)&response, sizeof(response), 0, NULL) != BmOK) {
+    bm_debug("Failed to send system time response\n");
   }
 }
 
@@ -80,14 +80,16 @@ static void bcmp_time_send_response(uint64_t target_node_id, uint64_t utc_us) {
 
   @param[in] msg The system time request message to process.
 */
-static void bcmp_time_process_time_request_msg(const BcmpSystemTimeRequest *msg) {
+static void
+bcmp_time_process_time_request_msg(const BcmpSystemTimeRequest *msg) {
   do {
     RtcTimeAndDate time;
     if (bm_rtc_get(&time) != BmOK) {
-      printf("Failed to get time.\n");
+      bm_debug("Failed to get time.\n");
       break;
     }
-    bcmp_time_send_response(msg->header.source_node_id, bm_rtc_get_micro_seconds(&time));
+    bcmp_time_send_response(msg->header.source_node_id,
+                            bm_rtc_get_micro_seconds(&time));
   } while (0);
 }
 
@@ -111,7 +113,7 @@ static void bcmp_time_process_time_set_msg(const BcmpSystemTimeSet *msg) {
   if (bm_rtc_set(&time) == BmOK) {
     bcmp_time_send_response(msg->header.source_node_id, msg->utc_time_us);
   } else {
-    printf("Failed to set time.\n");
+    bm_debug("Failed to set time.\n");
   }
 }
 
@@ -130,7 +132,8 @@ static BmErr bcmp_time_process_time_message(BcmpProcessData data) {
   do {
     BcmpMessageType time_msg_type = (BcmpMessageType)data.header->type;
     BcmpSystemTimeHeader *msg_header = (BcmpSystemTimeHeader *)data.payload;
-    if (msg_header->target_node_id != node_id() && msg_header->target_node_id != 0) {
+    if (msg_header->target_node_id != node_id() &&
+        msg_header->target_node_id != 0) {
       should_forward = true;
       break;
     }
@@ -150,9 +153,11 @@ static BmErr bcmp_time_process_time_message(BcmpProcessData data) {
       BcmpSystemTimeResponse *resp = (BcmpSystemTimeResponse *)data.payload;
       UtcDateTime datetime;
       date_time_from_utc(resp->utc_time_us, &datetime);
-      printf("Response time node ID: %016" PRIx64 " to %d/%d/%d %02d:%02d:%02d.%03" PRIu32 "\n",
-             resp->header.source_node_id, datetime.year, datetime.month, datetime.day,
-             datetime.hour, datetime.min, datetime.sec, datetime.usec);
+      bm_debug("Response time node ID: %016" PRIx64
+               " to %d/%d/%d %02d:%02d:%02d.%03" PRIu32 "\n",
+               resp->header.source_node_id, datetime.year, datetime.month,
+               datetime.day, datetime.hour, datetime.min, datetime.sec,
+               datetime.usec);
       err = BmOK;
       break;
     }
@@ -162,13 +167,14 @@ static BmErr bcmp_time_process_time_message(BcmpProcessData data) {
       break;
     }
     default:
-      printf("Invalid system time msg\n");
+      bm_debug("Invalid system time msg\n");
       break;
     }
   } while (0);
 
   if (should_forward) {
-    err = bcmp_ll_forward(data.header, data.payload, data.size, data.ingress_port);
+    err = bcmp_ll_forward(data.header, data.payload, data.size,
+                          data.ingress_port);
   }
 
   return err;

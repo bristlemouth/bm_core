@@ -1,4 +1,5 @@
 #include "echo_service.h"
+#include "bm_config.h"
 #include "bm_service.h"
 #include "bm_service_common.h"
 #include "device.h"
@@ -30,7 +31,8 @@ static bool echo_service_handler(size_t service_strlen, const char *service,
                                  size_t req_data_len, uint8_t *req_data,
                                  size_t *buffer_len, uint8_t *reply_data) {
   bool rval = true;
-  printf("Data received on service: %.*s\n", (uint32_t)service_strlen, service);
+  bm_debug("Data received on service: %.*s\n", (uint32_t)service_strlen,
+           service);
   if (*buffer_len <= MAX_BM_SERVICE_DATA_SIZE) {
     *buffer_len = req_data_len;
     memcpy(reply_data, req_data, req_data_len);
@@ -52,6 +54,6 @@ void echo_service_init(void) {
   if (topic_strlen > 0) {
     bm_service_register(topic_strlen, echo_service_str, echo_service_handler);
   } else {
-    printf("Failed to register echo service\n");
+    bm_debug("Failed to register echo service\n");
   }
 }

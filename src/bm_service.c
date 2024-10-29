@@ -1,4 +1,5 @@
 #include "bm_service.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include "bm_service_common.h"
 #include "bm_service_request.h"
@@ -172,11 +173,11 @@ static void _service_request_received_cb(uint64_t node_id, const char *topic,
             (BmServiceRequestDataHeader *)data;
         if (data_len !=
             sizeof(BmServiceRequestDataHeader) + request_header->data_size) {
-          printf("Request data length does not match header.\n");
+          bm_debug("Request data length does not match header.\n");
           break;
         }
         if (topic_len != current->service_strlen + strlen(BM_SERVICE_REQ_STR)) {
-          printf("Topic length does not match service length.\n");
+          bm_debug("Topic length does not match service length.\n");
           break;
         }
         // We found the service, make a reply buffer, and call the handler to create a reply.

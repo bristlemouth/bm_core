@@ -1,5 +1,6 @@
 #include "messages/resource_discovery.h"
 #include "bcmp.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include "device.h"
 #include "ll.h"
@@ -104,11 +105,11 @@ static BmErr bcmp_process_resource_discovery_request(BcmpProcessData data) {
   if (req->target_node_id == node_id()) {
     size_t msg_len = sizeof(BcmpResourceTableReply);
     if (!bcmp_resource_compute_list_size(PUB, &msg_len)) {
-      printf("Failed to get publishers list\n.");
+      bm_debug("Failed to get publishers list\n.");
       return err;
     }
     if (!bcmp_resource_compute_list_size(SUB, &msg_len)) {
-      printf("Failed to get subscribers list\n.");
+      bm_debug("Failed to get subscribers list\n.");
       return err;
     }
     // Create and fill the reply
@@ -118,16 +119,16 @@ static BmErr bcmp_process_resource_discovery_request(BcmpProcessData data) {
       repl->node_id = node_id();
       uint32_t data_offset = 0;
       if (!bcmp_resource_populate_msg_data(PUB, repl, &data_offset)) {
-        printf("Failed to get publishers list\n.");
+        bm_debug("Failed to get publishers list\n.");
         return err;
       }
       if (!bcmp_resource_populate_msg_data(SUB, repl, &data_offset)) {
-        printf("Failed to get publishers list\n.");
+        bm_debug("Failed to get publishers list\n.");
         return err;
       }
       if (bcmp_tx(data.dst, BcmpResourceTableReplyMessage, reply_buf, msg_len,
                   0, NULL) != BmOK) {
-        printf("Failed to send bcmp resource table reply\n");
+        bm_debug("Failed to send bcmp resource table reply\n");
       } else {
         err = BmOK;
       };
@@ -159,25 +160,25 @@ static BmErr bcmp_process_resource_discovery_reply(BcmpProcessData data) {
     if (err == BmOK && cb->cb != NULL) {
       cb->cb(repl);
     } else if (err == BmOK) {
-      printf("Node Id %016" PRIx64 " resource table:\n", src_node_id);
+      bm_debug("Node Id %016" PRIx64 " resource table:\n", src_node_id);
       uint16_t num_pubs = repl->num_pubs;
       size_t offset = 0;
-      printf("\tPublishers:\n");
+      bm_debug("\tPublishers:\n");
       while (num_pubs) {
         BcmpResource *cur_resource =
             (BcmpResource *)&repl->resource_list[offset];
-        printf("\t* %.*s\n", cur_resource->resource_len,
-               cur_resource->resource);
+        bm_debug("\t* %.*s\n", cur_resource->resource_len,
+                 cur_resource->resource);
         offset += (sizeof(BcmpResource) + cur_resource->resource_len);
         num_pubs--;
       }
       uint16_t num_subs = repl->num_subs;
-      printf("\tSubscribers:\n");
+      bm_debug("\tSubscribers:\n");
       while (num_subs) {
         BcmpResource *cur_resource =
             (BcmpResource *)&repl->resource_list[offset];
-        printf("\t* %.*s\n", cur_resource->resource_len,
-               cur_resource->resource);
+        bm_debug("\t* %.*s\n", cur_resource->resource_len,
+                 cur_resource->resource);
         offset += (sizeof(BcmpResource) + cur_resource->resource_len);
         num_subs--;
       }
@@ -345,7 +346,7 @@ BmErr bcmp_resource_discovery_send_request(uint64_t target_node_id,
   };
   if (bcmp_tx(&multicast_ll_addr, BcmpResourceTableRequestMessage,
               (uint8_t *)&req, sizeof(req), 0, NULL) != BmOK) {
-    printf("Failed to send bcmp resource table request\n");
+    bm_debug("Failed to send bcmp resource table request\n");
   } else {
     item = ll_create_item(item, &cb, sizeof(cb), target_node_id);
     if (item && ll_item_add(&RESOURCE_REQUEST_LIST, item) == BmOK) {
@@ -361,16 +362,16 @@ BmErr bcmp_resource_discovery_send_request(uint64_t target_node_id,
   @brief Print the resources in the table.
 */
 void bcmp_resource_discovery_print_resources(void) {
-  printf("Resource table:\n");
+  bm_debug("Resource table:\n");
   if (PUB_LIST.num_resources &&
       bm_semaphore_take(PUB_LIST.lock, default_resource_add_timeout_ms) ==
           BmOK) {
-    printf("\tPubs:\n");
+    bm_debug("\tPubs:\n");
     uint16_t num_items = PUB_LIST.num_resources;
     BcmpResourceNode *cur_resource_node = PUB_LIST.start;
     while (num_items && cur_resource_node) {
-      printf("\t* %.*s\n", cur_resource_node->resource->resource_len,
-             cur_resource_node->resource->resource);
+      bm_debug("\t* %.*s\n", cur_resource_node->resource->resource_len,
+               cur_resource_node->resource->resource);
       cur_resource_node = cur_resource_node->next;
       num_items--;
     }
@@ -379,12 +380,12 @@ void bcmp_resource_discovery_print_resources(void) {
   if (SUB_LIST.num_resources &&
       bm_semaphore_take(SUB_LIST.lock, default_resource_add_timeout_ms) ==
           BmOK) {
-    printf("\tSubs:\n");
+    bm_debug("\tSubs:\n");
     uint16_t num_items = SUB_LIST.num_resources;
     BcmpResourceNode *cur_resource_node = SUB_LIST.start;
     while (num_items && cur_resource_node) {
-      printf("\t* %.*s\n", cur_resource_node->resource->resource_len,
-             cur_resource_node->resource->resource);
+      bm_debug("\t* %.*s\n", cur_resource_node->resource->resource_len,
+               cur_resource_node->resource->resource);
       cur_resource_node = cur_resource_node->next;
       num_items--;
     }
@@ -403,11 +404,11 @@ BcmpResourceTableReply *bcmp_resource_discovery_get_local_resources(void) {
   size_t msg_len = sizeof(BcmpResourceTableReply);
   do {
     if (!bcmp_resource_compute_list_size(PUB, &msg_len)) {
-      printf("Failed to get publishers list\n.");
+      bm_debug("Failed to get publishers list\n.");
       break;
     }
     if (!bcmp_resource_compute_list_size(SUB, &msg_len)) {
-      printf("Failed to get subscribers list\n.");
+      bm_debug("Failed to get subscribers list\n.");
       break;
     }
     // Create and fill the reply
@@ -416,11 +417,11 @@ BcmpResourceTableReply *bcmp_resource_discovery_get_local_resources(void) {
       reply_rval->node_id = node_id();
       uint32_t data_offset = 0;
       if (!bcmp_resource_populate_msg_data(PUB, reply_rval, &data_offset)) {
-        printf("Failed to populate publishers list\n.");
+        bm_debug("Failed to populate publishers list\n.");
         break;
       }
       if (!bcmp_resource_populate_msg_data(SUB, reply_rval, &data_offset)) {
-        printf("Failed to populate publishers list\n.");
+        bm_debug("Failed to populate publishers list\n.");
         break;
       }
       success = true;

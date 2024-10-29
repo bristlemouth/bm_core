@@ -1,4 +1,5 @@
 #include "pubsub.h"
+#include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "messages/resource_discovery.h"
@@ -159,13 +160,13 @@ bool bm_sub_wl(const char *topic, uint16_t topic_len,
   } while (0);
 
   if (retv) {
-    printf("Subscribing to Topic: %.*s\n", topic_len, topic);
+    bm_debug("Subscribing to Topic: %.*s\n", topic_len, topic);
     if (bcmp_resource_discovery_add_resource(
             topic, topic_len, SUB, default_resource_add_timeout_ms) == BmOK) {
-      printf("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
+      bm_debug("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
     }
   } else {
-    printf("Unable to Subscribe to topic\n");
+    bm_debug("Unable to Subscribe to topic\n");
   }
 
   return retv;
@@ -252,9 +253,9 @@ bool bm_unsub_wl(const char *topic, uint16_t topic_len,
   } while (0);
 
   if (retv) {
-    printf("Unubscribed from Topic: %s\n", topic);
+    bm_debug("Unubscribed from Topic: %s\n", topic);
   } else {
-    printf("Unable to Unsubscribe to topic\n");
+    bm_debug("Unable to Unsubscribe to topic\n");
   }
 
   return retv;
@@ -360,11 +361,11 @@ bool bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
   } while (0);
 
   if (!retv) {
-    printf("Unable to publish to topic\n");
+    bm_debug("Unable to publish to topic\n");
   } else {
     if (bcmp_resource_discovery_add_resource(
             topic, topic_len, PUB, default_resource_add_timeout_ms) == BmOK) {
-      printf("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
+      bm_debug("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
     }
   }
 
@@ -405,7 +406,7 @@ void bm_print_subs(void) {
 
   while (node != NULL) {
     // TODO, print number of callbacks subscribed
-    printf("Node: %.*s\n", node->sub.topic_len, node->sub.topic);
+    bm_debug("Node: %.*s\n", node->sub.topic_len, node->sub.topic);
     node = node->next;
   }
 }

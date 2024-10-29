@@ -1,5 +1,6 @@
 #include "messages/config.h"
 #include "bcmp.h"
+#include "bm_config.h"
 #include "bm_configs_generic.h"
 #include "bm_os.h"
 #include "cbor.h"
@@ -173,7 +174,7 @@ static void bcmp_config_process_status_request_msg(BmConfigStatusRequest *msg,
                                   bcmp_config_needs_commit(msg->partition),
                                   num_keys, keys, &err, seq_num);
       if (err != BmOK) {
-        printf("Error processing config status request.\n");
+        bm_debug("Error processing config status request.\n");
       }
     } while (0);
   }
@@ -265,8 +266,8 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
       if (cbor_value_get_uint64(&it, &temp) != CborNoError) {
         break;
       }
-      printf("Node Id: %016" PRIx64 " Value:%" PRIu32 "\n",
-             msg->header.source_node_id, temp);
+      bm_debug("Node Id: %016" PRIx64 " Value:%" PRIu32 "\n",
+               msg->header.source_node_id, temp);
       break;
     }
     case INT32: {
@@ -274,8 +275,8 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
       if (cbor_value_get_int64(&it, &temp) != CborNoError) {
         break;
       }
-      printf("Node Id: %016" PRIx64 " Value:%" PRId64 "\n",
-             msg->header.source_node_id, temp);
+      bm_debug("Node Id: %016" PRIx64 " Value:%" PRId64 "\n",
+               msg->header.source_node_id, temp);
       break;
     }
     case FLOAT: {
@@ -283,8 +284,8 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
       if (cbor_value_get_float(&it, &temp) != CborNoError) {
         break;
       }
-      printf("Node Id: %016" PRIx64 " Value:%f\n", msg->header.source_node_id,
-             temp);
+      bm_debug("Node Id: %016" PRIx64 " Value:%f\n", msg->header.source_node_id,
+               temp);
       break;
     }
     case STR: {
@@ -300,8 +301,8 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
             break;
           }
           buffer[buffer_len] = '\0';
-          printf("Node Id: %016" PRIx64 " Value:%s\n",
-                 msg->header.source_node_id, buffer);
+          bm_debug("Node Id: %016" PRIx64 " Value:%s\n",
+                   msg->header.source_node_id, buffer);
         } while (0);
         bm_free(buffer);
       }
@@ -316,32 +317,33 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
               CborNoError) {
             break;
           }
-          printf("Node Id: %016" PRIx64 " Value: ", msg->header.source_node_id);
+          bm_debug("Node Id: %016" PRIx64 " Value: ",
+                   msg->header.source_node_id);
           for (size_t i = 0; i < buffer_len; i++) {
-            printf("0x%02x:", buffer[i]);
+            bm_debug("0x%02x:", buffer[i]);
             if (i % 8 == 0) {
-              printf("\n");
+              bm_debug("\n");
             }
           }
-          printf("\n");
+          bm_debug("\n");
         } while (0);
         bm_free(buffer);
       }
       break;
     }
     case ARRAY: {
-      printf("Node Id: %016" PRIx64 " Value: Array\n",
-             msg->header.source_node_id);
+      bm_debug("Node Id: %016" PRIx64 " Value: Array\n",
+               msg->header.source_node_id);
       size_t buffer_len = BM_MAX_CONFIG_BUFFER_SIZE_BYTES;
       uint8_t *buffer = (uint8_t *)bm_malloc(buffer_len);
       if (buffer) {
         for (size_t i = 0; i < buffer_len; i++) {
-          printf(" %02x", buffer[i]);
+          bm_debug(" %02x", buffer[i]);
           if (i % 16 == 15) {
-            printf("\n");
+            bm_debug("\n");
           }
         }
-        printf("\n");
+        bm_debug("\n");
         bm_free(buffer);
       }
       break;
@@ -408,7 +410,7 @@ static void bcmp_process_del_request_message(BmConfigDeleteKeyRequest *msg,
       if (!bcmp_config_send_del_key_response(msg->header.source_node_id,
                                              msg->partition, msg->key_length,
                                              msg->key, success, seq_num)) {
-        printf("Failed to send del key resp\n");
+        bm_debug("Failed to send del key resp\n");
       }
     } while (0);
   }
@@ -420,10 +422,10 @@ static void bcmp_process_del_response_message(BmConfigDeleteKeyResponse *msg) {
     if (key_print_buf) {
       memcpy(key_print_buf, msg->key, msg->key_length);
       key_print_buf[msg->key_length] = '\0';
-      printf("Node Id: %016" PRIx64
-             " Key Delete Response - Key: %s, Partition: %d, Success %d\n",
-             msg->header.source_node_id, key_print_buf, msg->partition,
-             msg->success);
+      bm_debug("Node Id: %016" PRIx64
+               " Key Delete Response - Key: %s, Partition: %d, Success %d\n",
+               msg->header.source_node_id, key_print_buf, msg->partition,
+               msg->success);
       bm_free(key_print_buf);
     }
   }
@@ -464,17 +466,17 @@ static BmErr bcmp_process_config_message(BcmpProcessData data) {
     }
     case BcmpConfigStatusResponseMessage: {
       BmConfigStatusResponse *msg = (BmConfigStatusResponse *)data.payload;
-      printf("Response msg -- Node Id: %016" PRIx64
-             ", Partition: %d, Commit Status: %d\n",
-             msg->header.source_node_id, msg->partition, msg->committed);
-      printf("Num Keys: %d\n", msg->num_keys);
+      bm_debug("Response msg -- Node Id: %016" PRIx64
+               ", Partition: %d, Commit Status: %d\n",
+               msg->header.source_node_id, msg->partition, msg->committed);
+      bm_debug("Num Keys: %d\n", msg->num_keys);
       BmConfigStatusKeyData *key = (BmConfigStatusKeyData *)msg->keyData;
       for (int i = 0; i < msg->num_keys; i++) {
         char *key_buf = (char *)bm_malloc(key->key_length + 1);
         if (key_buf) {
           memcpy(key_buf, key->key, key->key_length);
           key_buf[key->key_length] = '\0';
-          printf("%s\n", key_buf);
+          bm_debug("%s\n", key_buf);
           key += key->key_length + sizeof(BmConfigStatusKeyData);
           bm_free(key_buf);
         }
@@ -498,7 +500,7 @@ static BmErr bcmp_process_config_message(BcmpProcessData data) {
       break;
     }
     default:
-      printf("Invalid config msg\n");
+      bm_debug("Invalid config msg\n");
       break;
     }
   }

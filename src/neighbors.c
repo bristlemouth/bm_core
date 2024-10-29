@@ -1,4 +1,5 @@
 #include "messages/neighbors.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include "messages/info.h"
 #include <inttypes.h>
@@ -76,7 +77,7 @@ static void neighbor_check(BcmpNeighbor *neighbor) {
       !time_remaining(
           neighbor->last_heartbeat_ticks, bm_get_tick_count(),
           bm_ms_to_ticks(2 * neighbor->heartbeat_period_s * 1000))) {
-    printf("🏚  Neighbor offline :'( %016" PRIx64 "\n", neighbor->node_id);
+    bm_debug("🏚  Neighbor offline :'( %016" PRIx64 "\n", neighbor->node_id);
     bcmp_neighbor_invoke_discovery_cb(false, neighbor);
     neighbor->online = false;
   }
@@ -145,7 +146,7 @@ BcmpNeighbor *bcmp_update_neighbor(uint64_t node_id, uint8_t port) {
   BcmpNeighbor *neighbor = bcmp_find_neighbor(node_id);
 
   if (neighbor == NULL) {
-    printf("🏘  Adding new neighbor! %016" PRIx64 "\n", node_id);
+    bm_debug("🏘  Adding new neighbor! %016" PRIx64 "\n", node_id);
     neighbor = bcmp_add_neighbor(node_id, port);
     // Let's get this node's information
     bcmp_request_info(node_id, &multicast_ll_addr, NULL);
@@ -192,7 +193,7 @@ bool bcmp_remove_neighbor_from_table(BcmpNeighbor *neighbor) {
   if (neighbor) {
     // Check if we're the first in the table
     if (neighbor == NEIGHBORS) {
-      printf("First neighbor!\n");
+      bm_debug("First neighbor!\n");
       // Remove neighbor from the list
       NEIGHBORS = neighbor->next;
       rval = true;
@@ -215,7 +216,7 @@ bool bcmp_remove_neighbor_from_table(BcmpNeighbor *neighbor) {
     }
 
     if (!rval) {
-      printf("Something went wrong...\n");
+      bm_debug("Something went wrong...\n");
     }
 
     // Free the neighbor
@@ -234,20 +235,20 @@ bool bcmp_remove_neighbor_from_table(BcmpNeighbor *neighbor) {
 void bcmp_print_neighbor_info(BcmpNeighbor *neighbor) {
 
   if (neighbor) {
-    printf("Neighbor information:\n");
-    printf("Node ID: %016" PRIx64 "\n", neighbor->node_id);
-    printf("VID: %04X PID: %04X\n", neighbor->info.vendor_id,
-           neighbor->info.product_id);
-    printf("Serial number %.*s\n", 16, neighbor->info.serial_num);
-    printf("GIT SHA: %" PRIX32 "\n", neighbor->info.git_sha);
-    printf("Version: %u.%u.%u\n", neighbor->info.ver_major,
-           neighbor->info.ver_minor, neighbor->info.ver_rev);
-    printf("HW Version: %u\n", neighbor->info.ver_hw);
+    bm_debug("Neighbor information:\n");
+    bm_debug("Node ID: %016" PRIx64 "\n", neighbor->node_id);
+    bm_debug("VID: %04X PID: %04X\n", neighbor->info.vendor_id,
+             neighbor->info.product_id);
+    bm_debug("Serial number %.*s\n", 16, neighbor->info.serial_num);
+    bm_debug("GIT SHA: %" PRIX32 "\n", neighbor->info.git_sha);
+    bm_debug("Version: %u.%u.%u\n", neighbor->info.ver_major,
+             neighbor->info.ver_minor, neighbor->info.ver_rev);
+    bm_debug("HW Version: %u\n", neighbor->info.ver_hw);
     if (neighbor->version_str) {
-      printf("VersionStr: %s\n", neighbor->version_str);
+      bm_debug("VersionStr: %s\n", neighbor->version_str);
     }
     if (neighbor->device_name) {
-      printf("Device Name: %s\n", neighbor->device_name);
+      bm_debug("Device Name: %s\n", neighbor->device_name);
     }
   }
 }

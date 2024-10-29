@@ -3,15 +3,15 @@ extern "C" {
 #endif
 
 #include "bm_service_request.h"
-
+#include "bm_config.h"
+#include "bm_os.h"
 #include "bm_service_common.h"
+#include "device.h"
 #include "pubsub.h"
 #include "timer_callback_handler.h"
+#include "util.h"
 #include <inttypes.h>
 #include <string.h>
-#include "bm_os.h"
-#include "device.h"
-#include "util.h"
 
 #define DefaultServiceRequestTimeoutMs 100
 #define ExpiryTimerPeriodMs 500
@@ -37,15 +37,19 @@ static BmServiceRequestContext _bm_service_request_context;
 
 static bool _request_list_add_request(BmServiceRequestNode *node);
 static bool _request_list_remove_request(BmServiceRequestNode *node);
-static BmServiceRequestNode *_create_node(size_t service_strlen, const char *service,
-                                          BmServiceReplyCb reply_cb, uint32_t timeout_ms);
+static BmServiceRequestNode *_create_node(size_t service_strlen,
+                                          const char *service,
+                                          BmServiceReplyCb reply_cb,
+                                          uint32_t timeout_ms);
 static void _service_request_timer_callback(BmTimer timer);
 static bool _service_request_send_request(uint32_t msg_id, const char *service,
-                                          size_t service_strlen, size_t data_len,
-                                          const uint8_t *data);
-static bool _service_request_sub_to_reply_topic(const char *service, size_t service_strlen);
-static void _service_request_cb(uint64_t node, const char *topic, uint16_t topic_len,
-                                const uint8_t *data, uint16_t data_len, uint8_t type,
+                                          size_t service_strlen,
+                                          size_t data_len, const uint8_t *data);
+static bool _service_request_sub_to_reply_topic(const char *service,
+                                                size_t service_strlen);
+static void _service_request_cb(uint64_t node, const char *topic,
+                                uint16_t topic_len, const uint8_t *data,
+                                uint16_t data_len, uint8_t type,
                                 uint8_t version);
 static BmServiceRequestNode *_service_request_list_get_node_by_id(uint32_t id);
 static void _service_request_timer_expiry_cb(void *arg);
@@ -56,9 +60,9 @@ static void _service_request_timer_expiry_cb(void *arg);
  */
 void bm_service_request_init(void) {
   _bm_service_request_context.lock = bm_semaphore_create();
-  _bm_service_request_context.expiry_timer_handle =
-      bm_timer_create("Service request expiry timer", bm_ms_to_ticks(ExpiryTimerPeriodMs), true,
-                      NULL, _service_request_timer_callback);
+  _bm_service_request_context.expiry_timer_handle = bm_timer_create(
+      "Service request expiry timer", bm_ms_to_ticks(ExpiryTimerPeriodMs), true,
+      NULL, _service_request_timer_callback);
   // TODO - make this return an error when the timer doesn't start!
   // configASSERT(bm_timer_start(_bm_service_request_context.expiry_timer_handle, 10) == BmOK);
   bm_timer_start(_bm_service_request_context.expiry_timer_handle, 10);
@@ -74,8 +78,9 @@ void bm_service_request_init(void) {
  * @param[in] timeout_s The timeout in seconds.
  * @return True if the request was sent, false otherwise.
  */
-bool bm_service_request(size_t service_strlen, const char *service, size_t data_len,
-                        const uint8_t *data, BmServiceReplyCb reply_cb, uint32_t timeout_s) {
+bool bm_service_request(size_t service_strlen, const char *service,
+                        size_t data_len, const uint8_t *data,
+                        BmServiceReplyCb reply_cb, uint32_t timeout_s) {
   bool rval = false;
   if (!service) {
     return rval;
@@ -86,25 +91,26 @@ bool bm_service_request(size_t service_strlen, const char *service, size_t data_
   BmServiceRequestNode *node = NULL;
   do {
     if (data_len > MAX_BM_SERVICE_DATA_SIZE) {
-      printf("Data too large\n");
+      bm_debug("Data too large\n");
       break;
     }
     BmServiceRequestNode *node =
         _create_node(service_strlen, service, reply_cb, (timeout_s * 1000));
     if (!node) {
-      printf("create node failed\n");
+      bm_debug("create node failed\n");
       break;
     }
     if (!_request_list_add_request(node)) {
-      printf("add request failed\n");
+      bm_debug("add request failed\n");
       break;
     }
     if (!_service_request_sub_to_reply_topic(service, service_strlen)) {
-      printf("sub to reply topic failed\n");
+      bm_debug("sub to reply topic failed\n");
       break;
     }
-    if (!_service_request_send_request(node->id, service, service_strlen, data_len, data)) {
-      printf("send request failed\n");
+    if (!_service_request_send_request(node->id, service, service_strlen,
+                                       data_len, data)) {
+      bm_debug("send request failed\n");
       break;
     }
     rval = true;
@@ -125,12 +131,13 @@ static bool _request_list_add_request(BmServiceRequestNode *node) {
   if (!node) {
     return rval;
   }
-  if (bm_semaphore_take(_bm_service_request_context.lock, DefaultServiceRequestTimeoutMs) ==
-      BmOK) {
+  if (bm_semaphore_take(_bm_service_request_context.lock,
+                        DefaultServiceRequestTimeoutMs) == BmOK) {
     if (_bm_service_request_context.service_request_list == NULL) {
       _bm_service_request_context.service_request_list = node;
     } else {
-      BmServiceRequestNode *current = _bm_service_request_context.service_request_list;
+      BmServiceRequestNode *current =
+          _bm_service_request_context.service_request_list;
       while (current->next != NULL) {
         current = current->next;
       }
@@ -152,7 +159,8 @@ static bool _request_list_remove_request(BmServiceRequestNode *node) {
     node_to_delete = _bm_service_request_context.service_request_list;
     _bm_service_request_context.service_request_list = node->next;
   } else {
-    BmServiceRequestNode *current = _bm_service_request_context.service_request_list;
+    BmServiceRequestNode *current =
+        _bm_service_request_context.service_request_list;
     while (current && current->next != node) {
       current = current->next;
     }
@@ -171,8 +179,10 @@ static bool _request_list_remove_request(BmServiceRequestNode *node) {
   return rval;
 }
 
-static BmServiceRequestNode *_create_node(size_t service_strlen, const char *service,
-                                          BmServiceReplyCb reply_cb, uint32_t timeout_ms) {
+static BmServiceRequestNode *_create_node(size_t service_strlen,
+                                          const char *service,
+                                          BmServiceReplyCb reply_cb,
+                                          uint32_t timeout_ms) {
   BmServiceRequestNode *node =
       (BmServiceRequestNode *)(bm_malloc(sizeof(BmServiceRequestNode)));
   if (!node) {
@@ -195,15 +205,16 @@ static BmServiceRequestNode *_create_node(size_t service_strlen, const char *ser
 
 static void _service_request_timer_expiry_cb(void *arg) {
   (void)arg;
-  if (bm_semaphore_take(_bm_service_request_context.lock, DefaultServiceRequestTimeoutMs) ==
-      BmOK) {
-    BmServiceRequestNode *current = _bm_service_request_context.service_request_list;
+  if (bm_semaphore_take(_bm_service_request_context.lock,
+                        DefaultServiceRequestTimeoutMs) == BmOK) {
+    BmServiceRequestNode *current =
+        _bm_service_request_context.service_request_list;
     while (current) {
       if (!time_remaining_ms(current->request_start_ms, current->timeout_ms)) {
-        printf("Expiring request id: %" PRIu32 "\n", current->id);
+        bm_debug("Expiring request id: %" PRIu32 "\n", current->id);
         if (current->reply_cb) {
-          current->reply_cb(false, current->id, current->service_strlen, current->service, 0,
-                            NULL);
+          current->reply_cb(false, current->id, current->service_strlen,
+                            current->service, 0, NULL);
         }
         _request_list_remove_request(current);
         current = _bm_service_request_context.service_request_list;
@@ -221,7 +232,8 @@ static void _service_request_timer_callback(BmTimer timer) {
 }
 
 static bool _service_request_send_request(uint32_t msg_id, const char *service,
-                                          size_t service_strlen, size_t data_len,
+                                          size_t service_strlen,
+                                          size_t data_len,
                                           const uint8_t *data) {
   bool rval = false;
   // Create string for request topic
@@ -231,7 +243,8 @@ static bool _service_request_send_request(uint32_t msg_id, const char *service,
     return rval;
   }
   memcpy(request_str, service, service_strlen);
-  memcpy(request_str + service_strlen, BM_SERVICE_REQ_STR, strlen(BM_SERVICE_REQ_STR));
+  memcpy(request_str + service_strlen, BM_SERVICE_REQ_STR,
+         strlen(BM_SERVICE_REQ_STR));
 
   // Create request packet and publish
   size_t req_len = data_len + sizeof(BmServiceRequestDataHeader);
@@ -244,8 +257,8 @@ static bool _service_request_send_request(uint32_t msg_id, const char *service,
   header->id = msg_id;
   header->data_size = data_len;
   memcpy(header->data, data, data_len);
-  rval =
-      bm_pub_wl(request_str, request_str_len, req_data, req_len, 0, BM_COMMON_PUB_SUB_VERSION);
+  rval = bm_pub_wl(request_str, request_str_len, req_data, req_len, 0,
+                   BM_COMMON_PUB_SUB_VERSION);
 
   // Free memory
   bm_free(request_str);
@@ -253,7 +266,8 @@ static bool _service_request_send_request(uint32_t msg_id, const char *service,
   return rval;
 }
 
-static bool _service_request_sub_to_reply_topic(const char *service, size_t service_strlen) {
+static bool _service_request_sub_to_reply_topic(const char *service,
+                                                size_t service_strlen) {
   bool rval = false;
   size_t rep_str_len = service_strlen + strlen(BM_SERVICE_REP_STR);
   char *rep_str = (char *)(bm_malloc(rep_str_len));
@@ -261,14 +275,16 @@ static bool _service_request_sub_to_reply_topic(const char *service, size_t serv
     return rval;
   }
   memcpy(rep_str, service, service_strlen);
-  memcpy(rep_str + service_strlen, BM_SERVICE_REP_STR, strlen(BM_SERVICE_REP_STR));
+  memcpy(rep_str + service_strlen, BM_SERVICE_REP_STR,
+         strlen(BM_SERVICE_REP_STR));
   rval = bm_sub_wl(rep_str, rep_str_len, _service_request_cb);
   bm_free(rep_str);
   return rval;
 }
 
-static void _service_request_cb(uint64_t node, const char *topic, uint16_t topic_len,
-                                const uint8_t *data, uint16_t data_len, uint8_t type,
+static void _service_request_cb(uint64_t node, const char *topic,
+                                uint16_t topic_len, const uint8_t *data,
+                                uint16_t data_len, uint8_t type,
                                 uint8_t version) {
   (void)version;
   (void)type;
@@ -278,9 +294,10 @@ static void _service_request_cb(uint64_t node, const char *topic, uint16_t topic
   (void)node;
   BmServiceReplyDataHeader *header = (BmServiceReplyDataHeader *)data;
   if (header->target_node_id == node_id()) {
-    if (bm_semaphore_take(_bm_service_request_context.lock, DefaultServiceRequestTimeoutMs) ==
-        BmOK) {
-      BmServiceRequestNode *node = _service_request_list_get_node_by_id(header->id);
+    if (bm_semaphore_take(_bm_service_request_context.lock,
+                          DefaultServiceRequestTimeoutMs) == BmOK) {
+      BmServiceRequestNode *node =
+          _service_request_list_get_node_by_id(header->id);
       if (node) {
         if (node->reply_cb) {
           node->reply_cb(true, header->id, node->service_strlen, node->service,
@@ -295,7 +312,8 @@ static void _service_request_cb(uint64_t node, const char *topic, uint16_t topic
 
 static BmServiceRequestNode *_service_request_list_get_node_by_id(uint32_t id) {
   BmServiceRequestNode *node = NULL;
-  BmServiceRequestNode *current = _bm_service_request_context.service_request_list;
+  BmServiceRequestNode *current =
+      _bm_service_request_context.service_request_list;
   while (current) {
     if (current->id == id) {
       node = current;

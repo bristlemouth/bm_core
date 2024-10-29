@@ -1,4 +1,5 @@
 #include "bcmp.h"
+#include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "device.h"
@@ -139,7 +140,7 @@ static uint8_t ip_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
 
       BcmpQueueItem item = {BcmpEventRx, (void *)layout, layout->pbuf->len};
       if (bm_queue_send(queue, &item, 0) != BmOK) {
-        printf("Error sending to Queue\n");
+        bm_debug("Error sending to Queue\n");
         pbuf_free(pbuf);
       }
 
@@ -280,7 +281,7 @@ BmErr bm_ip_init(void) {
   /* Add to relevant multicast groups */
   mld6_err = mld6_joingroup_netif(CTX.netif, &multicast_glob_addr);
   if (mld6_err != ERR_OK) {
-    printf("Could not join ff03::1\n");
+    bm_debug("Could not join ff03::1\n");
   }
 
   CTX.raw_pcb = raw_new(IpProtoBcmp);

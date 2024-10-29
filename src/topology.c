@@ -1,8 +1,6 @@
 #include "messages/topology.h"
 #include "bcmp.h"
-#include <inttypes.h>
-#include <string.h>
-
+#include "bm_config.h"
 #include "bm_os.h"
 #include "device.h"
 #include "l2.h"
@@ -10,6 +8,8 @@
 #include "messages/neighbors.h"
 #include "packet.h"
 #include "util.h"
+#include <inttypes.h>
+#include <string.h>
 
 #define bcmp_topo_evt_queue_len 32
 // Timer to stop waiting for a nodes neighbor table
@@ -738,15 +738,15 @@ void network_topology_print(networkTopology_t *network_topology) {
              neighbor_count < temp_table->neighbor_len; neighbor_count++) {
           if (temp_entry->prevNode->neighbor_table_reply->node_id ==
               neighbor_info[neighbor_count].node_id) {
-            printf("%u:", neighbor_info[neighbor_count].port);
+            bm_debug("%u:", neighbor_info[neighbor_count].port);
           }
         }
       }
       if (temp_entry->is_root) {
-        printf("(root)%016" PRIx64 "",
-               temp_entry->neighbor_table_reply->node_id);
+        bm_debug("(root)%016" PRIx64 "",
+                 temp_entry->neighbor_table_reply->node_id);
       } else {
-        printf("%016" PRIx64 "", temp_entry->neighbor_table_reply->node_id);
+        bm_debug("%016" PRIx64 "", temp_entry->neighbor_table_reply->node_id);
       }
       if (temp_entry->nextNode) {
         BcmpNeighborTableReply *temp_table = temp_entry->neighbor_table_reply;
@@ -756,18 +756,18 @@ void network_topology_print(networkTopology_t *network_topology) {
              neighbor_count < temp_table->neighbor_len; neighbor_count++) {
           if (temp_entry->nextNode->neighbor_table_reply->node_id ==
               neighbor_info[neighbor_count].node_id) {
-            printf(":%u", neighbor_info[neighbor_count].port);
+            bm_debug(":%u", neighbor_info[neighbor_count].port);
           }
         }
       }
       if (temp_entry != network_topology->back &&
           temp_entry->nextNode != NULL) {
-        printf(" | ");
+        bm_debug(" | ");
       }
     }
-    printf("\n");
+    bm_debug("\n");
   } else {
-    printf("NULL topology, thread may be busy servicing another topology "
-           "request\n");
+    bm_debug("NULL topology, thread may be busy servicing another topology "
+             "request\n");
   }
 }

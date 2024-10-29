@@ -1,10 +1,23 @@
 # Usage
 
-If you have your own sensor, on your own microcontroller,
+If you have your own sensor,
+on your own microcontroller,
 with your own firmware,
 and you're wondering what would be required to make your device compatible with Bristlemouth,
 read on!
 
+## Configuration Header File
+
+In order to configure the bristlemouth stack,
+the integrator must include a header file within their application with the name `bm_config.h`.
+Within this file,
+there are macros that must be defined by the integrator in order to build the stack.
+A template of this file is found at `/bm_core/bm_config_template.h`,
+which has all of the necessary macros that the user must define.
+In order to ensure that this file is referenced properly in bm_core,
+please view [Build System Integration](#build_system_integration).
+
+(build_system_integration)=
 ## Build System Integration
 Bristlemouth heavily relies on being built with CMake.
 In order to integrate it within your own project,
@@ -33,6 +46,9 @@ setup_bm_os(FREERTOS "${BM_CORE_FREERTOS_INCLUDES}")
 
 # Add bm_core to the build
 add_subdirectory(path/to/bm_core bmcore)
+
+# Add directory path to bm_config.h here
+target_include_directories(bmcore PRIVATE /path/to/config/directory)
 
 # Link bm_core to the executable
 target_link_libraries(${EXECUTABLE_NAME} bmcore)

@@ -1,4 +1,5 @@
 #include "cbor_service_helper.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include "crc.h"
 #include "messages/config.h"
@@ -131,7 +132,7 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
 
     if (err == CborErrorOutOfMemory) {
       size_t needed = cbor_encoder_get_extra_bytes_needed(&encoder);
-      printf(
+      bm_debug(
           "Encoding failed, buffer too small. Will retry. "
           "Need %zu more bytes than the %zu originally given, or %zu total.\n",
           needed, allocated_size, allocated_size + needed);
@@ -145,7 +146,7 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
     } else if (err == CborNoError) {
       *buffer_size = cbor_encoder_get_buffer_size(&encoder, buffer);
     } else {
-      printf("Failed to encode config as cbor map, err=%" PRIu32 "\n", err);
+      bm_debug("Failed to encode config as cbor map, err=%" PRIu32 "\n", err);
       bm_free(buffer);
       buffer = NULL;
     }

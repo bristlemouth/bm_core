@@ -1,4 +1,5 @@
 #include "sys_info_service.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include "bm_service.h"
 #include "cbor_service_helper.h"
@@ -16,19 +17,15 @@ static bool sys_info_service_handler(size_t service_strlen, const char *service,
                                      size_t *buffer_len, uint8_t *reply_data) {
   (void)(req_data);
   bool rval = false;
-  printf("Data received on service: %.*s\n", (int)service_strlen, service);
+  bm_debug("Data received on service: %.*s\n", (int)service_strlen, service);
   do {
     if (req_data_len != 0) {
-      printf("Invalid data received on sys info service\n");
+      bm_debug("Invalid data received on sys info service\n");
       break;
     }
-//TODO: We have to decide how the user will implement this
-#ifndef APP_NAME
-#define APP_NAME "Bristlemouth Temp"
-#endif // APP_NAME
     SysInfoReplyData d;
-    d.app_name = (char *)APP_NAME;
-    d.app_name_strlen = strlen(APP_NAME);
+    d.app_name = (char *)bm_app_name;
+    d.app_name_strlen = strlen(bm_app_name);
     d.git_sha = git_sha();
     d.node_id = node_id();
     d.sys_config_crc = services_cbor_encoded_as_crc32(BM_CFG_PARTITION_SYSTEM);
@@ -36,7 +33,7 @@ static bool sys_info_service_handler(size_t service_strlen, const char *service,
     // Will return CborErrorOutOfMemory if buffer_len is too small
     if (sys_info_reply_encode(&d, reply_data, *buffer_len, &encoded_len) !=
         CborNoError) {
-      printf("Failed to encode sys info service reply\n");
+      bm_debug("Failed to encode sys info service reply\n");
       break;
     }
     *buffer_len = encoded_len; // Pass back the encoded length
@@ -59,7 +56,7 @@ void sys_info_service_init(void) {
     bm_service_register(topic_strlen, sys_info_service_str,
                         sys_info_service_handler);
   } else {
-    printf("Failed to register sys info service\n");
+    bm_debug("Failed to register sys info service\n");
   }
 }
 
