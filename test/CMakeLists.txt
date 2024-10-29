@@ -357,5 +357,5 @@ add_executable(bm_adin2111_test
 target_include_directories(bm_adin2111_test PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/../drivers/adin2111)
 target_link_libraries(bm_adin2111_test GTest::gtest_main)
-target_link_libraries(bm_adin2111_test bmnetif)
+target_link_libraries(bm_adin2111_test bmadin2111)
 gtest_discover_tests(bm_adin2111_test)
