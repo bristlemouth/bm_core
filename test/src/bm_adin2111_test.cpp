@@ -41,8 +41,6 @@ static NetworkInterface setup(void) {
 
     // It would take a lot of mocking to pretend SPI transactions work.
     // On a real device, this should return BmOK.
-    // This unit test is slow because the call to waitDeviceReady at adi_mac.c:808
-    // waits for the full timeout of 25000 iterations.
     EXPECT_EQ(err, BmENODEV);
   }
 
