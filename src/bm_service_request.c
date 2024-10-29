@@ -85,7 +85,7 @@ bool bm_service_request(size_t service_strlen, const char *service,
   if (!service) {
     return rval;
   }
-  if (!data_len || !data) {
+  if (data_len && !data) {
     return rval;
   }
   BmServiceRequestNode *node = NULL;
