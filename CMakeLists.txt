@@ -68,6 +68,7 @@ include_directories(
     bm_common_messages
 )
 
+add_subdirectory("drivers/adin2111")
 
 if(ENABLE_TESTING)
     set(CMAKE_CXX_FLAGS "-g -Wall")

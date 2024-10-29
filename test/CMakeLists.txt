@@ -349,3 +349,13 @@ set (BM_SERVICE_REQUEST_SRCS
     ${STUB_DIR}/device_stub.c
 )
 create_gtest("bm_service_request" "${BM_SERVICE_REQUEST_SRCS}")
+
+# ADIN2111 DRIVER TESTS
+add_executable(bm_adin2111_test
+    src/bm_adin2111_test.cpp
+    ${bm_common_SOURCE_DIR}/src/aligned_malloc.c)
+target_include_directories(bm_adin2111_test PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/../drivers/adin2111)
+target_link_libraries(bm_adin2111_test GTest::gtest_main)
+target_link_libraries(bm_adin2111_test bmnetif)
+gtest_discover_tests(bm_adin2111_test)
