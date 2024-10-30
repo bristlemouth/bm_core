@@ -2,7 +2,7 @@
 
 #include "fff.h"
 extern "C" {
-#include "dfu/dfu.h"
+#include "dfu.h"
 #include "mock_timer_callback_handler.h"
 #include "mock_packet.h"
 #include "mock_device.h"

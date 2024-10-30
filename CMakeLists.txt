@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 3.29)
 # path - path to the root directory with a following relative path of
 #        src/platform (see this repository for example)
 function(append_platform_file sources platform path)
-    file(GLOB files "${path}/src/platform/*.c")
+    file(GLOB files "${path}/*.c")
     foreach(file ${files})
         string(TOUPPER "${file}" file_upper)
         if (${file_upper} MATCHES ${platform})
@@ -40,14 +40,6 @@ set(CMAKE_C_EXTENSIONS NO)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-FetchContent_Declare(
-  bm_common
-  GIT_REPOSITORY https://github.com/bristlemouth/bm_common.git
-  #TODO: This must be set by configuration somehow
-  GIT_TAG        main
-)
-FetchContent_MakeAvailable(bm_common)
-
 # Update all submodules recursively
 execute_process(
     COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
@@ -63,8 +55,9 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${CMAKE_CURRENT_LIST_DIR}/include/dfu
     ${CMAKE_CURRENT_LIST_DIR}/bcmp
-    ${bm_common_SOURCE_DIR}/include
-    ${bm_common_SOURCE_DIR}/third_party/crc
+    ${CMAKE_CURRENT_LIST_DIR}/middleware
+    ${CMAKE_CURRENT_LIST_DIR}/common
+    ${CMAKE_CURRENT_LIST_DIR}/third_party/crc
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
     bm_common_messages
 )
@@ -80,27 +73,15 @@ if(ENABLE_TESTING)
     enable_testing()
     add_subdirectory("test")
 else()
-    file(GLOB BM_COMMON_MESSAGES_SOURCES
-        bm_common_messages/*.c
-        bm_common_messages/*.cpp
-    )
     set(SOURCES
-        src/device.c
         src/l2.c
-        src/middleware.c
-        src/pubsub.c
-        src/cbor_service_helper.c
-        src/echo_service.c
-        src/sys_info_service.c
-        src/config_cbor_map_service.c
-        src/bm_service.c
-        src/bm_service_request.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborerrorstrings.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborvalidation.c
-        ${BM_COMMON_MESSAGES_SOURCES}
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/crc/crc16.c
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/crc/crc32.c
     )
 
     # Ensure integrator called the functions necessary to configure bristlemouth
@@ -117,14 +98,24 @@ else()
         https://bristlemouth.github.io/bm_core/usage.html#build-system-integration"
         )
     endif()
-    append_platform_file(SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR})
-    append_platform_file(SOURCES ${BM_OS} ${bm_common_SOURCE_DIR})
+    append_platform_file(SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR}/src/platform)
+    append_platform_file(SOURCES ${BM_OS} ${bm_common_SOURCE_DIR}common)
     include_directories(
         "${BM_IP_INCLUDES}"
         "${BM_OS_INCLUDES}"
     )
-    add_subdirectory(bcmp)
-    add_library(bmcore ${SOURCES})
 
-    target_link_libraries(bmcore PUBLIC bmcommon bcmp)
+    # Add static libraries
+    add_subdirectory(bcmp)
+    add_subdirectory(middleware)
+    add_subdirectory(common)
+    add_subdirectory(bm_common_messages)
+
+    add_library(bmcore ${SOURCES})
+    target_link_libraries(bmcore PUBLIC
+        bmcommon
+        bcmp
+        middleware
+        bmmessages
+    )
 endif()
