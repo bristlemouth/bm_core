@@ -23,6 +23,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fff)
 include(GoogleTest)
 set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../src)
+set(BCMP_DIR ${CMAKE_CURRENT_LIST_DIR}/../bcmp)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_LIST_DIR}/../third_party)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
 set(STUB_DIR ${CMAKE_CURRENT_LIST_DIR}/stubs)
@@ -38,6 +39,7 @@ include_directories(
     ${fff_SOURCE_DIR}
     ${BM_COMMON_MOCK_DIR}
     ${BM_COMMON_TEST_DIR}
+    ${BCMP_DIR}
     .
 )
 
@@ -88,7 +90,7 @@ endfunction()
 # PACKET TESTS
 set (PACKET_SRCS
     # File we're testing
-    ${SRC_DIR}/packet.c
+    ${BCMP_DIR}/packet.c
 
     # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
@@ -101,7 +103,7 @@ create_gtest("packet" "${PACKET_SRCS}")
 # BCMP TESTS
 set (BCMP_SRCS
     # File we're testing
-    ${SRC_DIR}/bcmp.c
+    ${BCMP_DIR}/bcmp.c
 
     # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
@@ -125,7 +127,7 @@ create_gtest("bcmp" "${BCMP_SRCS}")
 # HEARTBEAT TESTS
 set (HEARTBEAT_SRCS
     # File we're testing
-    ${SRC_DIR}/heartbeat.c
+    ${BCMP_DIR}/heartbeat.c
 
     # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
@@ -142,7 +144,7 @@ create_gtest("heartbeat" "${HEARTBEAT_SRCS}")
 # INFO TESTS
 set (INFO_SRCS
     # File we're testing
-    ${SRC_DIR}/info.c
+    ${BCMP_DIR}/info.c
 
     # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
@@ -159,7 +161,7 @@ create_gtest("info" "${INFO_SRCS}")
 # RESOURCE DISCOVERY TESTS
 set (RESOURCE_SRCS
     # File we're testing
-    ${SRC_DIR}/resource_discovery.c
+    ${BCMP_DIR}/resource_discovery.c
 
     # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
@@ -175,7 +177,7 @@ create_gtest("resource_discovery" "${RESOURCE_SRCS}")
 # PING TESTS
 set (PING_SRCS
     # File we're testing
-    ${SRC_DIR}/ping.c
+    ${BCMP_DIR}/ping.c
 
     # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
@@ -191,7 +193,7 @@ create_gtest("ping" "${PING_SRCS}")
 # NEIGHBORS TESTS
 set (NEIGHBORS_SRCS
     # File we're testing
-    ${SRC_DIR}/neighbors.c
+    ${BCMP_DIR}/neighbors.c
 
     # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c
@@ -206,9 +208,9 @@ create_gtest("neighbors" "${NEIGHBORS_SRCS}")
 # DFU TESTS
 set (DFU_SRCS
     # Files we're testing
-    ${SRC_DIR}/dfu/dfu_core.c
-    ${SRC_DIR}/dfu/dfu_client.c
-    ${SRC_DIR}/dfu/dfu_host.c
+    ${BCMP_DIR}/dfu_core.c
+    ${BCMP_DIR}/dfu_client.c
+    ${BCMP_DIR}/dfu_host.c
 
     # Support files
     ${BM_COMMON_SOURCE_DIR}/util.c
@@ -241,7 +243,7 @@ create_gtest("l2" "${L2_SRCS}")
 # TOPOLOGY TESTS
 set (TOPOLOGY_SRCS
     # File we're testing
-    ${SRC_DIR}/topology.c
+    ${BCMP_DIR}/topology.c
 
     # Supporting Files
     ${BM_COMMON_SOURCE_DIR}/util.c

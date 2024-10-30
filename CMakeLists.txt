@@ -62,6 +62,7 @@ set(COMPILE_FLAGS
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${CMAKE_CURRENT_LIST_DIR}/include/dfu
+    ${CMAKE_CURRENT_LIST_DIR}/bcmp
     ${bm_common_SOURCE_DIR}/include
     ${bm_common_SOURCE_DIR}/third_party/crc
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
@@ -84,24 +85,11 @@ else()
         bm_common_messages/*.cpp
     )
     set(SOURCES
-        src/bcmp.c
-        src/config.c
         src/device.c
-        src/heartbeat.c
-        src/info.c
-        src/neighbors.c
         src/l2.c
         src/middleware.c
-        src/packet.c
-        src/ping.c
         src/pubsub.c
-        src/resource_discovery.c
-        src/time.c
-        src/topology.c
         src/cbor_service_helper.c
-        src/dfu/dfu_client.c
-        src/dfu/dfu_core.c
-        src/dfu/dfu_host.c
         src/echo_service.c
         src/sys_info_service.c
         src/config_cbor_map_service.c
@@ -135,7 +123,8 @@ else()
         "${BM_IP_INCLUDES}"
         "${BM_OS_INCLUDES}"
     )
+    add_subdirectory(bcmp)
     add_library(bmcore ${SOURCES})
 
-    target_link_libraries(bmcore PUBLIC bmcommon)
+    target_link_libraries(bmcore PUBLIC bmcommon bcmp)
 endif()
