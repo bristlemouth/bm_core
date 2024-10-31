@@ -6,6 +6,7 @@
 typedef void *BmQueue;
 typedef void *BmSemaphore;
 typedef void *BmTimer;
+typedef void *BmTaskHandle;
 typedef void (*BmTimerCb)(void *);
 typedef void (*BmTaskCb)(void *);
 
