@@ -14,6 +14,8 @@ BmQueue bm_queue_create(uint32_t queue_length, uint32_t item_size) {
   return xQueueCreate(queue_length, item_size);
 }
 
+void bm_queue_delete(BmQueue queue) { vQueueDelete((QueueHandle_t)queue); }
+
 BmErr bm_queue_receive(BmQueue queue, void *item, uint32_t timeout_ms) {
   if (xQueueReceive(queue, item, pdMS_TO_TICKS(timeout_ms)) == pdPASS) {
     return BmOK;
@@ -32,6 +34,8 @@ BmErr bm_queue_send(BmQueue queue, const void *item, uint32_t timeout_ms) {
 
 BmSemaphore bm_semaphore_create(void) { return xSemaphoreCreateMutex(); }
 
+void bm_semaphore_delete(BmSemaphore semaphore) { vSemaphoreDelete((SemaphoreHandle_t)semaphore); }
+
 BmErr bm_semaphore_give(BmSemaphore semaphore) {
   if (xSemaphoreGive(semaphore) == pdPASS) {
     return BmOK;
@@ -49,13 +53,15 @@ BmErr bm_semaphore_take(BmSemaphore semaphore, uint32_t timeout_ms) {
 }
 
 BmErr bm_task_create(void (*task)(void *), const char *name, uint32_t stack_size, void *arg,
-                       uint32_t priority, void *task_handle) {
+                       uint32_t priority, BmTaskHandle task_handle) {
   if (xTaskCreate(task, name, stack_size, arg, priority, task_handle) == pdPASS) {
     return BmOK;
   } else {
     return BmENOMEM;
   }
 }
+
+void bm_task_delete(BmTaskHandle task_handle) { vTaskDelete((TaskHandle_t)task_handle); }
 
 void bm_start_scheduler(void) {
   vTaskStartScheduler();
@@ -66,6 +72,8 @@ BmTimer bm_timer_create(const char *name, uint32_t period_ms, bool auto_reload,
   return xTimerCreate(name, pdMS_TO_TICKS(period_ms), (UBaseType_t)auto_reload, timer_id,
                       (TimerCallbackFunction_t)callback);
 }
+
+void bm_timer_delete(BmTimer timer, uint32_t timeout_ms) { xTimerDelete((TimerHandle_t)timer, timeout_ms); }
 
 BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms) {
   if (xTimerStart(timer, pdMS_TO_TICKS(timeout_ms)) == pdPASS) {

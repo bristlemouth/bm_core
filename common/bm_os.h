@@ -23,6 +23,7 @@ extern "C" {
 typedef void *BmQueue;
 typedef void *BmSemaphore;
 typedef void *BmTimer;
+typedef void *BmTaskHandle;
 
 // Memory functions - these may not necessarily be tied to the OS but I'm including them here for now
 void *bm_malloc(size_t size);
@@ -30,23 +31,27 @@ void bm_free(void *ptr);
 
 // Queue functions
 BmQueue bm_queue_create(uint32_t queue_length, uint32_t item_size);
+void bm_queue_delete(BmQueue queue);
 BmErr bm_queue_receive(BmQueue queue, void *item, uint32_t timeout_ms);
 BmErr bm_queue_send(BmQueue queue, const void *item, uint32_t timeout_ms);
 
 // Semaphore functions
 BmSemaphore bm_semaphore_create(void);
+void bm_semaphore_delete(BmSemaphore semaphore);
 BmErr bm_semaphore_give(BmSemaphore semaphore);
 BmErr bm_semaphore_take(BmSemaphore semaphore, uint32_t timeout_ms);
 
 // Task functions
 BmErr bm_task_create(void (*task)(void *), const char *name,
                      uint32_t stack_size, void *arg, uint32_t priority,
-                     void *task_handle);
+                     BmTaskHandle task_handle);
+void bm_task_delete(BmTaskHandle task_handle);
 void bm_start_scheduler(void);
 
 // Timer functions
 BmTimer bm_timer_create(const char *name, uint32_t period_ms, bool auto_reload,
                         void *time_id, void (*callback)(void *));
+void bm_timer_delete(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_stop(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_change_period(BmTimer timer, uint32_t period_ms,
