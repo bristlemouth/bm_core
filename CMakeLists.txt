@@ -106,7 +106,7 @@ else()
     #Add core library
     add_library(bmcore ${BM_SOURCES})
 
-    # Make directory available to above CMakeLists directories
+    # Make includes available to above CMakeLists directories
     # and sub-directories
     target_include_directories(bmcore PUBLIC ${BM_INCLUDES})
     include_directories(${BM_INCLUDES})
