@@ -405,8 +405,12 @@ gtest_discover_tests(bm_adin2111_test)
 set (TIME_REMAINING_SRCS
     # File we're testing
     ${COMMON_DIR}/util.c
-
-    # Stubs
-    # ${STUB_DIR}/bm_os_stub.c
 )
 create_gtest("time_remaining" "${TIME_REMAINING_SRCS}")
+
+# UTC From Date Time tests
+set (UTC_FROM_DATE_TIME_SRCS
+    # File we're testing
+    ${COMMON_DIR}/util.c
+)
+create_gtest("utc_from_date_time" "${UTC_FROM_DATE_TIME_SRCS}")
