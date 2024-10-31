@@ -59,7 +59,7 @@ set(BM_INCLUDES
     ${CMAKE_CURRENT_LIST_DIR}/third_party
     ${CMAKE_CURRENT_LIST_DIR}/third_party/crc
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
-    bm_common_messages
+    ${CMAKE_CURRENT_LIST_DIR}/bm_common_messages
 )
 include_directories(${BM_INCLUDES})
 
