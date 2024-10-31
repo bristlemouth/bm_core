@@ -400,3 +400,13 @@ target_include_directories(bm_adin2111_test PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/../network)
 target_link_libraries(bm_adin2111_test GTest::gtest_main)
 gtest_discover_tests(bm_adin2111_test)
+
+# Time remaining tests
+set (TIME_REMAINING_SRCS
+    # File we're testing
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    # ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("time_remaining" "${TIME_REMAINING_SRCS}")
