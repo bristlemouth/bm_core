@@ -61,9 +61,10 @@ typedef struct {
   uint8_t enabled_port_mask;
   uint8_t num_devices;
   BmQueue evt_queue;
+  BmTaskHandle task_handle;
 } BmL2Ctx;
 
-static BmL2Ctx CTX;
+static BmL2Ctx CTX = {0};
 
 /*!
   @brief Obtain The Index Of A Device By Its Handle
@@ -363,8 +364,14 @@ static void bm_l2_thread(void *parameters) {
 void bm_l2_deinit(void) {
   if (CTX.devices) {
     bm_free(CTX.devices);
-    memset(&CTX, 0, sizeof(BmL2Ctx));
   }
+  if (CTX.evt_queue) {
+    bm_queue_delete(CTX.evt_queue);
+  }
+  if (CTX.task_handle) {
+    bm_task_delete(CTX.task_handle);
+  }
+  memset(&CTX, 0, sizeof(BmL2Ctx));
 }
 
 /*!
@@ -416,7 +423,7 @@ BmErr bm_l2_init(BmL2ModuleLinkChangeCb cb, const BmNetDevCfg *cfg,
     CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
     if (CTX.evt_queue) {
       err = bm_task_create(bm_l2_thread, "L2 TX Thread", 2048, NULL,
-                           bm_l2_tx_task_priority, NULL);
+                           bm_l2_tx_task_priority, CTX.task_handle);
     } else {
       err = BmENOMEM;
     }
