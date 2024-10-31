@@ -51,7 +51,7 @@ set(COMPILE_FLAGS
     -DCBOR_PARSER_MAX_RECURSIONS=10
 )
 
-include_directories(
+set(BM_INCLUDES
     ${CMAKE_CURRENT_LIST_DIR}/bcmp
     ${CMAKE_CURRENT_LIST_DIR}/common
     ${CMAKE_CURRENT_LIST_DIR}/middleware
@@ -61,18 +61,18 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
     bm_common_messages
 )
-add_subdirectory("drivers/adin2111")
 
 if(ENABLE_TESTING)
     set(CMAKE_CXX_FLAGS "-g -Wall")
     set(CMAKE_C_FLAGS "-g -Wall -W")
     set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
     add_compile_options(-DENABLE_TESTING)
+    include_directories(${BM_INCLUDES})
 
     enable_testing()
     add_subdirectory("test")
 else()
-    set(SOURCES
+    set(BM_SOURCES
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c
@@ -96,12 +96,20 @@ else()
         https://bristlemouth.github.io/bm_core/usage.html#build-system-integration"
         )
     endif()
-    append_platform_file(SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR}/network)
-    append_platform_file(SOURCES ${BM_OS} ${CMAKE_CURRENT_LIST_DIR}/common)
+    append_platform_file(BM_SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR}/network)
+    append_platform_file(BM_SOURCES ${BM_OS} ${CMAKE_CURRENT_LIST_DIR}/common)
     include_directories(
         "${BM_IP_INCLUDES}"
         "${BM_OS_INCLUDES}"
     )
+
+    #Add core library
+    add_library(bmcore ${BM_SOURCES})
+
+    # Make directory available to above CMakeLists directories
+    # and sub-directories
+    target_include_directories(bmcore PUBLIC ${BM_INCLUDES})
+    include_directories(${BM_INCLUDES})
 
     # Add static libraries
     add_subdirectory(bcmp)
@@ -109,8 +117,8 @@ else()
     add_subdirectory(common)
     add_subdirectory(bm_common_messages)
     add_subdirectory(network)
+    add_subdirectory(drivers/adin2111)
 
-    add_library(bmcore ${SOURCES})
     target_link_libraries(bmcore PUBLIC
         bmcommon
         bcmp
