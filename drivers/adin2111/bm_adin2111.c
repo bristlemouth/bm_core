@@ -175,7 +175,8 @@ static void tx_complete(void *device_param, uint32_t event,
 }
 
 // Allocate buffers for sending, copy the given data, and submit to the driver
-static BmErr adin2111_netif_send(Adin2111 *self, uint8_t *data, size_t length) {
+static BmErr adin2111_netif_send(Adin2111 *self, uint8_t *data, size_t length,
+                                 uint8_t port_mask) {
   BmErr err = BmOK;
   adi_eth_BufDesc_t *buffer_description = bm_malloc(sizeof(adi_eth_BufDesc_t));
   if (!buffer_description) {
@@ -192,16 +193,21 @@ static BmErr adin2111_netif_send(Adin2111 *self, uint8_t *data, size_t length) {
   memcpy(buffer_description->pBuf, data, length);
   buffer_description->bufSize = length;
   buffer_description->cbFunc = tx_complete;
-  adin2111_SubmitTxBuffer(self->device_handle, ADIN2111_TX_PORT_FLOOD,
-                          buffer_description);
+  adin2111_TxPort_e tx_port = ADIN2111_TX_PORT_FLOOD;
+  if (port_mask == 1) {
+    tx_port = ADIN2111_TX_PORT_1;
+  } else if (port_mask == 2) {
+    tx_port = ADIN2111_TX_PORT_2;
+  }
+  adin2111_SubmitTxBuffer(self->device_handle, tx_port, buffer_description);
 end:
   return err;
 }
 
 // Trait wrapper function to convert self from void* to Adin2111*
 static inline BmErr adin2111_netif_send_(void *self, uint8_t *data,
-                                         size_t length) {
-  return adin2111_netif_send(self, data, length);
+                                         size_t length, uint8_t port_mask) {
+  return adin2111_netif_send(self, data, length, port_mask);
 }
 
 // Called by the driver on received data

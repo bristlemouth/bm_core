@@ -2,6 +2,8 @@
 #include "network_interface.h"
 #include "util.h"
 
+#define ADIN2111_PORT_MASK (3U)
+
 typedef struct {
   void *device_handle;
   NetworkInterfaceCallbacks const *callbacks;

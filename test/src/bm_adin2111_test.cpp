@@ -49,7 +49,8 @@ static NetworkInterface setup(void) {
 
 TEST(Adin2111, send) {
   NetworkInterface netif = setup();
-  BmErr err = netif.trait->send(netif.self, (unsigned char *)"hello", 5);
+  BmErr err = netif.trait->send(netif.self, (unsigned char *)"hello", 5,
+                                ADIN2111_PORT_MASK);
   EXPECT_EQ(err, BmOK);
 }
 
