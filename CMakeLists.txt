@@ -61,13 +61,13 @@ set(BM_INCLUDES
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
     bm_common_messages
 )
+include_directories(${BM_INCLUDES})
 
 if(ENABLE_TESTING)
     set(CMAKE_CXX_FLAGS "-g -Wall")
     set(CMAKE_C_FLAGS "-g -Wall -W")
     set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
     add_compile_options(-DENABLE_TESTING)
-    include_directories(${BM_INCLUDES})
 
     enable_testing()
     add_subdirectory("test")
@@ -107,9 +107,7 @@ else()
     add_library(bmcore ${BM_SOURCES})
 
     # Make includes available to above CMakeLists directories
-    # and sub-directories
     target_include_directories(bmcore PUBLIC ${BM_INCLUDES})
-    include_directories(${BM_INCLUDES})
 
     # Add static libraries
     add_subdirectory(bcmp)
