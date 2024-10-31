@@ -7,7 +7,8 @@ typedef struct {
 } NetworkInterfaceCallbacks;
 
 typedef struct {
-  BmErr (*const send)(void *self, uint8_t *data, size_t length);
+  BmErr (*const send)(void *self, uint8_t *data, size_t length,
+                      uint8_t port_mask);
   BmErr (*const enable)(void *self);
   BmErr (*const disable)(void *self);
 } NetworkInterfaceTrait;
