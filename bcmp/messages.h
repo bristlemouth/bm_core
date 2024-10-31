@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "dfu/dfu_message_structs.h"
+#include "dfu_message_structs.h"
 
 typedef struct {
   uint16_t type;

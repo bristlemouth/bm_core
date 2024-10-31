@@ -22,22 +22,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fff)
 include(GoogleTest)
-set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../src)
+set(NETWORK_DIR ${CMAKE_CURRENT_LIST_DIR}/../network)
+set(BCMP_DIR ${CMAKE_CURRENT_LIST_DIR}/../bcmp)
+set(MIDDLEWARE_DIR ${CMAKE_CURRENT_LIST_DIR}/../middleware)
+set(COMMON_DIR ${CMAKE_CURRENT_LIST_DIR}/../common)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_LIST_DIR}/../third_party)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
 set(STUB_DIR ${CMAKE_CURRENT_LIST_DIR}/stubs)
-set(BM_COMMON_MOCK_DIR ${bm_common_SOURCE_DIR}/test/mocks)
-set(BM_COMMON_TEST_DIR ${bm_common_SOURCE_DIR}/test)
-set(BM_COMMON_SOURCE_DIR ${bm_common_SOURCE_DIR}/src)
-set(BM_COMMON_STUBS_DIR ${bm_common_SOURCE_DIR}/test/stubs)
-set(BM_COMMON_THIRD_PARTY_DIR ${bm_common_SOURCE_DIR}/third_party)
 set(ADIN2111_DIR ${CMAKE_CURRENT_LIST_DIR}/../drivers/adin2111)
 
 include_directories(
     ${MOCK_DIR}
     ${fff_SOURCE_DIR}
-    ${BM_COMMON_MOCK_DIR}
-    ${BM_COMMON_TEST_DIR}
     .
 )
 
@@ -45,8 +41,6 @@ link_libraries(
     gmock
     gtest_main
 )
-
-file(GLOB TEST_STUBS_BM_COMMON ${bm_common_SOURCE_DIR}/test/stubs/*.c)
 
 # - Create Unit Test
 #
@@ -68,14 +62,12 @@ function(create_gtest test_name  srcs)
         PRIVATE
         ${srcs}
         src/${test_name}_test.cpp
-        ${BM_COMMON_SOURCE_DIR}/ll.c
     )
     gtest_discover_tests(${GTEST_NAME})
     # Generate artifacts for coverage report using lcov
     file(GLOB_RECURSE FILES "../src/*")
     foreach(FILE ${FILES})
         get_filename_component(FILENAME "${FILE}" NAME)
-        message(WARNING "${FILENAME}")
         if (FILENAME MATCHES ".*${test_name}.*")
             set_source_files_properties(${FILE} PROPERTIES
                 COMPILE_FLAGS
@@ -85,29 +77,58 @@ function(create_gtest test_name  srcs)
     endforeach()
 endfunction()
 
+# Linked List (LL) unit tests
+set (LL_TEST_SRCS
+    # File we are testing
+    ${COMMON_DIR}/ll.c
+
+    # Supporting files
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("ll" "${LL_TEST_SRCS}")
+
+# State Machine unit tests
+set (LIB_STATE_MACHINE_TEST_SRCS
+    # File we are testing
+    ${COMMON_DIR}/lib_state_machine.c
+)
+create_gtest("lib_state_machine" "${LIB_STATE_MACHINE_TEST_SRCS}")
+
+# Aligned Malloc unit tests
+set (ALIGNED_MALLOC_TEST_SRCS
+    # File we are testing
+    ${COMMON_DIR}/aligned_malloc.c
+
+    # Supporting files
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("aligned_malloc" "${ALIGNED_MALLOC_TEST_SRCS}")
+
 # PACKET TESTS
 set (PACKET_SRCS
     # File we're testing
-    ${SRC_DIR}/packet.c
+    ${BCMP_DIR}/packet.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
 )
 create_gtest("packet" "${PACKET_SRCS}")
 
 # BCMP TESTS
 set (BCMP_SRCS
     # File we're testing
-    ${SRC_DIR}/bcmp.c
+    ${BCMP_DIR}/bcmp.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/time_stub.c
     ${STUB_DIR}/dfu_stub.c
@@ -125,13 +146,14 @@ create_gtest("bcmp" "${BCMP_SRCS}")
 # HEARTBEAT TESTS
 set (HEARTBEAT_SRCS
     # File we're testing
-    ${SRC_DIR}/heartbeat.c
+    ${BCMP_DIR}/heartbeat.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/neighbors_stub.c
     ${STUB_DIR}/info_stub.c
@@ -142,13 +164,14 @@ create_gtest("heartbeat" "${HEARTBEAT_SRCS}")
 # INFO TESTS
 set (INFO_SRCS
     # File we're testing
-    ${SRC_DIR}/info.c
+    ${BCMP_DIR}/info.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/neighbors_stub.c
@@ -159,13 +182,14 @@ create_gtest("info" "${INFO_SRCS}")
 # RESOURCE DISCOVERY TESTS
 set (RESOURCE_SRCS
     # File we're testing
-    ${SRC_DIR}/resource_discovery.c
+    ${BCMP_DIR}/resource_discovery.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/bcmp_stub.c
@@ -175,13 +199,14 @@ create_gtest("resource_discovery" "${RESOURCE_SRCS}")
 # PING TESTS
 set (PING_SRCS
     # File we're testing
-    ${SRC_DIR}/ping.c
+    ${BCMP_DIR}/ping.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/bcmp_stub.c
@@ -191,13 +216,13 @@ create_gtest("ping" "${PING_SRCS}")
 # NEIGHBORS TESTS
 set (NEIGHBORS_SRCS
     # File we're testing
-    ${SRC_DIR}/neighbors.c
+    ${BCMP_DIR}/neighbors.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/info_stub.c
 )
 create_gtest("neighbors" "${NEIGHBORS_SRCS}")
@@ -206,19 +231,20 @@ create_gtest("neighbors" "${NEIGHBORS_SRCS}")
 # DFU TESTS
 set (DFU_SRCS
     # Files we're testing
-    ${SRC_DIR}/dfu/dfu_core.c
-    ${SRC_DIR}/dfu/dfu_client.c
-    ${SRC_DIR}/dfu/dfu_host.c
+    ${BCMP_DIR}/dfu_core.c
+    ${BCMP_DIR}/dfu_client.c
+    ${BCMP_DIR}/dfu_host.c
 
     # Support files
-    ${BM_COMMON_SOURCE_DIR}/util.c
-    ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc16.c
-    ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc32.c
-    ${BM_COMMON_SOURCE_DIR}/lib_state_machine.c
+    ${COMMON_DIR}/util.c
+    ${THIRD_PARTY_DIR}/crc/crc16.c
+    ${THIRD_PARTY_DIR}/crc/crc32.c
+    ${COMMON_DIR}/lib_state_machine.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
-    ${BM_COMMON_STUBS_DIR}/timer_callback_handler_stub.c
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/timer_callback_handler_stub.c
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/bcmp_stub.c
@@ -230,10 +256,10 @@ create_gtest("dfu" "${DFU_SRCS}")
 # L2 Tests
 set (L2_SRCS
     # File we're testing
-    ${SRC_DIR}/l2.c
+    ${NETWORK_DIR}/l2.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_ip_stub.c
 )
 create_gtest("l2" "${L2_SRCS}")
@@ -241,13 +267,14 @@ create_gtest("l2" "${L2_SRCS}")
 # TOPOLOGY TESTS
 set (TOPOLOGY_SRCS
     # File we're testing
-    ${SRC_DIR}/topology.c
+    ${BCMP_DIR}/topology.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/bcmp_stub.c
     ${STUB_DIR}/device_stub.c
@@ -259,11 +286,11 @@ create_gtest("topology" "${TOPOLOGY_SRCS}")
 # CBOR SERVICE HELPER TESTS
 set (CBOR_SEVICE_HELPER_SRCS
     # File we're testing
-    ${SRC_DIR}/cbor_service_helper.c
+    ${MIDDLEWARE_DIR}/cbor_service_helper.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
-    ${BM_COMMON_THIRD_PARTY_DIR}/crc/crc32.c
+    ${COMMON_DIR}/util.c
+    ${THIRD_PARTY_DIR}/crc/crc32.c
     ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
@@ -271,20 +298,20 @@ set (CBOR_SEVICE_HELPER_SRCS
     ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
 )
 create_gtest("cbor_service_helper" "${CBOR_SEVICE_HELPER_SRCS}")
 
 # ECHO SERVICE TESTS
 set (ECHO_SEVICE_SRCS
     # File we're testing
-    ${SRC_DIR}/echo_service.c
+    ${MIDDLEWARE_DIR}/echo_service.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_service_stub.c
     ${STUB_DIR}/device_stub.c
 )
@@ -293,13 +320,13 @@ create_gtest("echo_service" "${ECHO_SEVICE_SRCS}")
 # CONFIG CBOR MAP TESTS
 set (CONFIG_CBOR_MAP_SRCS
     # File we're testing
-    ${SRC_DIR}/config_cbor_map_service.c
+    ${MIDDLEWARE_DIR}/config_cbor_map_service.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_service_stub.c
     ${STUB_DIR}/bm_service_request_stub.c
     ${STUB_DIR}/config_cbor_map_srv_reply_msg_stub.c
@@ -312,13 +339,13 @@ create_gtest("config_cbor_map_service" "${CONFIG_CBOR_MAP_SRCS}")
 # SYS INFO SERVICE TESTS
 set (SYS_INFO_SERVICE_SRCS
     # File we're testing
-    ${SRC_DIR}/sys_info_service.c
+    ${MIDDLEWARE_DIR}/sys_info_service.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_service_stub.c
     ${STUB_DIR}/bm_service_request_stub.c
     ${STUB_DIR}/sys_info_svc_reply_msg_stub.c
@@ -330,13 +357,13 @@ create_gtest("sys_info_service" "${SYS_INFO_SERVICE_SRCS}")
 # BM SERVICE TESTS
 set (BM_SERVICE_SRCS
     # File we're testing
-    ${SRC_DIR}/bm_service.c
+    ${MIDDLEWARE_DIR}/bm_service.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
+    ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_service_request_stub.c
     ${STUB_DIR}/pubsub_stub.c
 )
@@ -345,14 +372,14 @@ create_gtest("bm_service" "${BM_SERVICE_SRCS}")
 # BM SERVICE REQUEST TESTS
 set (BM_SERVICE_REQUEST_SRCS
     # File we're testing
-    ${SRC_DIR}/bm_service_request.c
+    ${MIDDLEWARE_DIR}/bm_service_request.c
 
     # Supporting Files
-    ${BM_COMMON_SOURCE_DIR}/util.c
+    ${COMMON_DIR}/util.c
 
     # Stubs
-    ${BM_COMMON_STUBS_DIR}/bm_os.c
-    ${BM_COMMON_STUBS_DIR}/timer_callback_handler_stub.c
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/timer_callback_handler_stub.c
     ${STUB_DIR}/pubsub_stub.c
     ${STUB_DIR}/device_stub.c
 )
@@ -367,7 +394,7 @@ add_executable(bm_adin2111_test
     ${ADIN2111_DIR}/adi_mac.c
     ${ADIN2111_DIR}/adi_phy.c
     ${ADIN2111_DIR}/adi_spi_oa.c
-    ${bm_common_SOURCE_DIR}/src/aligned_malloc.c)
+    ${COMMON_DIR}/aligned_malloc.c)
 target_include_directories(bm_adin2111_test PRIVATE
     ${ADIN2111_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/../network)

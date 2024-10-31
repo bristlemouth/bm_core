@@ -6,6 +6,14 @@ with your own firmware,
 and you're wondering what would be required to make your device compatible with Bristlemouth,
 read on!
 
+## Setting Up The Repository
+The repository can be added as a git submodule to a project utilizing the `git submodule add` command,
+see [this](https://git-scm.com/book/en/v2/Git-Tools-Submodules) for more information.
+Or placed into a project by any other method.
+If cloned/added as a submodule to your project,
+make sure you update all of the submodules in `bm_core` by  `cd`'ing into `bm_core` and running:
+`git submodule update --init`.
+
 ## Configuration Header File
 
 In order to configure the bristlemouth stack,

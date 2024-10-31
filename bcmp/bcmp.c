@@ -2,7 +2,7 @@
 #include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
-#include "dfu/dfu.h"
+#include "dfu.h"
 #include "messages/config.h"
 #include "messages/heartbeat.h"
 #include "messages/info.h"
