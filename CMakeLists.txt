@@ -52,16 +52,15 @@ set(COMPILE_FLAGS
 )
 
 include_directories(
-    ${CMAKE_CURRENT_LIST_DIR}/include
-    ${CMAKE_CURRENT_LIST_DIR}/include/dfu
     ${CMAKE_CURRENT_LIST_DIR}/bcmp
-    ${CMAKE_CURRENT_LIST_DIR}/middleware
     ${CMAKE_CURRENT_LIST_DIR}/common
+    ${CMAKE_CURRENT_LIST_DIR}/middleware
+    ${CMAKE_CURRENT_LIST_DIR}/network
+    ${CMAKE_CURRENT_LIST_DIR}/third_party
     ${CMAKE_CURRENT_LIST_DIR}/third_party/crc
     ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src
     bm_common_messages
 )
-
 add_subdirectory("drivers/adin2111")
 
 if(ENABLE_TESTING)
@@ -74,7 +73,6 @@ if(ENABLE_TESTING)
     add_subdirectory("test")
 else()
     set(SOURCES
-        src/l2.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c
         ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c
@@ -98,8 +96,8 @@ else()
         https://bristlemouth.github.io/bm_core/usage.html#build-system-integration"
         )
     endif()
-    append_platform_file(SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR}/src/platform)
-    append_platform_file(SOURCES ${BM_OS} ${bm_common_SOURCE_DIR}common)
+    append_platform_file(SOURCES ${BM_IP_STACK} ${CMAKE_CURRENT_LIST_DIR}/network)
+    append_platform_file(SOURCES ${BM_OS} ${CMAKE_CURRENT_LIST_DIR}/common)
     include_directories(
         "${BM_IP_INCLUDES}"
         "${BM_OS_INCLUDES}"
@@ -110,6 +108,7 @@ else()
     add_subdirectory(middleware)
     add_subdirectory(common)
     add_subdirectory(bm_common_messages)
+    add_subdirectory(network)
 
     add_library(bmcore ${SOURCES})
     target_link_libraries(bmcore PUBLIC
@@ -117,5 +116,6 @@ else()
         bcmp
         middleware
         bmmessages
+        bmnetwork
     )
 endif()

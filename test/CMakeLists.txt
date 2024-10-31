@@ -22,7 +22,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fff)
 include(GoogleTest)
-set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../src)
+set(NETWORK_DIR ${CMAKE_CURRENT_LIST_DIR}/../network)
 set(BCMP_DIR ${CMAKE_CURRENT_LIST_DIR}/../bcmp)
 set(MIDDLEWARE_DIR ${CMAKE_CURRENT_LIST_DIR}/../middleware)
 set(COMMON_DIR ${CMAKE_CURRENT_LIST_DIR}/../common)
@@ -256,7 +256,7 @@ create_gtest("dfu" "${DFU_SRCS}")
 # L2 Tests
 set (L2_SRCS
     # File we're testing
-    ${SRC_DIR}/l2.c
+    ${NETWORK_DIR}/l2.c
 
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
