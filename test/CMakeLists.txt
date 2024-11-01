@@ -414,3 +414,21 @@ set (UTC_FROM_DATE_TIME_SRCS
     ${COMMON_DIR}/util.c
 )
 create_gtest("utc_from_date_time" "${UTC_FROM_DATE_TIME_SRCS}")
+
+# Time Messsage tests
+set (TIME_MESSAGE_SRCS
+    # File we're testing
+    ${BCMP_DIR}/time.c
+
+    # Supporting Files
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/packet_stub.c
+    ${STUB_DIR}/device_stub.c
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/bm_rtc_stub.c
+)
+create_gtest("time" "${TIME_MESSAGE_SRCS}")
