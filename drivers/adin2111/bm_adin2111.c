@@ -267,12 +267,12 @@ end:
   return err;
 }
 
-/// Build a generic NetworkInterface out of a concrete Adin2111
-NetworkInterface prep_adin2111_netif(Adin2111 *self) {
+/// Build a generic NetworkDevice out of a concrete Adin2111
+NetworkDevice prep_adin2111_netif(Adin2111 *self) {
   // Create the vtable once and attach a pointer to it every time
-  static NetworkInterfaceTrait const trait = {.send = adin2111_netif_send_,
+  static NetworkDeviceTrait const trait = {.send = adin2111_netif_send_,
                                               .enable = adin2111_netif_enable_,
                                               .disable =
                                                   adin2111_netif_disable_};
-  return (NetworkInterface){.trait = &trait, .self = self};
+  return (NetworkDevice){.trait = &trait, .self = self};
 }

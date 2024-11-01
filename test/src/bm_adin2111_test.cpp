@@ -26,12 +26,12 @@ FAKE_VOID_FUNC(netif_power_cb, bool);
 FAKE_VOID_FUNC(link_changed_on_port, uint8_t, bool);
 FAKE_VALUE_FUNC(size_t, received_data_on_port, uint8_t, uint8_t *, size_t);
 
-static NetworkInterfaceCallbacks const callbacks = {
+static NetworkDeviceCallbacks const callbacks = {
     .power = netif_power_cb,
     .link_change = link_changed_on_port,
     .receive = received_data_on_port};
 
-static NetworkInterface setup(void) {
+static NetworkDevice setup(void) {
   static Adin2111 adin = {.device_handle = nullptr, .callbacks = &callbacks};
 
   // We can only call adin2111_init once per execution (test suite)
@@ -48,14 +48,14 @@ static NetworkInterface setup(void) {
 }
 
 TEST(Adin2111, send) {
-  NetworkInterface netif = setup();
+  NetworkDevice netif = setup();
   BmErr err = netif.trait->send(netif.self, (unsigned char *)"hello", 5,
                                 ADIN2111_PORT_MASK);
   EXPECT_EQ(err, BmOK);
 }
 
 TEST(Adin2111, enable) {
-  NetworkInterface netif = setup();
+  NetworkDevice netif = setup();
   // Expect the same BmENODEV error as in init
   // because init calls enable internally.
   // On a real device, this should return BmOK,
@@ -65,7 +65,7 @@ TEST(Adin2111, enable) {
 }
 
 TEST(Adin2111, disable) {
-  NetworkInterface netif = setup();
+  NetworkDevice netif = setup();
   // SEGFAULT because PHY is NULL, because no real SPI transactions
   EXPECT_DEATH(netif.trait->disable(netif.self), "");
 }
