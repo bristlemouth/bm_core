@@ -1,6 +1,7 @@
 #include "cbor_service_helper.h"
 #include "bm_config.h"
 #include "bm_os.h"
+#include "configuration.h"
 #include "crc.h"
 #include "messages/config.h"
 #include <inttypes.h>
@@ -20,10 +21,10 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
   uint32_t tmpU;
   int32_t tmpI;
   float tmpF;
-  char tmpS[BM_MAX_STR_LEN_BYTES];
-  size_t tmpSSize = BM_MAX_STR_LEN_BYTES;
-  uint8_t tmpB[BM_MAX_STR_LEN_BYTES];
-  size_t tmpBSize = BM_MAX_STR_LEN_BYTES;
+  char tmpS[MAX_STR_LEN_BYTES];
+  size_t tmpSSize = MAX_STR_LEN_BYTES;
+  uint8_t tmpB[MAX_STR_LEN_BYTES];
+  size_t tmpBSize = MAX_STR_LEN_BYTES;
   CborEncoder encoder;
   CborEncoder map;
   CborError err;
@@ -31,7 +32,7 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
   CborParser parser;
   bool shouldRetry;
   uint8_t num_keys;
-  const GenericConfigKey *keys = bcmp_config_get_stored_keys(&num_keys, type);
+  const ConfigKey *keys = get_stored_keys(type, &num_keys);
 
   do {
     shouldRetry = false;
@@ -42,16 +43,16 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
     }
 
     for (uint8_t i = 0; i < num_keys; i++) {
-      GenericConfigKey key = keys[i];
+      ConfigKey key = keys[i];
       err = cbor_encode_text_string(&map, key.keyBuffer, key.keyLen);
       if (err != CborNoError && err != CborErrorOutOfMemory) {
         break;
       }
 
       bool internalSuccess = true;
-      tmpBSize = BM_MAX_STR_LEN_BYTES;
-      memset(tmpB, 0, BM_MAX_STR_LEN_BYTES);
-      if (bcmp_get_config(key.keyBuffer, key.keyLen, tmpB, &tmpBSize, type) &&
+      tmpBSize = MAX_STR_LEN_BYTES;
+      memset(tmpB, 0, MAX_STR_LEN_BYTES);
+      if (get_config_cbor(type, key.keyBuffer, key.keyLen, tmpB, &tmpBSize) &&
           cbor_parser_init(tmpB, tmpBSize, 0, &parser, &it) != CborNoError) {
         break;
       }
@@ -83,14 +84,14 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
         }
       } break;
       case STR: {
-        tmpSSize = BM_MAX_STR_LEN_BYTES;
-        memset(tmpS, 0, BM_MAX_STR_LEN_BYTES);
+        tmpSSize = MAX_STR_LEN_BYTES;
+        memset(tmpS, 0, MAX_STR_LEN_BYTES);
         do {
           if (cbor_value_copy_text_string(&it, tmpS, &tmpSSize, NULL) !=
               CborNoError) {
             break;
           }
-          if (tmpSSize >= BM_MAX_CONFIG_BUFFER_SIZE_BYTES) {
+          if (tmpSSize >= MAX_CONFIG_BUFFER_SIZE_BYTES) {
             break;
           }
           tmpS[tmpSSize] = '\0';
@@ -98,14 +99,14 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
         } while (0);
       } break;
       case BYTES: {
-        tmpSSize = BM_MAX_STR_LEN_BYTES;
-        memset(tmpS, 0, BM_MAX_STR_LEN_BYTES);
+        tmpSSize = MAX_STR_LEN_BYTES;
+        memset(tmpS, 0, MAX_STR_LEN_BYTES);
         do {
           if (cbor_value_copy_byte_string(&it, (uint8_t *)tmpS, &tmpSSize,
                                           NULL) != CborNoError) {
             break;
           }
-          if (tmpSSize >= BM_MAX_CONFIG_BUFFER_SIZE_BYTES) {
+          if (tmpSSize >= MAX_CONFIG_BUFFER_SIZE_BYTES) {
             break;
           }
           err = cbor_encode_byte_string(&map, (uint8_t *)tmpS, tmpSSize);

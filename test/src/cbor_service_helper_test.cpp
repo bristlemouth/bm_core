@@ -48,7 +48,7 @@ bool prepare_cbor_parser(const char *key, size_t key_len, CborValue &it,
 }
 
 bool cbor_type_to_config_type(const CborValue *value,
-                              GenericConfigDataTypes &configType) {
+                              ConfigDataTypes &configType) {
   bool rval = true;
   do {
     if (cbor_value_is_integer(value)) {
@@ -109,7 +109,7 @@ bool bcmp_set_config(const char *key, size_t key_len, uint8_t *value,
                  key) < 0) {
       break;
     }
-    GenericConfigDataTypes type;
+    ConfigDataTypes type;
     if (!cbor_type_to_config_type(&it, type)) {
       break;
     }

@@ -23,7 +23,7 @@ bool bcmp_config_get(uint64_t target_node_id, BmConfigPartition partition,
         get_msg->header.target_node_id = target_node_id;
         get_msg->header.source_node_id = node_id();
         get_msg->partition = partition;
-        if (key_len > BM_MAX_KEY_LEN_BYTES) {
+        if (key_len > MAX_KEY_LEN_BYTES) {
           break;
         }
         get_msg->key_length = key_len;
@@ -53,7 +53,7 @@ bool bcmp_config_set(uint64_t target_node_id, BmConfigPartition partition,
         set_msg->header.target_node_id = target_node_id;
         set_msg->header.source_node_id = node_id();
         set_msg->partition = partition;
-        if (key_len > BM_MAX_KEY_LEN_BYTES) {
+        if (key_len > MAX_KEY_LEN_BYTES) {
           break;
         }
         set_msg->key_length = key_len;
@@ -116,7 +116,7 @@ bool bcmp_config_status_request(uint64_t target_node_id,
 
 bool bcmp_config_status_response(uint64_t target_node_id,
                                  BmConfigPartition partition, bool commited,
-                                 uint8_t num_keys, const GenericConfigKey *keys,
+                                 uint8_t num_keys, const ConfigKey *keys,
                                  BmErr *err, uint16_t seq_num) {
   bool rval = false;
   *err = BmEINVAL;
@@ -158,7 +158,7 @@ bool bcmp_config_status_response(uint64_t target_node_id,
 
 static void bcmp_config_process_commit_msg(BmConfigCommit *msg) {
   if (msg) {
-    bcmp_commit_config((BmConfigPartition)msg->partition);
+    save_config((BmConfigPartition)msg->partition, true);
   }
 }
 
@@ -168,11 +168,10 @@ static void bcmp_config_process_status_request_msg(BmConfigStatusRequest *msg,
     BmErr err;
     do {
       uint8_t num_keys;
-      const GenericConfigKey *keys =
-          bcmp_config_get_stored_keys(&num_keys, msg->partition);
+      const ConfigKey *keys = get_stored_keys(msg->partition, &num_keys);
       bcmp_config_status_response(msg->header.source_node_id, msg->partition,
-                                  bcmp_config_needs_commit(msg->partition),
-                                  num_keys, keys, &err, seq_num);
+                                  needs_commit(msg->partition), num_keys, keys,
+                                  &err, seq_num);
       if (err != BmOK) {
         bm_debug("Error processing config status request.\n");
       }
@@ -210,11 +209,11 @@ static void bcmp_config_process_config_get_msg(BmConfigGet *msg,
                                                uint16_t seq_num) {
   if (msg) {
     do {
-      size_t buffer_len = BM_MAX_CONFIG_BUFFER_SIZE_BYTES;
+      size_t buffer_len = MAX_CONFIG_BUFFER_SIZE_BYTES;
       uint8_t *buffer = (uint8_t *)bm_malloc(buffer_len);
       if (buffer) {
-        if (bcmp_get_config(msg->key, msg->key_length, buffer, &buffer_len,
-                            msg->partition)) {
+        if (get_config_cbor(msg->partition, msg->key, msg->key_length, buffer,
+                            &buffer_len)) {
           BmErr err;
           bcmp_config_send_value(msg->header.source_node_id, msg->partition,
                                  buffer_len, buffer, &err, seq_num);
@@ -229,13 +228,13 @@ static void bcmp_config_process_config_set_msg(BmConfigSet *msg,
                                                uint16_t seq_num) {
   if (msg) {
     do {
-      if (msg->data_length > BM_MAX_CONFIG_BUFFER_SIZE_BYTES ||
+      if (msg->data_length > MAX_CONFIG_BUFFER_SIZE_BYTES ||
           msg->data_length == 0) {
         break;
       }
-      if (bcmp_set_config((const char *)msg->keyAndData, msg->key_length,
-                          &msg->keyAndData[msg->key_length], msg->data_length,
-                          msg->partition)) {
+      if (set_config_cbor(msg->partition, (const char *)msg->keyAndData,
+                          msg->key_length, &msg->keyAndData[msg->key_length],
+                          msg->data_length)) {
         BmErr err;
         bcmp_config_send_value(
             msg->header.source_node_id, msg->partition, msg->data_length,
@@ -256,8 +255,8 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
     if (!cbor_value_is_valid(&it)) {
       break;
     }
-    GenericConfigDataTypes type;
-    if (!bm_cbor_type_to_config_type(&it, &type)) {
+    ConfigDataTypes type;
+    if (!cbor_type_to_config(&it, &type)) {
       break;
     }
     switch (type) {
@@ -289,7 +288,7 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
       break;
     }
     case STR: {
-      size_t buffer_len = BM_MAX_CONFIG_BUFFER_SIZE_BYTES;
+      size_t buffer_len = MAX_CONFIG_BUFFER_SIZE_BYTES;
       char *buffer = (char *)bm_malloc(buffer_len);
       if (buffer) {
         do {
@@ -297,7 +296,7 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
               CborNoError) {
             break;
           }
-          if (buffer_len >= BM_MAX_CONFIG_BUFFER_SIZE_BYTES) {
+          if (buffer_len >= MAX_CONFIG_BUFFER_SIZE_BYTES) {
             break;
           }
           buffer[buffer_len] = '\0';
@@ -309,7 +308,7 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
       break;
     }
     case BYTES: {
-      size_t buffer_len = BM_MAX_CONFIG_BUFFER_SIZE_BYTES;
+      size_t buffer_len = MAX_CONFIG_BUFFER_SIZE_BYTES;
       uint8_t *buffer = (uint8_t *)bm_malloc(buffer_len);
       if (buffer) {
         do {
@@ -334,7 +333,7 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
     case ARRAY: {
       bm_debug("Node Id: %016" PRIx64 " Value: Array\n",
                msg->header.source_node_id);
-      size_t buffer_len = BM_MAX_CONFIG_BUFFER_SIZE_BYTES;
+      size_t buffer_len = MAX_CONFIG_BUFFER_SIZE_BYTES;
       uint8_t *buffer = (uint8_t *)bm_malloc(buffer_len);
       if (buffer) {
         for (size_t i = 0; i < buffer_len; i++) {
@@ -406,7 +405,7 @@ static void bcmp_process_del_request_message(BmConfigDeleteKeyRequest *msg,
                                              uint16_t seq_num) {
   if (msg) {
     do {
-      bool success = bcmp_remove_key(msg->key, msg->key_length, msg->partition);
+      bool success = remove_key(msg->partition, msg->key, msg->key_length);
       if (!bcmp_config_send_del_key_response(msg->header.source_node_id,
                                              msg->partition, msg->key_length,
                                              msg->key, success, seq_num)) {
