@@ -361,6 +361,7 @@ typedef enum {
   BM_CFG_PARTITION_USER,
   BM_CFG_PARTITION_SYSTEM,
   BM_CFG_PARTITION_HARDWARE,
+  BM_CFG_PARTITION_COUNT
 } BmConfigPartition;
 
 typedef struct {
