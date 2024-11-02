@@ -42,7 +42,15 @@ jobs:
     - name: coverage
       if: contains(matrix.os, 'ubuntu')
       run:
-        gcovr -r ./src --html-details ./coverage/report.html --html-theme github.dark-green build/test
+        gcovr -r . \
+        --html-details ./coverage/report.html \
+        --html-theme github.dark-green \
+        --filter bcmp \
+        --filter middleware \
+        --filter dirvers \
+        --filter network \
+        --filter common \
+        build/test
     - name: artifacts
       if: contains(matrix.os, 'ubuntu')
       uses: actions/upload-artifact@v4
