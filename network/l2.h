@@ -1,3 +1,4 @@
+#include "bm_adin2111.h"
 #include "util.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -29,26 +30,11 @@ typedef BmErr (*BmL2InitCb)(void *device_handle, BmL2RxCb rx_cb,
 typedef BmErr (*BmL2PowerDownCb)(const void *device_handle, bool on,
                                  uint8_t port_mask);
 
-typedef struct {
-  void *device_handle;
-  uint8_t port_mask;
-  uint8_t num_ports;
-  BmL2InitCb init_cb;
-  BmL2PowerDownCb power_cb;
-  BmL2TxCb tx_cb;
-} BmNetDevCfg;
-
 BmErr bm_l2_link_output(void *buf, uint32_t length);
 void bm_l2_deinit(void);
-BmErr bm_l2_init(BmL2ModuleLinkChangeCb cb, const BmNetDevCfg *cfg,
-                 uint8_t count);
-
-bool bm_l2_get_device_handle(uint8_t dev_idx, void **device_handle,
-                             uint32_t *start_port_idx);
-uint8_t bm_l2_get_num_ports(void);
-uint8_t bm_l2_get_num_devices(void);
+BmErr bm_l2_init(NetworkDevice *network_device);
 bool bm_l2_get_port_state(uint8_t port);
-BmErr bm_l2_netif_set_power(void *device_handle, bool on);
+BmErr bm_l2_netif_set_power(bool on);
 
 #ifdef __cplusplus
 }
