@@ -42,8 +42,7 @@ jobs:
     - name: coverage
       if: contains(matrix.os, 'ubuntu')
       run:
-        gcovr -r . \
-        --html-details ./coverage/report.html \
+        gcovr --html-details ./coverage/report.html \
         --html-theme github.dark-green \
         --filter bcmp \
         --filter middleware \
