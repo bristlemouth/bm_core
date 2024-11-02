@@ -95,8 +95,7 @@ static void process_start_topology_event(void) {
   // here we will need to kick off the topo process by looking at our own neighbors and then sending out a request
   CTX.network_topology = new_network_topology();
 
-  static uint8_t num_ports = 0;
-  num_ports = bm_l2_get_num_ports();
+  static const uint8_t num_ports = ADIN2111_PORT_NUM;
 
   // Check our neighbors
   uint8_t num_neighbors = 0;
@@ -209,8 +208,7 @@ BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr) {
   @ret ERR_OK if successful
 */
 static BmErr bcmp_send_neighbor_table(void *addr) {
-  static uint8_t num_ports = 0;
-  num_ports = bm_l2_get_num_ports();
+  static const uint8_t num_ports = ADIN2111_PORT_NUM;
   BmErr err = BmENOMEM;
 
   // Check our neighbors
@@ -508,8 +506,7 @@ static void network_topology_clear(NetworkTopology *network_topology) {
   }
 }
 
-static void
-network_topology_move_to_front(NetworkTopology *network_topology) {
+static void network_topology_move_to_front(NetworkTopology *network_topology) {
   if (network_topology && network_topology->length) {
     network_topology->cursor = network_topology->front;
     network_topology->index = 0;

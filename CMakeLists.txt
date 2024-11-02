@@ -54,6 +54,7 @@ set(COMPILE_FLAGS
 set(BM_INCLUDES
     ${CMAKE_CURRENT_LIST_DIR}/bcmp
     ${CMAKE_CURRENT_LIST_DIR}/common
+    ${CMAKE_CURRENT_LIST_DIR}/drivers/adin2111
     ${CMAKE_CURRENT_LIST_DIR}/middleware
     ${CMAKE_CURRENT_LIST_DIR}/network
     ${CMAKE_CURRENT_LIST_DIR}/third_party
