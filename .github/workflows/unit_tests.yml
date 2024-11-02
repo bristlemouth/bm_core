@@ -41,7 +41,7 @@ jobs:
         pip install gcovr==7.2
     - name: coverage
       if: contains(matrix.os, 'ubuntu')
-      run:
+      run: |
         gcovr --html-details ./coverage/report.html \
         --html-theme github.dark-green \
         --filter bcmp \
