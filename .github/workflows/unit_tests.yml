@@ -46,7 +46,7 @@ jobs:
               --html-theme github.dark-green \
               --filter bcmp \
               --filter middleware \
-              --filter dirvers \
+              --filter drivers \
               --filter network \
               --filter common \
               build/test
