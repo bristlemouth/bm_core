@@ -23,8 +23,7 @@ FAKE_VOID_FUNC(__disable_irq);
 FAKE_VOID_FUNC(__enable_irq);
 
 static NetworkDevice setup() {
-  static Adin2111 adin = {.device_handle = NULL,
-                          .callbacks = &fake_netdevice_callbacks};
+  static Adin2111 adin = {.device_handle = NULL};
 
   // We can only call adin2111_init once per execution (test suite)
   // because the device memory in the driver is static.

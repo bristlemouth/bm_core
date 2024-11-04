@@ -9,7 +9,6 @@
 
 typedef struct {
   void *device_handle;
-  NetworkDeviceCallbacks const *callbacks;
 } Adin2111;
 
 #ifdef __cplusplus
