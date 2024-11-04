@@ -36,7 +36,6 @@ typedef enum {
 } BmL2QueueType;
 
 typedef struct {
-  void *device_handle;
   uint8_t port_mask;
   void *buf;
   BmL2QueueType type;
@@ -69,8 +68,8 @@ static BmErr bm_l2_tx(void *buf, uint32_t length, uint8_t port_mask) {
 
   // device_handle not needed for tx
   // Don't send to ports that are offline
-  L2QueueElement tx_evt = {NULL, (uint8_t)port_mask & CTX.enabled_port_mask,
-                           buf, L2Tx, length};
+  L2QueueElement tx_evt = {port_mask & CTX.enabled_port_mask, buf, L2Tx,
+                           length};
 
   bm_l2_tx_prep(buf, length);
   if (bm_queue_send(CTX.evt_queue, &tx_evt, 10) != BmOK) {
@@ -84,36 +83,25 @@ static BmErr bm_l2_tx(void *buf, uint32_t length, uint8_t port_mask) {
 /*!
   @brief L2 RX Function - called by low level driver when new data is available
 
-  @param device_handle device handle
-  @param payload buffer with received data
-  @param payload_len buffer length in bytes
-  @param port_mask which port was this received over
-
-  @return BmOK if successful
-  @return BmErr if unsuccsessful
+  @param port_index which port was this received over
+  @param data buffer with received data
+  @param length buffer length in bytes
 */
-static BmErr bm_l2_rx(void *device_handle, uint8_t *payload,
-                      uint16_t payload_len, uint8_t port_mask) {
-  BmErr err = BmEINVAL;
-  L2QueueElement rx_evt = {device_handle, port_mask, NULL, L2Rx, payload_len};
+static void bm_l2_rx(uint8_t port_mask, uint8_t *data, size_t length) {
+  L2QueueElement rx_evt = {port_mask, NULL, L2Rx, length};
 
-  if (device_handle && payload) {
-    err = BmOK;
-    rx_evt.buf = bm_l2_new(payload_len);
+  if (data) {
+    rx_evt.buf = bm_l2_new(length);
     if (rx_evt.buf == NULL) {
       bm_debug("No mem for buf in RX pathway\n");
-      err = BmENOMEM;
     } else {
-      memcpy(bm_l2_get_payload(rx_evt.buf), payload, payload_len);
+      memcpy(bm_l2_get_payload(rx_evt.buf), data, length);
 
       if (bm_queue_send(CTX.evt_queue, (void *)&rx_evt, 0) != BmOK) {
         bm_l2_free(rx_evt.buf);
-        err = BmENOMEM;
       }
     }
   }
-
-  return err;
 }
 
 /*!
@@ -217,6 +205,7 @@ void bm_l2_deinit(void) {
  */
 BmErr bm_l2_init(NetworkDevice network_device) {
   BmErr err = BmEINVAL;
+  network_device.callbacks.receive = bm_l2_rx;
   CTX.network_device = network_device;
   CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
   if (CTX.evt_queue) {

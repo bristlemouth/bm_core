@@ -3,7 +3,7 @@
 typedef struct {
   void (*power)(bool on);
   void (*link_change)(uint8_t port_index, bool is_up);
-  size_t (*receive)(uint8_t port_index, uint8_t *data, size_t length);
+  void (*receive)(uint8_t port_mask, uint8_t *data, size_t length);
 } NetworkDeviceCallbacks;
 
 typedef struct {
@@ -16,4 +16,5 @@ typedef struct {
 typedef struct {
   void *self;
   NetworkDeviceTrait const *trait;
+  NetworkDeviceCallbacks callbacks;
 } NetworkDevice;

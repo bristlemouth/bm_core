@@ -11,7 +11,7 @@
 // For now, there's only ever one ADIN2111.
 // When supporting multiple in the future,
 // we can allocate this dynamically.
-static Adin2111 *ADIN2111 = NULL;
+static NetworkDevice NETWORK_DEVICE;
 static adin2111_DeviceStruct_t DEVICE_STRUCT;
 #ifdef ENABLE_TESTING
 static uint8_t DEVICE_MEMORY[ADIN2111_DEVICE_SIZE + 80];
@@ -35,7 +35,7 @@ static void link_change_callback_(void *device_handle, uint32_t event,
                                   void *status_registers_param) {
   (void)event;
 
-  if (ADIN2111 && ADIN2111->callbacks && ADIN2111->callbacks->link_change) {
+  if (NETWORK_DEVICE.callbacks.link_change) {
     const adi_mac_StatusRegisters_t *status_registers =
         (adi_mac_StatusRegisters_t *)status_registers_param;
 
@@ -52,7 +52,7 @@ static void link_change_callback_(void *device_handle, uint32_t event,
       adi_eth_Result_e result =
           adin2111_GetLinkStatus(device_handle, port_index, &status);
       if (result == ADI_ETH_SUCCESS) {
-        ADIN2111->callbacks->link_change(port_index, status);
+        NETWORK_DEVICE.callbacks.link_change(port_index, status);
       }
     }
   }
@@ -67,8 +67,8 @@ static BmErr adin2111_netdevice_enable(Adin2111 *self) {
     goto end;
   }
 
-  if (self->callbacks && self->callbacks->power) {
-    self->callbacks->power(true);
+  if (NETWORK_DEVICE.callbacks.power) {
+    NETWORK_DEVICE.callbacks.power(true);
   }
 
   adi_eth_Result_e result = adin2111_Init(self->device_handle, &DRIVER_CONFIG);
@@ -113,8 +113,8 @@ static BmErr adin2111_netdevice_enable(Adin2111 *self) {
   }
 
 end:
-  if (err != BmOK && self && self->callbacks && self->callbacks->power) {
-    self->callbacks->power(false);
+  if (err != BmOK && NETWORK_DEVICE.callbacks.power) {
+    NETWORK_DEVICE.callbacks.power(false);
   }
 
   return err;
@@ -142,8 +142,8 @@ static BmErr adin2111_netdevice_disable(Adin2111 *self) {
     }
   }
 
-  if (self && self->callbacks && self->callbacks->power) {
-    self->callbacks->power(false);
+  if (NETWORK_DEVICE.callbacks.power) {
+    NETWORK_DEVICE.callbacks.power(false);
   }
 
 end:
@@ -217,12 +217,12 @@ static void receive_callback_(void *device_param, uint32_t event,
   (void)device_param;
   (void)event;
 
-  if (ADIN2111 && ADIN2111->callbacks && ADIN2111->callbacks->receive) {
+  if (NETWORK_DEVICE.callbacks.receive) {
     adi_eth_BufDesc_t *buffer_description =
         (adi_eth_BufDesc_t *)buffer_description_param;
-    uint8_t port_index = 1 << buffer_description->port;
-    ADIN2111->callbacks->receive(port_index, buffer_description->pBuf,
-                                 buffer_description->bufSize);
+    uint8_t port_mask = 1 << buffer_description->port;
+    NETWORK_DEVICE.callbacks.receive(port_mask, buffer_description->pBuf,
+                                     buffer_description->bufSize);
   }
 }
 
@@ -239,12 +239,14 @@ BmErr adin2111_init(Adin2111 *self) {
     goto end;
   }
 
-  if (ADIN2111) {
+  // Prevent allocating RX buffers more than once
+  static bool initialized = false;
+  if (initialized) {
     err = BmEALREADY;
     goto end;
   }
+  initialized = true;
 
-  ADIN2111 = self;
   self->device_handle = &DEVICE_STRUCT;
 
   for (int i = 0; i < RX_QUEUE_NUM_ENTRIES; i++) {
@@ -274,5 +276,8 @@ NetworkDevice create_adin2111_network_device(Adin2111 *self) {
                                            .enable = adin2111_netdevice_enable_,
                                            .disable =
                                                adin2111_netdevice_disable_};
-  return (NetworkDevice){.trait = &trait, .self = self};
+  NETWORK_DEVICE.self = self;
+  NETWORK_DEVICE.trait = &trait;
+  NETWORK_DEVICE.callbacks = (NetworkDeviceCallbacks){0};
+  return NETWORK_DEVICE;
 }
