@@ -33,10 +33,6 @@
 typedef enum {
   L2Tx,
   L2Rx,
-  L2LinkUp,
-  L2LinkDown,
-  L2SetNetifUp,
-  L2SetNetifDown,
 } BmL2QueueType;
 
 typedef struct {
