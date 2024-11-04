@@ -64,8 +64,8 @@ set(BM_INCLUDES
 include_directories(${BM_INCLUDES})
 
 if(ENABLE_TESTING)
-    set(CMAKE_CXX_FLAGS "-g -Wall")
-    set(CMAKE_C_FLAGS "-g -Wall -W")
+    set(CMAKE_CXX_FLAGS "-g -Wall --coverage")
+    set(CMAKE_C_FLAGS "-g -Wall -W  --coverage")
     set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
     add_compile_options(-DENABLE_TESTING)
 
