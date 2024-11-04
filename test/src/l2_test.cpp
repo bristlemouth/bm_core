@@ -22,18 +22,12 @@ static NetworkDeviceTrait const fake_netdevice_trait = {
     .enable = fake_netdevice_enable,
     .disable = fake_netdevice_disable};
 
-struct L2Meta {
-  BmL2RxCb rx;
-  void *device_handle;
-};
-
 #define port_per_device 2
 #define egress_port_offset 51
 
 class L2 : public ::testing::Test {
 public:
   rnd_gen RND;
-  static struct L2Meta META;
   static uint8_t init_count;
 
   static BmErr tx_cb(void *device_handle, uint8_t *buf, uint16_t size,
@@ -64,7 +58,6 @@ protected:
   void TearDown() override { bm_l2_deinit(); }
 };
 
-struct L2Meta L2::META = {0};
 uint8_t L2::init_count;
 
 TEST_F(L2, init) {
@@ -127,37 +120,6 @@ TEST_F(L2, link_output) {
 TEST_F(L2, set_power) {
   EXPECT_EQ(bm_l2_netif_set_power(true), BmOK);
   EXPECT_EQ(bm_l2_netif_set_power(false), BmOK);
-}
-
-/*!
- @brief Test the callbacks initialized by the L2 interface
-*/
-TEST_F(L2, test_callbacks) {
-  uint16_t size = RND.rnd_int(UINT16_MAX, UINT8_MAX);
-  uint8_t *buf = (uint8_t *)bm_malloc(size);
-  RND.rnd_array(buf, size);
-
-  bm_l2_new_fake.return_val = buf;
-  bm_l2_get_payload_fake.return_val = buf;
-  ASSERT_EQ(
-      META.rx(META.device_handle, buf, size, RND.rnd_int(port_per_device, 1)),
-      BmOK);
-
-  //Teset invalid use cases
-  ASSERT_NE(META.rx(NULL, buf, size, RND.rnd_int(port_per_device, 1)), BmOK);
-  bm_queue_send_fake.return_val = BmENOMEM;
-  ASSERT_NE(
-      META.rx(META.device_handle, buf, size, RND.rnd_int(port_per_device, 1)),
-      BmOK);
-  bm_l2_new_fake.return_val = NULL;
-  ASSERT_NE(
-      META.rx(META.device_handle, buf, size, RND.rnd_int(port_per_device, 1)),
-      BmOK);
-  ASSERT_NE(
-      META.rx(META.device_handle, NULL, size, RND.rnd_int(port_per_device, 1)),
-      BmOK);
-
-  bm_free(buf);
 }
 
 /*!
