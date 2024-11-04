@@ -63,6 +63,7 @@ function(create_gtest test_name  srcs)
         ${srcs}
         src/${test_name}_test.cpp
     )
+    gtest_discover_tests(${GTEST_NAME})
     # Generate artifacts for coverage report using lcov
     file(GLOB_RECURSE FILES "../*")
     foreach(FILE ${FILES})
@@ -76,7 +77,6 @@ function(create_gtest test_name  srcs)
             endif()
         endif()
     endforeach()
-    gtest_discover_tests(${GTEST_NAME})
 endfunction()
 
 # Linked List (LL) unit tests
