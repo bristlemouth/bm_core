@@ -12,6 +12,7 @@ set(SOURCES
     resource_discovery.c
     time.c
     topology.c
+    configuration.c
 )
 
 add_library(bcmp ${SOURCES})

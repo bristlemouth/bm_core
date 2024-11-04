@@ -1,9 +1,8 @@
 #ifndef __BM_CONFIGS_GENERIC_H__
 #define __BM_CONFIGS_GENERIC_H__
 
-#include "cbor.h"
-#include "messages.h"
-#include "util.h"
+#include "configuration.h"
+#include <stddef.h>
 #include <stdint.h>
 
 bool bm_config_read(BmConfigPartition partition, uint32_t offset,

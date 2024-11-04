@@ -296,6 +296,7 @@ set (CBOR_SEVICE_HELPER_SRCS
     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
     ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
     ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
+    ${BCMP_DIR}/configuration.c
 
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
@@ -384,6 +385,25 @@ set (BM_SERVICE_REQUEST_SRCS
     ${STUB_DIR}/device_stub.c
 )
 create_gtest("bm_service_request" "${BM_SERVICE_REQUEST_SRCS}")
+
+# CONFIGURATION TESTS
+set (CONFIGURATION_SRCS
+    # File we're testing
+    ${BCMP_DIR}/configuration.c
+
+    # Supporting Files
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
+    ${THIRD_PARTY_DIR}/crc/crc32.c
+)
+create_gtest("configuration" "${CONFIGURATION_SRCS}")
 
 # ADIN2111 DRIVER TESTS
 add_executable(bm_adin2111_test

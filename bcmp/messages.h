@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "configuration.h"
 #include "dfu_message_structs.h"
 
 typedef struct {
@@ -305,65 +306,58 @@ typedef struct {
 // TODO move this to DFU specific stuff
 // DFU stuff goes below
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventImgInfo info;
+  BmDfuFrameHeader header;
+  BmDfuEventImgInfo info;
 } __attribute__((packed)) BcmpDfuStart;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventChunkRequest chunk_req;
+  BmDfuFrameHeader header;
+  BmDfuEventChunkRequest chunk_req;
 } __attribute__((packed)) BcmpDfuPayloadReq;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventImageChunk chunk;
+  BmDfuFrameHeader header;
+  BmDfuEventImageChunk chunk;
 } __attribute__((packed)) BcmpDfuPayload;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventResult result;
+  BmDfuFrameHeader header;
+  BmDfuEventResult result;
 } __attribute__((packed)) BcmpDfuEnd;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventResult ack;
+  BmDfuFrameHeader header;
+  BmDfuEventResult ack;
 } __attribute__((packed)) BcmpDfuAck;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventResult err;
+  BmDfuFrameHeader header;
+  BmDfuEventResult err;
 } __attribute__((packed)) BcmpDfuAbort;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventAddress addr;
+  BmDfuFrameHeader header;
+  BmDfuEventAddress addr;
 } __attribute__((packed)) BcmpDfuHeartbeat;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventAddress addr;
+  BmDfuFrameHeader header;
+  BmDfuEventAddress addr;
 } __attribute__((packed)) BcmpDfuRebootReq;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventAddress addr;
+  BmDfuFrameHeader header;
+  BmDfuEventAddress addr;
 } __attribute__((packed)) BcmpDfuReboot;
 
 typedef struct {
- BmDfuFrameHeader header;
- BmDfuEventAddress addr;
+  BmDfuFrameHeader header;
+  BmDfuEventAddress addr;
 } __attribute__((packed)) BcmpDfuBootComplete;
 
 /////////////////////////////
 /* CONFIGURATION*/
 /////////////////////////////
-typedef enum {
-  BM_CFG_PARTITION_USER,
-  BM_CFG_PARTITION_SYSTEM,
-  BM_CFG_PARTITION_HARDWARE,
-  BM_CFG_PARTITION_COUNT
-} BmConfigPartition;
-
 typedef struct {
   // Node ID of the target node for which the request is being made.
   uint64_t target_node_id;
@@ -457,7 +451,6 @@ typedef struct {
   // Key string
   char key[0];
 } __attribute__((packed)) BmConfigDeleteKeyResponse;
-
 
 typedef enum {
   BcmpAckMessage = 0x00,
