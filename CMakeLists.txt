@@ -54,6 +54,9 @@ set(COMPILE_FLAGS
 set(BM_INCLUDES
     ${CMAKE_CURRENT_LIST_DIR}/bcmp
     ${CMAKE_CURRENT_LIST_DIR}/common
+    # TDOO: When we have multiple network device drivers, we will need to
+    #      change this to include the driver of choice
+    ${CMAKE_CURRENT_LIST_DIR}/drivers/adin2111
     ${CMAKE_CURRENT_LIST_DIR}/middleware
     ${CMAKE_CURRENT_LIST_DIR}/network
     ${CMAKE_CURRENT_LIST_DIR}/third_party
@@ -64,8 +67,8 @@ set(BM_INCLUDES
 include_directories(${BM_INCLUDES})
 
 if(ENABLE_TESTING)
-    set(CMAKE_CXX_FLAGS "-g -Wall --coverage")
-    set(CMAKE_C_FLAGS "-g -Wall -W  --coverage")
+    set(CMAKE_CXX_FLAGS "-g -Wall")
+    set(CMAKE_C_FLAGS "-g -Wall -W")
     set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
     add_compile_options(-DENABLE_TESTING)
 

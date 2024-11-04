@@ -63,6 +63,19 @@ function(create_gtest test_name  srcs)
         ${srcs}
         src/${test_name}_test.cpp
     )
+    # Generate artifacts for coverage report using lcov
+    file(GLOB_RECURSE FILES "../*")
+    foreach(FILE ${FILES})
+        if (NOT FILE MATCHES "^test/")
+            get_filename_component(FILENAME "${FILE}" NAME)
+            if (FILENAME MATCHES ".*${test_name}.*")
+                set_source_files_properties(${FILE} PROPERTIES
+                    COMPILE_FLAGS
+                    "-fprofile-arcs -ftest-coverage"
+                )
+            endif()
+        endif()
+    endforeach()
     gtest_discover_tests(${GTEST_NAME})
 endfunction()
 
@@ -375,20 +388,19 @@ set (BM_SERVICE_REQUEST_SRCS
 create_gtest("bm_service_request" "${BM_SERVICE_REQUEST_SRCS}")
 
 # ADIN2111 DRIVER TESTS
-add_executable(bm_adin2111_test
-    src/bm_adin2111_test.cpp
+set (ADIN2111_SRCS
+    # File we're testing
     ${ADIN2111_DIR}/bm_adin2111.c
+
+    # Supporting Files
     ${ADIN2111_DIR}/adin2111.c
     ${ADIN2111_DIR}/adi_fcs.c
     ${ADIN2111_DIR}/adi_mac.c
     ${ADIN2111_DIR}/adi_phy.c
     ${ADIN2111_DIR}/adi_spi_oa.c
-    ${COMMON_DIR}/aligned_malloc.c)
-target_include_directories(bm_adin2111_test PRIVATE
-    ${ADIN2111_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/../network)
-target_link_libraries(bm_adin2111_test GTest::gtest_main)
-gtest_discover_tests(bm_adin2111_test)
+    ${COMMON_DIR}/aligned_malloc.c
+)
+create_gtest("bm_adin2111" "${ADIN2111_SRCS}")
 
 # Time remaining tests
 set (TIME_REMAINING_SRCS
