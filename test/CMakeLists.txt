@@ -69,7 +69,7 @@ function(create_gtest test_name  srcs)
     foreach(FILE ${FILES})
         if (NOT FILE MATCHES "^test/")
             get_filename_component(FILENAME "${FILE}" NAME)
-            if (FILENAME MATCHES ".*${test_name}.*")
+            if (FILENAME MATCHES ".*${test_name}.c")
                 set_source_files_properties(${FILE} PROPERTIES
                     COMPILE_FLAGS
                     "-fprofile-arcs -ftest-coverage"
