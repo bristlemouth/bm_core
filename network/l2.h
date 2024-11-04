@@ -32,7 +32,7 @@ typedef BmErr (*BmL2PowerDownCb)(const void *device_handle, bool on,
 
 BmErr bm_l2_link_output(void *buf, uint32_t length);
 void bm_l2_deinit(void);
-BmErr bm_l2_init(NetworkDevice *network_device);
+BmErr bm_l2_init(NetworkDevice network_device);
 bool bm_l2_get_port_state(uint8_t port);
 BmErr bm_l2_netif_set_power(bool on);
 

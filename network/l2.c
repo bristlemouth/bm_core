@@ -48,7 +48,7 @@ typedef struct {
 } L2QueueElement;
 
 typedef struct {
-  NetworkDevice *network_device;
+  NetworkDevice network_device;
   uint8_t enabled_port_mask;
   BmQueue evt_queue;
   BmTaskHandle task_handle;
@@ -129,10 +129,10 @@ static BmErr bm_l2_rx(void *device_handle, uint8_t *payload,
   @param *tx_evt tx event with buffer, port, and other information
 */
 static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
-  if (tx_evt && CTX.network_device) {
+  if (tx_evt) {
     uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
-    BmErr err = CTX.network_device->trait->send(
-        CTX.network_device->self, payload, tx_evt->length, tx_evt->port_mask);
+    BmErr err = CTX.network_device.trait->send(
+        CTX.network_device.self, payload, tx_evt->length, tx_evt->port_mask);
     if (err != BmOK) {
       bm_debug("Failed to send TX buffer to network\n");
     }
@@ -219,17 +219,15 @@ void bm_l2_deinit(void) {
   @param netif The already-initialized network interface
   @return BmOK if successful, an error otherwise
  */
-BmErr bm_l2_init(NetworkDevice *network_device) {
+BmErr bm_l2_init(NetworkDevice network_device) {
   BmErr err = BmEINVAL;
-  if (network_device != NULL) {
-    CTX.network_device = network_device;
-    CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
-    if (CTX.evt_queue) {
-      err = bm_task_create(bm_l2_thread, "L2 TX Thread", 2048, NULL,
-                           bm_l2_tx_task_priority, CTX.task_handle);
-    } else {
-      err = BmENOMEM;
-    }
+  CTX.network_device = network_device;
+  CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
+  if (CTX.evt_queue) {
+    err = bm_task_create(bm_l2_thread, "L2 TX Thread", 2048, NULL,
+                         bm_l2_tx_task_priority, CTX.task_handle);
+  } else {
+    err = BmENOMEM;
   }
   return err;
 }
@@ -281,20 +279,14 @@ bool bm_l2_get_port_state(uint8_t port) {
   @param on - true to turn the interface on, false to turn the interface off.
 */
 BmErr bm_l2_netif_set_power(bool on) {
-  BmErr err = BmEINVAL;
-  NetworkDevice *device = CTX.network_device;
-  if (device == NULL) {
-    goto end;
-  }
-
+  BmErr err = BmOK;
+  NetworkDevice device = CTX.network_device;
   if (on) {
-    bm_err_check(err, device->trait->enable(device->self));
+    bm_err_check(err, device.trait->enable(device.self));
     bm_err_check(err, bm_l2_set_netif(true));
   } else {
     bm_err_check(err, bm_l2_set_netif(false));
-    bm_err_check(err, device->trait->disable(device->self));
+    bm_err_check(err, device.trait->disable(device.self));
   }
-
-end:
   return err;
 }
