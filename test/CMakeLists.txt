@@ -261,6 +261,7 @@ set (L2_SRCS
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_ip_stub.c
+    ${STUB_DIR}/bm_adin2111_stub.c
 )
 create_gtest("l2" "${L2_SRCS}")
 
