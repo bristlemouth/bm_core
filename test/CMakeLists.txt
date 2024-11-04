@@ -64,19 +64,6 @@ function(create_gtest test_name  srcs)
         src/${test_name}_test.cpp
     )
     gtest_discover_tests(${GTEST_NAME})
-    # Generate artifacts for coverage report using lcov
-    # file(GLOB_RECURSE FILES "../*")
-    # foreach(FILE ${FILES})
-    #     if (NOT FILE MATCHES "^test/")
-    #         get_filename_component(FILENAME "${FILE}" NAME)
-    #         if (FILENAME MATCHES ".*${test_name}.*")
-    #             set_source_files_properties(${FILE} PROPERTIES
-    #                 COMPILE_FLAGS
-    #                 "-fprofile-arcs -ftest-coverage"
-    #             )
-    #         endif()
-    #     endif()
-    # endforeach()
 endfunction()
 
 # Linked List (LL) unit tests
