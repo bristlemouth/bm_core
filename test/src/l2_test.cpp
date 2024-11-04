@@ -11,16 +11,8 @@ extern "C" {
 #include "l2.h"
 #include "mock_bm_ip.h"
 #include "mock_bm_os.h"
+#include "mock_bm_adin2111.h"
 }
-
-FAKE_VALUE_FUNC(NetworkDevice, create_mock_network_device);
-FAKE_VALUE_FUNC(BmErr, fake_netdevice_enable, void *);
-FAKE_VALUE_FUNC(BmErr, fake_netdevice_disable, void *);
-
-static NetworkDeviceTrait const fake_netdevice_trait = {
-    .send = NULL,
-    .enable = fake_netdevice_enable,
-    .disable = fake_netdevice_disable};
 
 #define port_per_device 2
 #define egress_port_offset 51
@@ -44,10 +36,8 @@ protected:
   NetworkDevice network_device;
 
   void SetUp() override {
-    create_mock_network_device_fake.return_val = {
-        .self = &adin, .trait = &fake_netdevice_trait};
-    fake_netdevice_enable_fake.return_val = BmOK;
-    fake_netdevice_disable_fake.return_val = BmOK;
+    netdevice_enable_fake.return_val = BmOK;
+    netdevice_disable_fake.return_val = BmOK;
     network_device = create_mock_network_device();
     init_count = 0;
     bm_queue_create_fake.return_val =

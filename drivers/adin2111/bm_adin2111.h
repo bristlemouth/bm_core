@@ -1,3 +1,6 @@
+#ifndef __BM_ADIN2111_H__
+#define __BM_ADIN2111_H__
+
 #include "adin2111.h"
 #include "network_device.h"
 #include "util.h"
@@ -19,3 +22,5 @@ NetworkDevice create_adin2111_network_device(Adin2111 *self);
 #ifdef __cplusplus
 }
 #endif
+
+#endif // __BM_ADIN2111_H__
