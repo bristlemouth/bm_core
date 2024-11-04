@@ -388,19 +388,20 @@ set (BM_SERVICE_REQUEST_SRCS
 create_gtest("bm_service_request" "${BM_SERVICE_REQUEST_SRCS}")
 
 # ADIN2111 DRIVER TESTS
-set (ADIN2111_SRCS
-    # File we're testing
+add_executable(bm_adin2111_test
+    src/bm_adin2111_test.cpp
     ${ADIN2111_DIR}/bm_adin2111.c
-
-    # Supporting Files
     ${ADIN2111_DIR}/adin2111.c
     ${ADIN2111_DIR}/adi_fcs.c
     ${ADIN2111_DIR}/adi_mac.c
     ${ADIN2111_DIR}/adi_phy.c
     ${ADIN2111_DIR}/adi_spi_oa.c
-    ${COMMON_DIR}/aligned_malloc.c
-)
-create_gtest("bm_adin2111" "${ADIN2111_SRCS}")
+    ${COMMON_DIR}/aligned_malloc.c)
+target_include_directories(bm_adin2111_test PRIVATE
+    ${ADIN2111_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/../network)
+target_link_libraries(bm_adin2111_test GTest::gtest_main)
+gtest_discover_tests(bm_adin2111_test)
 
 # Time remaining tests
 set (TIME_REMAINING_SRCS
