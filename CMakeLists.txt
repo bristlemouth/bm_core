@@ -46,7 +46,7 @@ execute_process(
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
 )
 
-set(COMPILE_FLAGS
+add_compile_definitions(
     -DCBOR_CUSTOM_ALLOC_INCLUDE="tinycbor_alloc.h"
     -DCBOR_PARSER_MAX_RECURSIONS=10
 )
@@ -72,15 +72,7 @@ if(ENABLE_TESTING)
     enable_testing()
     add_subdirectory("test")
 else()
-    set(BM_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborparser.c
-        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder_float.c
-        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborencoder.c
-        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborerrorstrings.c
-        ${CMAKE_CURRENT_LIST_DIR}/third_party/tinycbor/src/cborvalidation.c
-        ${CMAKE_CURRENT_LIST_DIR}/third_party/crc/crc16.c
-        ${CMAKE_CURRENT_LIST_DIR}/third_party/crc/crc32.c
-    )
+    set(BM_SOURCES "")
 
     # Ensure integrator called the functions necessary to configure bristlemouth
     set(ERROR_MESSAGE "")
@@ -115,6 +107,7 @@ else()
     add_subdirectory(common)
     add_subdirectory(bm_common_messages)
     add_subdirectory(network)
+    add_subdirectory(third_party)
     add_subdirectory(drivers/adin2111)
 
     target_link_libraries(bmcore PUBLIC
@@ -123,5 +116,6 @@ else()
         middleware
         bmmessages
         bmnetwork
+        bmthirdparty
     )
 endif()

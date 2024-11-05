@@ -15,4 +15,4 @@ target_include_directories(middleware PUBLIC
     .
 )
 
-target_link_libraries(middleware PRIVATE bmcommon bcmp bmmessages)
+target_link_libraries(middleware PRIVATE bmcommon bcmp bmmessages bmthirdparty)
