@@ -24,6 +24,7 @@ FetchContent_MakeAvailable(fff)
 include(GoogleTest)
 set(NETWORK_DIR ${CMAKE_CURRENT_LIST_DIR}/../network)
 set(BCMP_DIR ${CMAKE_CURRENT_LIST_DIR}/../bcmp)
+set(INTEGRATIONS_DIR ${CMAKE_CURRENT_LIST_DIR}/../integrations)
 set(MIDDLEWARE_DIR ${CMAKE_CURRENT_LIST_DIR}/../middleware)
 set(COMMON_DIR ${CMAKE_CURRENT_LIST_DIR}/../common)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_LIST_DIR}/../third_party)
@@ -454,3 +455,17 @@ set (TIME_MESSAGE_SRCS
     ${STUB_DIR}/bm_rtc_stub.c
 )
 create_gtest("time" "${TIME_MESSAGE_SRCS}")
+
+# SPOTTER TESTS
+set (SPOTTER_SRCS
+    # File we're testing
+    ${INTEGRATIONS_DIR}/spotter.c
+
+    # Supporting Files
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/pubsub_stub.c
+)
+create_gtest("spotter" "${SPOTTER_SRCS}")
