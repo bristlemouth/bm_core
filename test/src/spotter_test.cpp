@@ -88,4 +88,6 @@ TEST_F(Spotter, tx_data) {
   ASSERT_EQ(
       spotter_tx_data(buf, array_size(buf), BmNetworkTypeCellularIriFallback),
       BmENETDOWN);
+  ASSERT_EQ(spotter_tx_data(buf, UINT16_MAX, BmNetworkTypeCellularIriFallback),
+            BmEINVAL);
 }
