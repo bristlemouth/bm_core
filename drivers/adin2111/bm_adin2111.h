@@ -7,16 +7,12 @@
 
 #define ADIN2111_PORT_MASK (3U)
 
-typedef struct {
-  void *device_handle;
-} Adin2111;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-BmErr adin2111_init(Adin2111 *self);
-NetworkDevice create_adin2111_network_device(Adin2111 *self);
+BmErr adin2111_init(void);
+NetworkDevice create_adin2111_network_device(void);
 
 #ifdef __cplusplus
 }

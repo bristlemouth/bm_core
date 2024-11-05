@@ -18,9 +18,6 @@ static NetworkDeviceTrait const fake_netdevice_trait = {
     .disable = netdevice_disable};
 
 NetworkDevice create_mock_network_device(void) {
-  static Adin2111 adin = {.device_handle = NULL};
-
-  return (NetworkDevice){.self = &adin,
-                         .trait = &fake_netdevice_trait,
+  return (NetworkDevice){.trait = &fake_netdevice_trait,
                          .callbacks = fake_netdevice_callbacks};
 }

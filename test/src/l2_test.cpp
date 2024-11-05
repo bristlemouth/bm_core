@@ -32,7 +32,6 @@ protected:
   L2() {}
   ~L2() override {}
 
-  Adin2111 adin;
   NetworkDevice network_device;
 
   void SetUp() override {
