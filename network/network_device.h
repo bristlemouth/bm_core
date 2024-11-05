@@ -1,3 +1,6 @@
+#ifndef __NETWORK_DEVICE_H__
+#define __NETWORK_DEVICE_H__
+
 #include "util.h"
 
 typedef struct {
@@ -18,3 +21,5 @@ typedef struct {
   NetworkDeviceTrait const *trait;
   NetworkDeviceCallbacks callbacks;
 } NetworkDevice;
+
+#endif // __NETWORK_DEVICE_H__

@@ -42,7 +42,7 @@ protected:
     bm_queue_create_fake.return_val =
         (void *)RND.rnd_int(UINT32_MAX, UINT16_MAX);
 
-    EXPECT_EQ(bm_l2_init(network_device), BmOK);
+    EXPECT_EQ(bm_l2_init(&network_device), BmOK);
   }
   void TearDown() override { bm_l2_deinit(); }
 };
@@ -55,12 +55,12 @@ TEST_F(L2, init) {
   // Reset init count after deinit
   init_count = 0;
   bm_task_create_fake.return_val = BmENOMEM;
-  EXPECT_NE(bm_l2_init(network_device), BmOK);
+  EXPECT_NE(bm_l2_init(&network_device), BmOK);
   bm_l2_deinit();
   // Reset init count after deinit
   init_count = 0;
   bm_queue_create_fake.return_val = NULL;
-  EXPECT_NE(bm_l2_init(network_device), BmOK);
+  EXPECT_NE(bm_l2_init(&network_device), BmOK);
   bm_l2_deinit();
   // Reset init count after deinit
   init_count = 0;

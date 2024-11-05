@@ -43,7 +43,7 @@ typedef struct {
 } L2QueueElement;
 
 typedef struct {
-  NetworkDevice network_device;
+  NetworkDevice *network_device;
   uint8_t enabled_port_mask;
   BmQueue evt_queue;
   BmTaskHandle task_handle;
@@ -115,8 +115,8 @@ static void bm_l2_rx(uint8_t port_mask, uint8_t *data, size_t length) {
 static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
   if (tx_evt) {
     uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
-    BmErr err = CTX.network_device.trait->send(
-        CTX.network_device.self, payload, tx_evt->length, tx_evt->port_mask);
+    BmErr err = CTX.network_device->trait->send(
+        CTX.network_device->self, payload, tx_evt->length, tx_evt->port_mask);
     if (err != BmOK) {
       bm_debug("Failed to send TX buffer to network\n");
     }
@@ -203,9 +203,9 @@ void bm_l2_deinit(void) {
   @param netif The already-initialized network interface
   @return BmOK if successful, an error otherwise
  */
-BmErr bm_l2_init(NetworkDevice network_device) {
+BmErr bm_l2_init(NetworkDevice *network_device) {
   BmErr err = BmEINVAL;
-  network_device.callbacks.receive = bm_l2_rx;
+  network_device->callbacks.receive = bm_l2_rx;
   CTX.network_device = network_device;
   CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
   if (CTX.evt_queue) {
@@ -265,13 +265,13 @@ bool bm_l2_get_port_state(uint8_t port) {
 */
 BmErr bm_l2_netif_set_power(bool on) {
   BmErr err = BmOK;
-  NetworkDevice device = CTX.network_device;
+  NetworkDevice *device = CTX.network_device;
   if (on) {
-    bm_err_check(err, device.trait->enable(device.self));
+    bm_err_check(err, device->trait->enable(device->self));
     bm_err_check(err, bm_l2_set_netif(true));
   } else {
     bm_err_check(err, bm_l2_set_netif(false));
-    bm_err_check(err, device.trait->disable(device.self));
+    bm_err_check(err, device->trait->disable(device->self));
   }
   return err;
 }
