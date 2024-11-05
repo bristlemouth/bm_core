@@ -1,5 +1,5 @@
+#include "bm_adin2111.h"
 #include "fff.h"
-#include "mock_bm_adin2111.h"
 #include "gtest/gtest.h"
 
 DEFINE_FFF_GLOBALS;
@@ -22,44 +22,50 @@ FAKE_VALUE_FUNC(long unsigned int, __REV, long unsigned int);
 FAKE_VOID_FUNC(__disable_irq);
 FAKE_VOID_FUNC(__enable_irq);
 
-static NetworkDevice setup() {
-  adin2111_init();
-  return adin2111_network_device();
+FAKE_VOID_FUNC(netif_power_cb, bool);
+FAKE_VOID_FUNC(link_changed_on_port, uint8_t, bool);
+FAKE_VALUE_FUNC(size_t, received_data_on_port, uint8_t, uint8_t *, size_t);
+
+static NetworkDeviceCallbacks const callbacks = {
+    .power = netif_power_cb,
+    .link_change = link_changed_on_port,
+    .receive = received_data_on_port};
+
+static NetworkDevice setup(void) {
+  static Adin2111 adin = {.device_handle = nullptr, .callbacks = &callbacks};
+
+  // We can only call adin2111_init once per execution (test suite)
+  // because the device memory in the driver is static.
+  if (adin.device_handle == nullptr) {
+    BmErr err = adin2111_init(&adin);
+
+    // It would take a lot of mocking to pretend SPI transactions work.
+    // On a real device, this should return BmOK.
+    EXPECT_EQ(err, BmENODEV);
+  }
+
+  return prep_adin2111_netif(&adin);
 }
 
 TEST(Adin2111, send) {
-  NetworkDevice device = setup();
-  BmErr err = device.trait->send(device.self, (unsigned char *)"hello", 5,
-                                 ADIN2111_PORT_MASK);
+  NetworkDevice netif = setup();
+  BmErr err = netif.trait->send(netif.self, (unsigned char *)"hello", 5,
+                                ADIN2111_PORT_MASK);
   EXPECT_EQ(err, BmOK);
 }
 
 TEST(Adin2111, enable) {
-  NetworkDevice device = setup();
-  BmErr err = device.trait->enable(device.self);
-  // We're exercising the embedded driver code,
-  // but there's no real SPI device on the bus.
+  NetworkDevice netif = setup();
+  // Expect the same BmENODEV error as in init
+  // because init calls enable internally.
+  // On a real device, this should return BmOK,
+  // but we don't have the SPI transactions mocked.
+  BmErr err = netif.trait->enable(netif.self);
   EXPECT_EQ(err, BmENODEV);
 }
 
 TEST(Adin2111, disable) {
-  NetworkDevice device = setup();
+  NetworkDevice netif = setup();
   // SEGFAULT because PHY is NULL, because no real SPI transactions
-  EXPECT_DEATH(device.trait->disable(device.self), "");
-}
-
-TEST(Adin2111, num_ports) {
-  NetworkDevice device = setup();
-  EXPECT_EQ(device.trait->num_ports(), ADIN2111_PORT_NUM);
-}
-
-TEST(Adin2111, set_power_cb_before_init) {
-  NetworkDevice device = adin2111_network_device();
-  device.callbacks->power = network_device_power_cb;
-  RESET_FAKE(network_device_power_cb);
-  EXPECT_EQ(network_device_power_cb_fake.call_count, 0);
-  adin2111_init();
-  // Called twice because we first turn the adin on,
-  // then when we get SPI errors, we turn it off
-  EXPECT_EQ(network_device_power_cb_fake.call_count, 2);
+  EXPECT_DEATH(netif.trait->disable(netif.self), "");
 }

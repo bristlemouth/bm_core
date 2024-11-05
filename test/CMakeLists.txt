@@ -142,7 +142,6 @@ set (BCMP_SRCS
     ${STUB_DIR}/neighbors_stub.c
     ${STUB_DIR}/topology_stub.c
     ${STUB_DIR}/bm_ip_stub.c
-    ${STUB_DIR}/bm_adin2111_stub.c
 )
 create_gtest("bcmp" "${BCMP_SRCS}")
 
@@ -264,7 +263,6 @@ set (L2_SRCS
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_ip_stub.c
-    ${STUB_DIR}/bm_adin2111_stub.c
 )
 create_gtest("l2" "${L2_SRCS}")
 
@@ -418,8 +416,7 @@ add_executable(bm_adin2111_test
     ${ADIN2111_DIR}/adi_mac.c
     ${ADIN2111_DIR}/adi_phy.c
     ${ADIN2111_DIR}/adi_spi_oa.c
-    ${COMMON_DIR}/aligned_malloc.c
-    ${STUB_DIR}/bm_adin2111_stub.c)
+    ${COMMON_DIR}/aligned_malloc.c)
 target_include_directories(bm_adin2111_test PRIVATE
     ${ADIN2111_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/../network)

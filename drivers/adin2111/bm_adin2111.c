@@ -11,7 +11,7 @@
 // For now, there's only ever one ADIN2111.
 // When supporting multiple in the future,
 // we can allocate this dynamically.
-static NetworkDevice NETWORK_DEVICE;
+static Adin2111 *ADIN2111 = NULL;
 static adin2111_DeviceStruct_t DEVICE_STRUCT;
 #ifdef ENABLE_TESTING
 static uint8_t DEVICE_MEMORY[ADIN2111_DEVICE_SIZE + 80];
@@ -35,7 +35,7 @@ static void link_change_callback_(void *device_handle, uint32_t event,
                                   void *status_registers_param) {
   (void)event;
 
-  if (NETWORK_DEVICE.callbacks->link_change) {
+  if (ADIN2111 && ADIN2111->callbacks && ADIN2111->callbacks->link_change) {
     const adi_mac_StatusRegisters_t *status_registers =
         (adi_mac_StatusRegisters_t *)status_registers_param;
 
@@ -52,27 +52,32 @@ static void link_change_callback_(void *device_handle, uint32_t event,
       adi_eth_Result_e result =
           adin2111_GetLinkStatus(device_handle, port_index, &status);
       if (result == ADI_ETH_SUCCESS) {
-        NETWORK_DEVICE.callbacks->link_change(port_index, status);
+        ADIN2111->callbacks->link_change(port_index, status);
       }
     }
   }
 }
 
 // Start up and enable the ADIN2111 hardware
-static BmErr adin2111_netdevice_enable(void) {
+static BmErr adin2111_netif_enable(Adin2111 *self) {
   BmErr err = BmOK;
 
-  if (NETWORK_DEVICE.callbacks->power) {
-    NETWORK_DEVICE.callbacks->power(true);
+  if (!self) {
+    err = BmEINVAL;
+    goto end;
   }
 
-  adi_eth_Result_e result = adin2111_Init(&DEVICE_STRUCT, &DRIVER_CONFIG);
+  if (self->callbacks && self->callbacks->power) {
+    self->callbacks->power(true);
+  }
+
+  adi_eth_Result_e result = adin2111_Init(self->device_handle, &DRIVER_CONFIG);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
     goto end;
   }
 
-  result = adin2111_RegisterCallback(&DEVICE_STRUCT, link_change_callback_,
+  result = adin2111_RegisterCallback(self->device_handle, link_change_callback_,
                                      ADI_MAC_EVT_LINK_CHANGE);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
@@ -86,21 +91,21 @@ static BmErr adin2111_netdevice_enable(void) {
       err = BmENODEV;
       goto end;
     }
-    result = adin2111_SubmitRxBuffer(&DEVICE_STRUCT, buffer_description);
+    result = adin2111_SubmitRxBuffer(self->device_handle, buffer_description);
     if (result != ADI_ETH_SUCCESS) {
       err = BmENODEV;
       goto end;
     }
   }
 
-  result = adin2111_SyncConfig(&DEVICE_STRUCT);
+  result = adin2111_SyncConfig(self->device_handle);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
     goto end;
   }
 
   for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
-    result = adin2111_EnablePort(&DEVICE_STRUCT, i);
+    result = adin2111_EnablePort(self->device_handle, i);
     if (result != ADI_ETH_SUCCESS) {
       err = BmENODEV;
       break;
@@ -108,42 +113,46 @@ static BmErr adin2111_netdevice_enable(void) {
   }
 
 end:
-  if (err != BmOK && NETWORK_DEVICE.callbacks->power) {
-    NETWORK_DEVICE.callbacks->power(false);
+  if (err != BmOK && self && self->callbacks && self->callbacks->power) {
+    self->callbacks->power(false);
   }
 
   return err;
 }
 
 // Trait wrapper function to convert self from void* to Adin2111*
-inline static BmErr adin2111_netdevice_enable_(void *self) {
-  (void)self;
-  return adin2111_netdevice_enable();
+inline static BmErr adin2111_netif_enable_(void *self) {
+  return adin2111_netif_enable(self);
 }
 
 // Shut down and disable the ADIN2111 hardware
-static BmErr adin2111_netdevice_disable(void) {
+static BmErr adin2111_netif_disable(Adin2111 *self) {
   BmErr err = BmOK;
 
+  if (!self) {
+    err = BmEINVAL;
+    goto end;
+  }
+
   for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
-    adi_eth_Result_e result = adin2111_DisablePort(&DEVICE_STRUCT, i);
+    adi_eth_Result_e result = adin2111_DisablePort(self->device_handle, i);
     if (result != ADI_ETH_SUCCESS) {
       err = BmENODEV;
       break;
     }
   }
 
-  if (NETWORK_DEVICE.callbacks->power) {
-    NETWORK_DEVICE.callbacks->power(false);
+  if (self && self->callbacks && self->callbacks->power) {
+    self->callbacks->power(false);
   }
 
+end:
   return err;
 }
 
 // Trait wrapper function to convert self from void* to Adin2111*
-inline static BmErr adin2111_netdevice_disable_(void *self) {
-  (void)self;
-  return adin2111_netdevice_disable();
+inline static BmErr adin2111_netif_disable_(void *self) {
+  return adin2111_netif_disable(self);
 }
 
 // After a TX buffer is sent, it gets freed here
@@ -166,8 +175,8 @@ static void tx_complete(void *device_param, uint32_t event,
 }
 
 // Allocate buffers for sending, copy the given data, and submit to the driver
-static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
-                                     uint8_t port_mask) {
+static BmErr adin2111_netif_send(Adin2111 *self, uint8_t *data, size_t length,
+                                 uint8_t port_mask) {
   BmErr err = BmOK;
   adi_eth_BufDesc_t *buffer_description = bm_malloc(sizeof(adi_eth_BufDesc_t));
   if (!buffer_description) {
@@ -190,62 +199,53 @@ static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
   } else if (port_mask == 2) {
     tx_port = ADIN2111_TX_PORT_2;
   }
-  adin2111_SubmitTxBuffer(&DEVICE_STRUCT, tx_port, buffer_description);
+  adin2111_SubmitTxBuffer(self->device_handle, tx_port, buffer_description);
 end:
   return err;
 }
 
 // Trait wrapper function to convert self from void* to Adin2111*
-static inline BmErr adin2111_netdevice_send_(void *self, uint8_t *data,
-                                             size_t length, uint8_t port_mask) {
-  (void)self;
-  return adin2111_netdevice_send(data, length, port_mask);
+static inline BmErr adin2111_netif_send_(void *self, uint8_t *data,
+                                         size_t length, uint8_t port_mask) {
+  return adin2111_netif_send(self, data, length, port_mask);
 }
 
 // Called by the driver on received data
 // If the user has registered a callback, call it
-static void receive_callback_(void *device, uint32_t event,
+static void receive_callback_(void *device_param, uint32_t event,
                               void *buffer_description_param) {
-  (void)device;
+  (void)device_param;
   (void)event;
 
-  if (NETWORK_DEVICE.callbacks->receive) {
+  if (ADIN2111 && ADIN2111->callbacks && ADIN2111->callbacks->receive) {
     adi_eth_BufDesc_t *buffer_description =
         (adi_eth_BufDesc_t *)buffer_description_param;
-    uint8_t port_mask = 1 << buffer_description->port;
-    NETWORK_DEVICE.callbacks->receive(port_mask, buffer_description->pBuf,
-                                      buffer_description->bufSize);
+    uint8_t port_index = 1 << buffer_description->port;
+    ADIN2111->callbacks->receive(port_index, buffer_description->pBuf,
+                                 buffer_description->bufSize);
   }
-}
-
-static inline uint8_t adin2111_num_ports(void) { return ADIN2111_PORT_NUM; }
-
-static void create_network_device(void) {
-  static NetworkDeviceTrait const trait = {.send = adin2111_netdevice_send_,
-                                           .enable = adin2111_netdevice_enable_,
-                                           .disable =
-                                               adin2111_netdevice_disable_,
-                                           .num_ports = adin2111_num_ports};
-  static NetworkDeviceCallbacks callbacks = {0};
-  NETWORK_DEVICE.self = NULL;
-  NETWORK_DEVICE.trait = &trait;
-  NETWORK_DEVICE.callbacks = &callbacks;
 }
 
 /**************** Public API Functions ****************/
 
 /*! @brief Initialize an Adin2111 device
+    @param self a pointer to an Adin2111 struct
     @return BmOK if successful, otherwise an error */
-BmErr adin2111_init(void) {
+BmErr adin2111_init(Adin2111 *self) {
   BmErr err = BmOK;
 
-  // Prevent allocating RX buffers more than once
-  static bool initialized = false;
-  if (initialized) {
+  if (!self) {
+    err = BmEINVAL;
+    goto end;
+  }
+
+  if (ADIN2111) {
     err = BmEALREADY;
     goto end;
   }
-  initialized = true;
+
+  ADIN2111 = self;
+  self->device_handle = &DEVICE_STRUCT;
 
   for (int i = 0; i < RX_QUEUE_NUM_ENTRIES; i++) {
     adi_eth_BufDesc_t *buffer_description = &RX_BUFFERS[i];
@@ -261,17 +261,18 @@ BmErr adin2111_init(void) {
     buffer_description->cbFunc = receive_callback_;
   }
 
-  // set up the static memory
-  create_network_device();
-  err = adin2111_netdevice_enable();
+  err = adin2111_netif_enable_(self);
 
 end:
   return err;
 }
 
-/// Get a generic NetworkDevice for the Adin2111
-NetworkDevice adin2111_network_device(void) {
-  // set up the static memory
-  create_network_device();
-  return NETWORK_DEVICE;
+/// Build a generic NetworkDevice out of a concrete Adin2111
+NetworkDevice prep_adin2111_netif(Adin2111 *self) {
+  // Create the vtable once and attach a pointer to it every time
+  static NetworkDeviceTrait const trait = {.send = adin2111_netif_send_,
+                                              .enable = adin2111_netif_enable_,
+                                              .disable =
+                                                  adin2111_netif_disable_};
+  return (NetworkDevice){.trait = &trait, .self = self};
 }

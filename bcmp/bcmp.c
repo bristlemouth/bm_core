@@ -89,37 +89,20 @@ static void bcmp_thread(void *parameters) {
 }
 
 /*!
-  @brief BCMP link change event callback
-
-  @param port - system port in which the link change occurred
-  @param state - 0 for down 1 for up
-*/
-void bcmp_link_change(uint8_t port, bool state) {
-  (void)port; // Not using the port for now
-  if (state) {
-    // Send heartbeat since we just connected to someone and (re)start the
-    // heartbeat timer
-    bcmp_send_heartbeat(bcmp_heartbeat_s);
-    bm_timer_start(CTX.heartbeat_timer, 10);
-  }
-}
-
-/*!
   @brief BCMP initialization
 
   @param *netif lwip network interface to use
   @return none
 */
-BmErr bcmp_init(NetworkDevice network_device) {
+BmErr bcmp_init(void) {
   CTX.queue = bm_queue_create(bcmp_evt_queue_len, sizeof(BcmpQueueItem));
-  network_device.callbacks->link_change = bcmp_link_change;
 
   bcmp_heartbeat_init();
   ping_init();
   time_init();
   bm_dfu_init();
   bcmp_config_init();
-  bcmp_topology_init(network_device.trait->num_ports());
+  bcmp_topology_init();
   bcmp_device_info_init();
   bcmp_resource_discovery_init();
 
@@ -218,4 +201,20 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
     }
   }
   return err;
+}
+
+/*!
+  @brief BCMP link change event callback
+
+  @param port - system port in which the link change occurred
+  @param state - 0 for down 1 for up
+*/
+void bcmp_link_change(uint8_t port, bool state) {
+  (void)port; // Not using the port for now
+  if (state) {
+    // Send heartbeat since we just connected to someone and (re)start the
+    // heartbeat timer
+    bcmp_send_heartbeat(bcmp_heartbeat_s);
+    bm_timer_start(CTX.heartbeat_timer, 10);
+  }
 }
