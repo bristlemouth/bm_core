@@ -24,7 +24,7 @@ FAKE_VOID_FUNC(__enable_irq);
 
 static NetworkDevice setup() {
   adin2111_init();
-  return create_adin2111_network_device();
+  return adin2111_network_device();
 }
 
 TEST(Adin2111, send) {

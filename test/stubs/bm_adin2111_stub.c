@@ -17,7 +17,12 @@ static NetworkDeviceTrait const fake_netdevice_trait = {
     .enable = netdevice_enable,
     .disable = netdevice_disable};
 
+static NetworkDeviceCallbacks fake_netdevice_callbacks = {
+    .power = network_device_power_cb,
+    .link_change = link_changed_on_port,
+    .receive = received_data_on_port};
+
 NetworkDevice create_mock_network_device(void) {
   return (NetworkDevice){.trait = &fake_netdevice_trait,
-                         .callbacks = fake_netdevice_callbacks};
+                         .callbacks = &fake_netdevice_callbacks};
 }

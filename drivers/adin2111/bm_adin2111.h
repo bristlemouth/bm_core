@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 BmErr adin2111_init(void);
-NetworkDevice create_adin2111_network_device(void);
+NetworkDevice adin2111_network_device(void);
 
 #ifdef __cplusplus
 }

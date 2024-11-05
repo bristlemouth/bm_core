@@ -19,7 +19,7 @@ typedef struct {
 typedef struct {
   void *self;
   NetworkDeviceTrait const *trait;
-  NetworkDeviceCallbacks callbacks;
+  NetworkDeviceCallbacks *callbacks;
 } NetworkDevice;
 
 #endif // __NETWORK_DEVICE_H__
