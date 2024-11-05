@@ -27,7 +27,7 @@ typedef struct {
   uint32_t size;
 } BcmpQueueItem;
 
-BmErr bcmp_init(NetworkDevice *network_device);
+BmErr bcmp_init(NetworkDevice network_device);
 void *bcmp_get_queue(void);
 BmErr bcmp_tx(const void *dst, BcmpMessageType type, uint8_t *data,
               uint16_t size, uint32_t seq_num,

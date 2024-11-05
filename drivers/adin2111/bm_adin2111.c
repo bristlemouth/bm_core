@@ -35,7 +35,7 @@ static void link_change_callback_(void *device_handle, uint32_t event,
                                   void *status_registers_param) {
   (void)event;
 
-  if (NETWORK_DEVICE.callbacks.link_change) {
+  if (NETWORK_DEVICE.callbacks->link_change) {
     const adi_mac_StatusRegisters_t *status_registers =
         (adi_mac_StatusRegisters_t *)status_registers_param;
 
@@ -52,7 +52,7 @@ static void link_change_callback_(void *device_handle, uint32_t event,
       adi_eth_Result_e result =
           adin2111_GetLinkStatus(device_handle, port_index, &status);
       if (result == ADI_ETH_SUCCESS) {
-        NETWORK_DEVICE.callbacks.link_change(port_index, status);
+        NETWORK_DEVICE.callbacks->link_change(port_index, status);
       }
     }
   }
@@ -62,8 +62,8 @@ static void link_change_callback_(void *device_handle, uint32_t event,
 static BmErr adin2111_netdevice_enable(void) {
   BmErr err = BmOK;
 
-  if (NETWORK_DEVICE.callbacks.power) {
-    NETWORK_DEVICE.callbacks.power(true);
+  if (NETWORK_DEVICE.callbacks->power) {
+    NETWORK_DEVICE.callbacks->power(true);
   }
 
   adi_eth_Result_e result = adin2111_Init(&DEVICE_STRUCT, &DRIVER_CONFIG);
@@ -108,8 +108,8 @@ static BmErr adin2111_netdevice_enable(void) {
   }
 
 end:
-  if (err != BmOK && NETWORK_DEVICE.callbacks.power) {
-    NETWORK_DEVICE.callbacks.power(false);
+  if (err != BmOK && NETWORK_DEVICE.callbacks->power) {
+    NETWORK_DEVICE.callbacks->power(false);
   }
 
   return err;
@@ -133,8 +133,8 @@ static BmErr adin2111_netdevice_disable(void) {
     }
   }
 
-  if (NETWORK_DEVICE.callbacks.power) {
-    NETWORK_DEVICE.callbacks.power(false);
+  if (NETWORK_DEVICE.callbacks->power) {
+    NETWORK_DEVICE.callbacks->power(false);
   }
 
   return err;
@@ -209,13 +209,24 @@ static void receive_callback_(void *device, uint32_t event,
   (void)device;
   (void)event;
 
-  if (NETWORK_DEVICE.callbacks.receive) {
+  if (NETWORK_DEVICE.callbacks->receive) {
     adi_eth_BufDesc_t *buffer_description =
         (adi_eth_BufDesc_t *)buffer_description_param;
     uint8_t port_mask = 1 << buffer_description->port;
-    NETWORK_DEVICE.callbacks.receive(port_mask, buffer_description->pBuf,
-                                     buffer_description->bufSize);
+    NETWORK_DEVICE.callbacks->receive(port_mask, buffer_description->pBuf,
+                                      buffer_description->bufSize);
   }
+}
+
+static void create_network_device(void) {
+  static NetworkDeviceTrait const trait = {.send = adin2111_netdevice_send_,
+                                           .enable = adin2111_netdevice_enable_,
+                                           .disable =
+                                               adin2111_netdevice_disable_};
+  static NetworkDeviceCallbacks callbacks = {0};
+  NETWORK_DEVICE.self = NULL;
+  NETWORK_DEVICE.trait = &trait;
+  NETWORK_DEVICE.callbacks = &callbacks;
 }
 
 /**************** Public API Functions ****************/
@@ -247,20 +258,17 @@ BmErr adin2111_init(void) {
     buffer_description->cbFunc = receive_callback_;
   }
 
+  // set up the static memory
+  create_network_device();
   err = adin2111_netdevice_enable();
 
 end:
   return err;
 }
 
-/// Build a generic NetworkDevice for the Adin2111
-NetworkDevice create_adin2111_network_device(void) {
-  // Create the vtable once and attach a pointer to it every time
-  static NetworkDeviceTrait const trait = {.send = adin2111_netdevice_send_,
-                                           .enable = adin2111_netdevice_enable_,
-                                           .disable =
-                                               adin2111_netdevice_disable_};
-  NETWORK_DEVICE.trait = &trait;
-  NETWORK_DEVICE.callbacks = (NetworkDeviceCallbacks){0};
+/// Get a generic NetworkDevice for the Adin2111
+NetworkDevice adin2111_network_device(void) {
+  // set up the static memory
+  create_network_device();
   return NETWORK_DEVICE;
 }

@@ -109,9 +109,9 @@ void bcmp_link_change(uint8_t port, bool state) {
   @param *netif lwip network interface to use
   @return none
 */
-BmErr bcmp_init(NetworkDevice *network_device) {
+BmErr bcmp_init(NetworkDevice network_device) {
   CTX.queue = bm_queue_create(bcmp_evt_queue_len, sizeof(BcmpQueueItem));
-  network_device->callbacks.link_change = bcmp_link_change;
+  network_device.callbacks->link_change = bcmp_link_change;
 
   bcmp_heartbeat_init();
   ping_init();
