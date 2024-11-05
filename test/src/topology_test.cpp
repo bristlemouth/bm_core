@@ -4,11 +4,11 @@
 #include "fff.h"
 
 extern "C" {
-#include "topology.h"
 #include "mock_bcmp.h"
 #include "mock_bm_os.h"
 #include "mock_device.h"
 #include "mock_packet.h"
+#include "topology.h"
 }
 
 DEFINE_FFF_GLOBALS;

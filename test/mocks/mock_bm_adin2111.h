@@ -13,6 +13,7 @@ DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_send, void *, uint8_t *, size_t,
                         uint8_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_enable, void *);
 DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_disable, void *);
+DECLARE_FAKE_VALUE_FUNC(uint8_t, netdevice_num_ports);
 
 NetworkDevice create_mock_network_device(void);
 

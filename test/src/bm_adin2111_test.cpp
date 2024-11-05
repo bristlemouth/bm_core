@@ -48,6 +48,11 @@ TEST(Adin2111, disable) {
   EXPECT_DEATH(device.trait->disable(device.self), "");
 }
 
+TEST(Adin2111, num_ports) {
+  NetworkDevice device = setup();
+  EXPECT_EQ(device.trait->num_ports(), ADIN2111_PORT_NUM);
+}
+
 TEST(Adin2111, set_power_cb_before_init) {
   NetworkDevice device = adin2111_network_device();
   device.callbacks->power = network_device_power_cb;
