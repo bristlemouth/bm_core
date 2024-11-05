@@ -160,7 +160,7 @@ TEST_F(Topology, request_table) {
   memcpy(reply->port_list, replies[0].port_list, size_info);
   data.payload = (uint8_t *)reply;
 
-  EXPECT_EQ(bcmp_topology_init(), BmOK);
+  EXPECT_EQ(bcmp_topology_init(2), BmOK);
 
   bm_timer_start_fake.return_val = BmOK;
   bcmp_tx_fake.return_val = BmOK;
@@ -191,7 +191,7 @@ TEST_F(Topology, request_reply) {
   BcmpProcessData data;
   data.payload = (uint8_t *)&request;
 
-  EXPECT_EQ(bcmp_topology_init(), BmOK);
+  EXPECT_EQ(bcmp_topology_init(2), BmOK);
 
   node_id_fake.return_val = request.target_node_id;
   bcmp_tx_fake.return_val = BmOK;

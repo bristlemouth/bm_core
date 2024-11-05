@@ -7,6 +7,7 @@ DEFINE_FFF_GLOBALS;
 
 extern "C" {
 #include "bcmp.h"
+#include "mock_bm_adin2111.h"
 #include "mock_bm_ip.h"
 #include "mock_bm_os.h"
 #include "mock_config.h"
@@ -37,7 +38,8 @@ protected:
 TEST_F(Bcmp, init) {
   // Test success
   bm_task_create_fake.return_val = BmOK;
-  ASSERT_EQ(bcmp_init(), BmOK);
+  NetworkDevice network_device = create_mock_network_device();
+  ASSERT_EQ(bcmp_init(network_device), BmOK);
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);
   ASSERT_EQ(bm_dfu_init_fake.call_count, 1);
@@ -58,7 +60,7 @@ TEST_F(Bcmp, init) {
 
   // Test failure
   bm_task_create_fake.return_val = BmENOMEM;
-  ASSERT_EQ(bcmp_init(), BmENOMEM);
+  ASSERT_EQ(bcmp_init(network_device), BmENOMEM);
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);
   ASSERT_EQ(bm_dfu_init_fake.call_count, 1);
@@ -167,6 +169,9 @@ TEST_F(Bcmp, bcmp_ll_forward) {
 
   bm_free(data);
 }
+
+// Testing a private function, not in the header, but also not static linkage
+extern "C" void bcmp_link_change(uint8_t port, bool state);
 
 TEST_F(Bcmp, bcmp_link_change) {
   bcmp_link_change(1, false);
