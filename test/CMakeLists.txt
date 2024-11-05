@@ -65,14 +65,16 @@ function(create_gtest test_name  srcs)
     )
     gtest_discover_tests(${GTEST_NAME})
     # Generate artifacts for coverage report using lcov
-    file(GLOB_RECURSE FILES "../src/*")
+    file(GLOB_RECURSE FILES "../*")
     foreach(FILE ${FILES})
-        get_filename_component(FILENAME "${FILE}" NAME)
-        if (FILENAME MATCHES ".*${test_name}.*")
-            set_source_files_properties(${FILE} PROPERTIES
-                COMPILE_FLAGS
-                "-fprofile-arcs -ftest-coverage"
-            )
+        if (NOT FILE MATCHES "^test/")
+            get_filename_component(FILENAME "${FILE}" NAME)
+            if (FILENAME MATCHES ".*${test_name}.c")
+                set_source_files_properties(${FILE} PROPERTIES
+                    COMPILE_FLAGS
+                    "-fprofile-arcs -ftest-coverage"
+                )
+            endif()
         endif()
     endforeach()
 endfunction()
@@ -400,3 +402,35 @@ target_include_directories(bm_adin2111_test PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/../network)
 target_link_libraries(bm_adin2111_test GTest::gtest_main)
 gtest_discover_tests(bm_adin2111_test)
+
+# Time remaining tests
+set (TIME_REMAINING_SRCS
+    # File we're testing
+    ${COMMON_DIR}/util.c
+)
+create_gtest("time_remaining" "${TIME_REMAINING_SRCS}")
+
+# UTC From Date Time tests
+set (UTC_FROM_DATE_TIME_SRCS
+    # File we're testing
+    ${COMMON_DIR}/util.c
+)
+create_gtest("utc_from_date_time" "${UTC_FROM_DATE_TIME_SRCS}")
+
+# Time Messsage tests
+set (TIME_MESSAGE_SRCS
+    # File we're testing
+    ${BCMP_DIR}/time.c
+
+    # Supporting Files
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/packet_stub.c
+    ${STUB_DIR}/device_stub.c
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/bm_rtc_stub.c
+)
+create_gtest("time" "${TIME_MESSAGE_SRCS}")

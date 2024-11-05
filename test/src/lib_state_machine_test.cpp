@@ -163,7 +163,7 @@ class LibStateMachineTest : public ::testing::Test {
 
 // Although lib_sm_run should be run in a for(;;) loop, while writing unit tests for our state machines
 // We should seperate out each call to run() to more granularly test what's going on.
-TEST_F(LibStateMachineTest, BasicPump)
+TEST_F(LibStateMachineTest, basic_pump)
 {
   // Check Initialization.
   lib_sm_init(&GLOBAL_CTX.sm_ctx, &states[STAGE_1], checkTransitions);
