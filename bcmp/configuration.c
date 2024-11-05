@@ -3,7 +3,7 @@
 #include "crc.h"
 #include <stdio.h>
 #ifndef CBOR_CUSTOM_ALLOC_INCLUDE
-#error "CBOR_CUSTOM_ALLOC_INCLUDE must be defined!"
+#error "CBOR_CUSTOM_ALLOC_INCLUDE must be defined!"configuration.c
 #endif // CBOR_CUSTOM_ALLOC_INCLUDE
 #ifndef CBOR_PARSER_MAX_RECURSIONS
 #error "CBOR_PARSER_MAX_RECURSIONS must be defined!"

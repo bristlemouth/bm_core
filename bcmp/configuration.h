@@ -1,4 +1,5 @@
 #pragma once
+#include "bm_common_structs.h"
 #include "cbor.h"
 
 #ifdef __cplusplus
@@ -13,13 +14,6 @@ extern "C" {
 #define MAX_STR_LEN_BYTES 50
 #define MAX_CONFIG_BUFFER_SIZE_BYTES 50
 #define CONFIG_VERSION 0 // FIXME: Put this in the default config file.
-
-typedef enum {
-  BM_CFG_PARTITION_USER,
-  BM_CFG_PARTITION_SYSTEM,
-  BM_CFG_PARTITION_HARDWARE,
-  BM_CFG_PARTITION_COUNT
-} BmConfigPartition;
 
 typedef enum {
   UINT32,
