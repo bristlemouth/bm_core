@@ -218,11 +218,14 @@ static void receive_callback_(void *device, uint32_t event,
   }
 }
 
+static inline uint8_t adin2111_num_ports(void) { return ADIN2111_PORT_NUM; }
+
 static void create_network_device(void) {
   static NetworkDeviceTrait const trait = {.send = adin2111_netdevice_send_,
                                            .enable = adin2111_netdevice_enable_,
                                            .disable =
-                                               adin2111_netdevice_disable_};
+                                               adin2111_netdevice_disable_,
+                                           .num_ports = adin2111_num_ports};
   static NetworkDeviceCallbacks callbacks = {0};
   NETWORK_DEVICE.self = NULL;
   NETWORK_DEVICE.trait = &trait;

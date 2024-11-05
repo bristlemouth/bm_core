@@ -44,7 +44,9 @@ typedef struct {
 
 typedef struct {
   NetworkDevice network_device;
-  uint8_t enabled_port_mask;
+  uint8_t num_ports;
+  uint8_t all_ports_mask;
+  uint8_t enabled_ports_mask;
   BmQueue evt_queue;
   BmTaskHandle task_handle;
 } BmL2Ctx;
@@ -68,7 +70,7 @@ static BmErr bm_l2_tx(void *buf, uint32_t length, uint8_t port_mask) {
 
   // device_handle not needed for tx
   // Don't send to ports that are offline
-  L2QueueElement tx_evt = {port_mask & CTX.enabled_port_mask, buf, L2Tx,
+  L2QueueElement tx_evt = {port_mask & CTX.enabled_ports_mask, buf, L2Tx,
                            length};
 
   bm_l2_tx_prep(buf, length);
@@ -141,7 +143,7 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
     add_ingress_port(payload, rx_evt->port_mask);
 
     if (is_global_multicast(payload)) {
-      uint8_t new_port_mask = ADIN2111_PORT_MASK & ~(rx_evt->port_mask);
+      uint8_t new_port_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
       bm_l2_tx(rx_evt->buf, rx_evt->length, new_port_mask);
     }
 
@@ -207,6 +209,8 @@ BmErr bm_l2_init(NetworkDevice network_device) {
   BmErr err = BmEINVAL;
   network_device.callbacks->receive = bm_l2_rx;
   CTX.network_device = network_device;
+  CTX.num_ports = network_device.trait->num_ports();
+  CTX.all_ports_mask = (1 << CTX.num_ports) - 1;
   CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
   if (CTX.evt_queue) {
     err = bm_task_create(bm_l2_thread, "L2 TX Thread", 2048, NULL,
@@ -228,7 +232,7 @@ BmErr bm_l2_init(NetworkDevice network_device) {
 */
 BmErr bm_l2_link_output(void *buf, uint32_t length) {
   // by default, send to all ports
-  uint8_t port_mask = ADIN2111_PORT_MASK;
+  uint8_t port_mask = CTX.all_ports_mask;
 
   // if the application set an egress port, send only to that port
   static const size_t bcmp_egress_port_offset_in_dest_addr = 13;
@@ -237,7 +241,7 @@ BmErr bm_l2_link_output(void *buf, uint32_t length) {
   uint8_t *eth_frame = (uint8_t *)bm_l2_get_payload(buf);
   uint8_t egress_port = eth_frame[egress_idx];
 
-  if (egress_port > 0 && egress_port <= ADIN2111_PORT_NUM) {
+  if (egress_port > 0 && egress_port <= CTX.num_ports) {
     port_mask = 1 << (egress_port - 1);
   }
 
@@ -256,7 +260,7 @@ BmErr bm_l2_link_output(void *buf, uint32_t length) {
   @retunr false if port is offline
  */
 bool bm_l2_get_port_state(uint8_t port) {
-  return (bool)(CTX.enabled_port_mask & (1 << port));
+  return (bool)(CTX.enabled_ports_mask & (1 << port));
 }
 
 /*!

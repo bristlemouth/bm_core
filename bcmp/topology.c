@@ -37,6 +37,7 @@ typedef struct {
   NetworkTopology *network_topology;
   bool in_progress;
   BcmpTopoCb callback;
+  uint8_t num_ports;
 } BcmpTopoContext;
 
 static BcmpTopoContext CTX;
@@ -95,7 +96,7 @@ static void process_start_topology_event(void) {
   // here we will need to kick off the topo process by looking at our own neighbors and then sending out a request
   CTX.network_topology = new_network_topology();
 
-  static const uint8_t num_ports = ADIN2111_PORT_NUM;
+  const uint8_t num_ports = CTX.num_ports;
 
   // Check our neighbors
   uint8_t num_neighbors = 0;
@@ -208,7 +209,7 @@ BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr) {
   @ret ERR_OK if successful
 */
 static BmErr bcmp_send_neighbor_table(void *addr) {
-  static const uint8_t num_ports = ADIN2111_PORT_NUM;
+  const uint8_t num_ports = CTX.num_ports;
   BmErr err = BmENOMEM;
 
   // Check our neighbors
@@ -430,7 +431,8 @@ static void bcmp_topology_thread(void *parameters) {
   @return BmOK on success
   @return BmErr on failure
 */
-BmErr bcmp_topology_init(void) {
+BmErr bcmp_topology_init(uint8_t num_ports) {
+  CTX.num_ports = num_ports;
   BmErr err = BmOK;
   BcmpPacketCfg neighbor_request = {
       false,
