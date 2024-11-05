@@ -23,16 +23,8 @@ FAKE_VOID_FUNC(__disable_irq);
 FAKE_VOID_FUNC(__enable_irq);
 
 static NetworkDevice setup() {
-  static Adin2111 adin = {.device_handle = NULL};
-
-  // We can only call adin2111_init once per execution (test suite)
-  // because the device memory in the driver is static.
-  // On a real device, this should return BmOK,
-  // but we don't have the SPI transactions mocked.
-  if (adin.device_handle == NULL) {
-    adin2111_init(&adin);
-  }
-  return create_adin2111_network_device(&adin);
+  adin2111_init();
+  return create_adin2111_network_device();
 }
 
 TEST(Adin2111, send) {
