@@ -14,7 +14,6 @@
   (int32_t)(max_payload_len - sizeof(bm_print_publication_t) - fname_len)
 static const uint8_t FPRINTF_TYPE = 1;
 static const uint8_t PRINTF_TYPE = 1;
-static const uint8_t FAPPEND_TYPE = 1;
 static const char *SPOTTER_TRANSMIT_DATA_TOPIC = "spotter/transmit-data";
 static const char *SPOTTER_PRINTF_TOPIC = "spotter/printf";
 static const char *SPOTTER_FPRINTF_TOPIC = "spotter/fprintf";
@@ -42,8 +41,8 @@ typedef struct {
  @return BmOk if successful
  @return BmErr if unsuccessful
 */
-BmErr bm_fprintf(uint64_t target_node_id, const char *file_name,
-                 uint8_t print_time, const char *format, ...) {
+BmErr spotter_log(uint64_t target_node_id, const char *file_name,
+                  uint8_t print_time, const char *format, ...) {
   BmErr err = BmOK;
   bm_print_publication_t *printf_pub = NULL;
   va_list va;
@@ -92,10 +91,8 @@ BmErr bm_fprintf(uint64_t target_node_id, const char *file_name,
       data_len +=
           1; // add one so vsnprintf doesn't overwrite the last character with null
       // do this after we malloc a buffer, so the extra null after the last character doesn't print to the file/ascii terminal
-      printf("Result: %d %d\n", fname_len, data_len - 1);
       int32_t res = vsnprintf((char *)&printf_pub->fnameAndData[fname_len],
                               data_len, format, va);
-      printf("Result: %d %d %s\n", res, data_len - 1, (char *)&printf_pub->fnameAndData[fname_len]);
       if (res < 0 || (res != data_len - 1)) {
         err = BmEBADMSG;
         break;
@@ -120,46 +117,6 @@ BmErr bm_fprintf(uint64_t target_node_id, const char *file_name,
   if (printf_pub) {
     bm_free(printf_pub);
     printf_pub = NULL;
-  }
-
-  return err;
-}
-
-/*!
- @brief Bristlemouth generic append to file
-
- @param[in] target_node_id - node_id to send to (0 = all nodes), the accept if it is
-                             subscribed to the topic that the printf is publishing to
- @param[in] file_name - file name to print to
- @param[in] *buf - buffer to send
-
- @return BmOk if successful
- @return BmErr if unsuccessful
-*/
-BmErr bm_file_append(uint64_t target_node_id, const char *file_name,
-                     const uint8_t *buf, uint16_t len) {
-  BmErr err = BmEINVAL;
-
-  if (file_name && buf) {
-    err = BmENOMEM;
-    int32_t fname_len = bm_strnlen(file_name, max_file_name_len);
-    const size_t file_append_pub_len =
-        sizeof(bm_print_publication_t) + len + fname_len;
-    bm_print_publication_t *file_append_pub =
-        (bm_print_publication_t *)bm_malloc(file_append_pub_len);
-
-    if (file_append_pub) {
-      file_append_pub->target_node_id = target_node_id;
-      file_append_pub->fname_len = fname_len;
-      file_append_pub->data_len = len;
-      memcpy(file_append_pub->fnameAndData, file_name, fname_len);
-      memcpy(&file_append_pub->fnameAndData[fname_len], buf, len);
-      err = bm_pub("fappend", file_append_pub, file_append_pub_len,
-                   FAPPEND_TYPE, BM_COMMON_PUB_SUB_VERSION)
-                ? BmOK
-                : BmENETDOWN;
-      bm_free(file_append_pub);
-    }
   }
 
   return err;

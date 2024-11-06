@@ -1,4 +1,5 @@
 #pragma once
+
 #include "bm_common_structs.h"
 #include "cbor.h"
 

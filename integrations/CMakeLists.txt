@@ -1,5 +1,6 @@
 set(SOURCES
     spotter.c
+    file_ops.c
 )
 
 add_library(bmintegrations ${SOURCES})

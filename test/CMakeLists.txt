@@ -469,3 +469,17 @@ set (SPOTTER_SRCS
     ${STUB_DIR}/pubsub_stub.c
 )
 create_gtest("spotter" "${SPOTTER_SRCS}")
+
+# SPOTTER TESTS
+set (FILE_OPS_SRCS
+    # File we're testing
+    ${INTEGRATIONS_DIR}/file_ops.c
+
+    # Supporting Files
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/pubsub_stub.c
+)
+create_gtest("file_ops" "${FILE_OPS_SRCS}")

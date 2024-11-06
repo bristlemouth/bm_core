@@ -16,15 +16,13 @@ typedef enum {
   BmNetworkTypeCellularOnly = (1 << 1),
 } BmSerialNetworkType;
 
-BmErr bm_fprintf(uint64_t target_node_id, const char *file_name,
-                 uint8_t print_time, const char *format, ...);
-BmErr bm_file_append(uint64_t target_node_id, const char *file_name,
-                     const uint8_t *buff, uint16_t len);
+BmErr spotter_log(uint64_t target_node_id, const char *file_name,
+                  uint8_t print_time, const char *format, ...);
 BmErr spotter_tx_data(const void *data, uint16_t data_len,
                       BmSerialNetworkType type);
 
-#define bm_printf(target_node_id, format, ...)                                 \
-  bm_fprintf(target_node_id, NULL, USE_TIMESTAMP, format, ##__VA_ARGS__)
+#define spotter_log_console(target_node_id, format, ...)                       \
+  spotter_log(target_node_id, NULL, USE_TIMESTAMP, format, ##__VA_ARGS__)
 
 #ifdef __cplusplus
 }

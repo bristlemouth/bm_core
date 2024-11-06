@@ -13,11 +13,11 @@ The following sections explain the integrations that are currently available in 
 ## Spotter
 
 The spotter integration is used to communicate to Sofar Ocean's spotter buoy technology.
-This integration offers 3 functions,
+This integration offers 2 functions,
 the following are their names and use cases:
 
 ```{eval-rst}
-.. cpp:function:: BmErr bm_fprintf(uint64_t target_node_id, const char *file_name, uint8_t print_time, const char *format, ...)
+.. cpp:function:: BmErr spotter_log(uint64_t target_node_id, const char *file_name, uint8_t print_time, const char *format, ...)
 
   Publish string data to be stored/logged onto a file on the spotter's SD card.
   This function can also print directly to the spotter's console if the filename parameter is witheld.
@@ -27,19 +27,6 @@ the following are their names and use cases:
                     omit if intention is print to the console
   :param: print_time: whether or not the RTC timestamp shall be printed to the file/console
   :param: format: printf styled format string
-
-  :returns: BmOK on success, other value on failure
-```
-
-```{eval-rst}
-.. cpp:function:: BmErr bm_file_append(uint64_t target_node_id, const char *file_name, const uint8_t *buf, uint16_t len)
-
-  Append data to a file on the spotter's SD card.
-
-  :param: target_node_id: The node ID to send this to (0 = all nodes)
-  :param: file_name: file name to append data to
-  :param: buf: buffer to append to file
-  :param: len: length of buffer to append to file
 
   :returns: BmOK on success, other value on failure
 ```
@@ -59,6 +46,26 @@ the following are their names and use cases:
   :param: data: Data to transmit
   :param: data_len: Length of the data to transmit
   :param: type: Network type to send over. Must be BmNetworkTypeCellularIriFallback.
+
+  :returns: BmOK on success, other value on failure
+```
+
+## File Operations
+
+The file operations integration is used to access data to/from a file on another node.
+This is beneficial,
+because not all nodes on a network may have a file system that can store persistent data.
+The integration offers the following API:
+
+```{eval-rst}
+.. cpp:function:: BmErr bm_file_append(uint64_t target_node_id, const char *file_name, const uint8_t *buf, uint16_t len)
+
+  Append data to a file on the spotter's SD card.
+
+  :param: target_node_id: The node ID to send this to (0 = all nodes)
+  :param: file_name: file name to append data to
+  :param: buf: buffer to append to file
+  :param: len: length of buffer to append to file
 
   :returns: BmOK on success, other value on failure
 ```
