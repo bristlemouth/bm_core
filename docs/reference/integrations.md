@@ -60,7 +60,7 @@ The integration offers the following API:
 ```{eval-rst}
 .. cpp:function:: BmErr bm_file_append(uint64_t target_node_id, const char *file_name, const uint8_t *buf, uint16_t len)
 
-  Append data to a file on the spotter's SD card.
+  Append data to a file on another node's file system.
 
   :param: target_node_id: The node ID to send this to (0 = all nodes)
   :param: file_name: file name to append data to
