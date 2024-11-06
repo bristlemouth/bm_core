@@ -47,11 +47,12 @@ BmErr bm_fprintf(uint64_t target_node_id, const char *file_name,
   BmErr err = BmOK;
   bm_print_publication_t *printf_pub = NULL;
   va_list va;
-  va_start(va, format);
 
   do {
+    va_start(va, format);
     // check how long the string we are printing will be
     int32_t data_len = vsnprintf(NULL, 0, format, va);
+    va_start(va, format);
     if (data_len == 0) {
       err = BmENODATA;
       break;
@@ -91,8 +92,10 @@ BmErr bm_fprintf(uint64_t target_node_id, const char *file_name,
       data_len +=
           1; // add one so vsnprintf doesn't overwrite the last character with null
       // do this after we malloc a buffer, so the extra null after the last character doesn't print to the file/ascii terminal
+      printf("Result: %d %d\n", fname_len, data_len - 1);
       int32_t res = vsnprintf((char *)&printf_pub->fnameAndData[fname_len],
                               data_len, format, va);
+      printf("Result: %d %d %s\n", res, data_len - 1, (char *)&printf_pub->fnameAndData[fname_len]);
       if (res < 0 || (res != data_len - 1)) {
         err = BmEBADMSG;
         break;

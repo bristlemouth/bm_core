@@ -29,29 +29,31 @@ TEST_F(Spotter, printf) {
   uint8_t print_time = USE_TIMESTAMP;
   RND.rnd_str(long_file_name, UINT8_MAX);
   RND.rnd_str(long_string, max_payload_len);
+  const char *s1 = "testing 1";
+  const char *s2 = "testing 2";
 
   // Test proper use cases
   bm_pub_fake.return_val = true;
-  ASSERT_EQ(bm_fprintf(node_id, file_name, print_time, "%s:%s", "testing 1",
-                       "testing 2"),
+  ASSERT_EQ(bm_fprintf(node_id, file_name, print_time, "%s:%s", s1,
+                       s2),
             BmOK);
   ASSERT_EQ(
-      bm_fprintf(node_id, NULL, print_time, "%s:%s", "testing 1", "testing 2"),
+      bm_fprintf(node_id, NULL, print_time, "%s:%s", s1, s2),
       BmOK);
 
   // Test improper use cases
   ASSERT_EQ(bm_fprintf(node_id, file_name, print_time, ""), BmENODATA);
   ASSERT_EQ(bm_fprintf(node_id, long_file_name, print_time, "%s:%s",
-                       "testing 1", "testing 2"),
+                       s1, s2),
             BmEMSGSIZE);
   ASSERT_EQ(bm_fprintf(node_id, file_name, print_time, "%s", long_string),
             BmEMSGSIZE);
   bm_pub_fake.return_val = false;
-  ASSERT_EQ(bm_fprintf(node_id, file_name, print_time, "%s:%s", "testing 1",
-                       "testing 2"),
+  ASSERT_EQ(bm_fprintf(node_id, file_name, print_time, "%s:%s", s1,
+                       s2),
             BmENETDOWN);
   ASSERT_EQ(
-      bm_fprintf(node_id, NULL, print_time, "%s:%s", "testing 1", "testing 2"),
+      bm_fprintf(node_id, NULL, print_time, "%s:%s", s1, s2),
       BmENETDOWN);
 }
 
