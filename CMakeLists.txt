@@ -63,6 +63,7 @@ set(BM_INCLUDES
 )
 include_directories(${BM_INCLUDES})
 
+# Run unit tests if -DENABLE_TESTING=ON is called from cmake command
 if(ENABLE_TESTING)
     set(CMAKE_CXX_FLAGS "-g -Wall")
     set(CMAKE_C_FLAGS "-g -Wall -W")
