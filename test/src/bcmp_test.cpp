@@ -37,7 +37,7 @@ protected:
 TEST_F(Bcmp, init) {
   // Test success
   bm_task_create_fake.return_val = BmOK;
-  NetworkDevice network_device = create_mock_network_device();
+  NetworkDevice network_device = adin2111_network_device();
   ASSERT_EQ(bcmp_init(network_device), BmOK);
   ASSERT_EQ(bcmp_heartbeat_init_fake.call_count, 1);
   ASSERT_EQ(ping_init_fake.call_count, 1);

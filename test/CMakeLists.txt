@@ -423,8 +423,7 @@ add_executable(bm_adin2111_test
     ${ADIN2111_DIR}/adi_mac.c
     ${ADIN2111_DIR}/adi_phy.c
     ${ADIN2111_DIR}/adi_spi_oa.c
-    ${COMMON_DIR}/aligned_malloc.c
-    ${STUB_DIR}/bm_adin2111_stub.c)
+    ${COMMON_DIR}/aligned_malloc.c)
 target_include_directories(bm_adin2111_test PRIVATE
     ${ADIN2111_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/../network)
@@ -506,3 +505,17 @@ set (PUBSUB_SRCS
     ${STUB_DIR}/resource_discovery_stub.c
 )
 create_gtest("pubsub" "${PUBSUB_SRCS}")
+
+# Bristlemouth integration main top-level test
+set(BRISTLEMOUTH_SRCS
+    # File we're testing
+    ${MIDDLEWARE_DIR}/bristlemouth.c
+
+    # Stubs
+    ${STUB_DIR}/bm_adin2111_stub.c
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/bm_ip_stub.c
+    ${STUB_DIR}/l2_stub.c
+    ${STUB_DIR}/bm_service_stub.c
+)
+create_gtest("bristlemouth" "${BRISTLEMOUTH_SRCS}")

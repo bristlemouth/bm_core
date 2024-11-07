@@ -11,6 +11,8 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_enable, void *);
 DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_disable, void *);
 DEFINE_FAKE_VALUE_FUNC(uint8_t, netdevice_num_ports);
 
+FAKE_VALUE_FUNC(BmErr, adin2111_init);
+
 static NetworkDeviceTrait const fake_netdevice_trait = {
     .send = netdevice_send,
     .enable = netdevice_enable,
@@ -22,7 +24,7 @@ static NetworkDeviceCallbacks fake_netdevice_callbacks = {
     .link_change = link_changed_on_port,
     .receive = received_data_on_port};
 
-NetworkDevice create_mock_network_device(void) {
+NetworkDevice adin2111_network_device(void) {
   netdevice_num_ports_fake.return_val = 2;
   return (NetworkDevice){.trait = &fake_netdevice_trait,
                          .callbacks = &fake_netdevice_callbacks};

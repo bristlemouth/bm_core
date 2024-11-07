@@ -37,7 +37,7 @@ protected:
   void SetUp() override {
     netdevice_enable_fake.return_val = BmOK;
     netdevice_disable_fake.return_val = BmOK;
-    network_device = create_mock_network_device();
+    network_device = adin2111_network_device();
     init_count = 0;
     bm_queue_create_fake.return_val =
         (void *)RND.rnd_int(UINT32_MAX, UINT16_MAX);

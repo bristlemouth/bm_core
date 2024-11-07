@@ -1,5 +1,5 @@
+#include "bm_adin2111.h"
 #include "fff.h"
-#include "mock_bm_adin2111.h"
 #include "gtest/gtest.h"
 
 DEFINE_FFF_GLOBALS;
@@ -8,10 +8,12 @@ extern "C" {
 void *bm_malloc(size_t size) { return malloc(size); }
 void bm_free(void *p) { free(p); }
 
-DEFINE_FAKE_VALUE_FUNC(uint32_t, __REV, uint32_t);
-DEFINE_FAKE_VOID_FUNC(__disable_irq);
-DEFINE_FAKE_VOID_FUNC(__enable_irq);
+FAKE_VALUE_FUNC(uint32_t, __REV, uint32_t);
+FAKE_VOID_FUNC(__disable_irq);
+FAKE_VOID_FUNC(__enable_irq);
 }
+
+FAKE_VOID_FUNC(network_device_power_cb, bool);
 
 FAKE_VALUE_FUNC(uint32_t, HAL_DisableIrq);
 FAKE_VALUE_FUNC(uint32_t, HAL_EnableIrq);
