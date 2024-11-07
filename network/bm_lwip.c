@@ -24,8 +24,7 @@
 #define ifname1 'm'
 #define ethernet_mtu 1500
 
-//TODO: this will have to be moved as we go along
-extern struct netif netif;
+static struct netif netif;
 
 typedef struct {
   BmErr (*udp_cb)(void *, uint64_t, uint32_t);

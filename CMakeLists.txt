@@ -119,6 +119,7 @@ else()
         middleware
         bmmessages
         bmnetwork
+        bmadin2111
         bmthirdparty
         bmintegrations
     )

@@ -7,6 +7,10 @@ DEFINE_FFF_GLOBALS;
 extern "C" {
 void *bm_malloc(size_t size) { return malloc(size); }
 void bm_free(void *p) { free(p); }
+
+DEFINE_FAKE_VALUE_FUNC(uint32_t, __REV, uint32_t);
+DEFINE_FAKE_VOID_FUNC(__disable_irq);
+DEFINE_FAKE_VOID_FUNC(__enable_irq);
 }
 
 FAKE_VALUE_FUNC(uint32_t, HAL_DisableIrq);
@@ -18,9 +22,6 @@ FAKE_VALUE_FUNC(uint32_t, HAL_SpiReadWrite, uint8_t *, uint8_t *, uint32_t,
 FAKE_VALUE_FUNC(uint32_t, HAL_SpiRegisterCallback, HAL_Callback_t const *,
                 void *);
 FAKE_VALUE_FUNC(uint32_t, HAL_UnInit_Hook);
-FAKE_VALUE_FUNC(long unsigned int, __REV, long unsigned int);
-FAKE_VOID_FUNC(__disable_irq);
-FAKE_VOID_FUNC(__enable_irq);
 
 static NetworkDevice setup() {
   adin2111_init();

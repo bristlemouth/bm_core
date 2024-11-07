@@ -19,6 +19,15 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#ifdef ENABLE_TESTING
+void __enable_irq(void);
+void __disable_irq(void);
+uint32_t __REV(uint32_t value);
+#else
+// To get the definitions of __disable_irq, __enable_irq, and __REV
+#include "cmsis_compiler.h"
+#endif /* ENABLE_TESTING */
+
 #define PRAGMA(x) _Pragma(#x)
 #define ATTRIBUTE(x) __attribute__((x))
 
