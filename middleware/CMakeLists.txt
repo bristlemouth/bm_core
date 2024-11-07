@@ -1,6 +1,7 @@
 set(SOURCES
     bm_service.c
     bm_service_request.c
+    bristlemouth.c
     cbor_service_helper.c
     config_cbor_map_service.c
     echo_service.c
