@@ -239,14 +239,14 @@ static BmErr adin2111_port_stats(uint8_t port_index, Adin2111PortStats *stats) {
   }
 
   result = adin2111_FrameChkReadRxErrCnt(&DEVICE_STRUCT, port_index,
-                                         &stats->frame_check_rx_err_cnt);
+                                         &stats->frame_check_rx_error_count);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
     goto end;
   }
 
   result = adin2111_FrameChkReadErrorCnt(&DEVICE_STRUCT, port_index,
-                                         &stats->frame_chk_error_counters);
+                                         &stats->frame_check_error_counters);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
   }
