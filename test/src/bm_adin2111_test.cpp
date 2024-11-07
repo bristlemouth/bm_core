@@ -26,8 +26,10 @@ FAKE_VALUE_FUNC(uint32_t, HAL_SpiRegisterCallback, HAL_Callback_t const *,
 FAKE_VALUE_FUNC(uint32_t, HAL_UnInit_Hook);
 
 static NetworkDevice setup() {
+  NetworkDevice device = adin2111_network_device();
+  device.callbacks->power = network_device_power_cb;
   adin2111_init();
-  return adin2111_network_device();
+  return device;
 }
 
 TEST(Adin2111, send) {
@@ -57,12 +59,17 @@ TEST(Adin2111, num_ports) {
 }
 
 TEST(Adin2111, set_power_cb_before_init) {
-  NetworkDevice device = adin2111_network_device();
-  device.callbacks->power = network_device_power_cb;
-  RESET_FAKE(network_device_power_cb);
-  EXPECT_EQ(network_device_power_cb_fake.call_count, 0);
-  adin2111_init();
+  setup();
   // Called twice because we first turn the adin on,
   // then when we get SPI errors, we turn it off
   EXPECT_EQ(network_device_power_cb_fake.call_count, 2);
+}
+
+TEST(Adin2111, port_stats) {
+  NetworkDevice device = setup();
+  Adin2111PortStats stats;
+  for (int port = 0; port < device.trait->num_ports(); port++) {
+    // SEGFAULT because PHY is NULL, because no real SPI transactions
+    EXPECT_DEATH(device.trait->port_stats(device.self, port, &stats), "");
+  }
 }

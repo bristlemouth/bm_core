@@ -7,6 +7,12 @@
 
 #define ADIN2111_PORT_MASK (3U)
 
+typedef struct {
+  adi_phy_MseLinkQuality_t mse_link_quality;
+  adi_phy_FrameChkErrorCounters_t frame_chk_error_counters;
+  uint16_t frame_check_rx_err_cnt;
+} Adin2111PortStats;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

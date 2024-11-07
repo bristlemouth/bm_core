@@ -220,12 +220,55 @@ static void receive_callback_(void *device, uint32_t event,
 
 static inline uint8_t adin2111_num_ports(void) { return ADIN2111_PORT_NUM; }
 
+// Get device-specific statistics for a port
+static BmErr adin2111_port_stats(uint8_t port_index, Adin2111PortStats *stats) {
+  BmErr err = BmOK;
+
+  if (stats == NULL) {
+    err = BmEINVAL;
+    goto end;
+  }
+
+  memset(stats, 0, sizeof(Adin2111PortStats));
+
+  adi_eth_Result_e result = adin2111_GetMseLinkQuality(
+      &DEVICE_STRUCT, port_index, &stats->mse_link_quality);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_FrameChkReadRxErrCnt(&DEVICE_STRUCT, port_index,
+                                         &stats->frame_check_rx_err_cnt);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_FrameChkReadErrorCnt(&DEVICE_STRUCT, port_index,
+                                         &stats->frame_chk_error_counters);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+  }
+
+end:
+  return err;
+}
+
+// Trait wrapper function to convert void* to device-specific types
+static inline BmErr adin2111_port_stats_(void *self, uint8_t port_index,
+                                         void *stats) {
+  (void)self;
+  return adin2111_port_stats(port_index, stats);
+}
+
 static void create_network_device(void) {
   static NetworkDeviceTrait const trait = {.send = adin2111_netdevice_send_,
                                            .enable = adin2111_netdevice_enable_,
                                            .disable =
                                                adin2111_netdevice_disable_,
-                                           .num_ports = adin2111_num_ports};
+                                           .num_ports = adin2111_num_ports,
+                                           .port_stats = adin2111_port_stats_};
   static NetworkDeviceCallbacks callbacks = {0};
   NETWORK_DEVICE.self = NULL;
   NETWORK_DEVICE.trait = &trait;

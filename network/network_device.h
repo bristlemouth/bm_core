@@ -15,6 +15,7 @@ typedef struct {
   BmErr (*const enable)(void *self);
   BmErr (*const disable)(void *self);
   uint8_t (*const num_ports)(void);
+  BmErr (*const port_stats)(void *self, uint8_t port_index, void *stats);
 } NetworkDeviceTrait;
 
 typedef struct {
