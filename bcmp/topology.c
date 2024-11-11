@@ -12,9 +12,6 @@
 #include <string.h>
 
 #define bcmp_topo_evt_queue_len 32
-// Timer to stop waiting for a nodes neighbor table
-#define bcmp_topo_timeout_s 1
-#define bcmp_table_max_len 1024
 
 typedef enum {
   BcmpTopoEvtStart,
@@ -33,7 +30,6 @@ typedef struct {
 
 typedef struct {
   BmQueue evt_queue;
-  BmTimer topo_timer;
   NetworkTopology *network_topology;
   bool in_progress;
   BcmpTopoCb callback;
@@ -42,7 +38,6 @@ typedef struct {
 static BcmpTopoContext CTX;
 static void *BCMP_TOPOLOGY_TASK = NULL;
 
-static uint64_t TARGET_NODE_ID = 0;
 static bool SENT_REQUEST = false;
 static bool INSERT_BEFORE = false;
 
@@ -76,19 +71,55 @@ network_topology_check_neighbor_node_ids(NetworkTopology *network_topology);
 static bool
 network_topology_check_all_ports_explored(NetworkTopology *network_topology);
 
-// assembles the neighbor info list
-static void assemble_neighbor_info_list(BcmpNeighborInfo *neighbor_info_list,
-                                        BcmpNeighbor *neighbor,
-                                        uint8_t num_neighbors) {
-  uint16_t neighbor_count = 0;
-  while (neighbor != NULL && neighbor_count < num_neighbors) {
-    neighbor_info_list[neighbor_count].node_id = neighbor->node_id;
-    neighbor_info_list[neighbor_count].port = neighbor->port;
-    neighbor_info_list[neighbor_count].online = (uint8_t)neighbor->online;
-    neighbor_count++;
-    // Go to the next one
-    neighbor = neighbor->next;
+/*!
+  @brief Timer handler for timeouts while waiting for neigbor tables
+
+  @details No work is done in the timer handler, but instead an event is queued
+           up to be handled in the BCMP task.
+
+  \param tmr unused
+  \return none
+*/
+static void topology_timer_handler(BmTimer tmr) {
+  (void)tmr;
+
+  BcmpTopoQueueItem item = {BcmpTopoEvtTimeout, NULL, NULL};
+
+  bm_queue_send(CTX.evt_queue, &item, 0);
+}
+
+static BmErr neighbor_request_cb(BcmpNeighborTableReply *reply) {
+  BmErr err = BmENOMEM;
+
+  if (SENT_REQUEST) {
+    // here we will assemble the entry for the SM
+    // malloc the buffer then memcpy it over
+    uint8_t *neighbor_entry_buff =
+        (uint8_t *)bm_malloc(sizeof(NeighborTableEntry));
+    if (neighbor_entry_buff) {
+
+      memset(neighbor_entry_buff, 0, sizeof(NeighborTableEntry));
+      NeighborTableEntry *neighbor_entry =
+          (NeighborTableEntry *)neighbor_entry_buff;
+
+      uint16_t neighbor_table_len =
+          sizeof(BcmpNeighborTableReply) +
+          sizeof(BcmpPortInfo) * reply->port_len +
+          sizeof(BcmpNeighborInfo) * reply->neighbor_len;
+      neighbor_entry->neighbor_table_reply =
+          (BcmpNeighborTableReply *)bm_malloc(neighbor_table_len);
+
+      memcpy(neighbor_entry->neighbor_table_reply, reply, neighbor_table_len);
+
+      BcmpTopoQueueItem item = {.type = BcmpTopoEvtAddNode,
+                                .neighbor_entry = neighbor_entry,
+                                .callback = NULL};
+
+      err = bm_queue_send(CTX.evt_queue, &item, 0);
+    }
   }
+
+  return err;
 }
 
 static void process_start_topology_event(void) {
@@ -169,7 +200,8 @@ static void process_check_node_event(void) {
         network_topology_check_neighbor_node_ids(CTX.network_topology);
     network_topology_increment_port_count(CTX.network_topology);
     if (new_node) {
-      bcmp_request_neighbor_table(new_node, &multicast_global_addr);
+      bcmp_request_neighbor_table(new_node, &multicast_global_addr,
+                                  neighbor_request_cb, topology_timer_handler);
     } else {
       if (INSERT_BEFORE) {
         network_topology_move_next(CTX.network_topology);
@@ -183,161 +215,9 @@ static void process_check_node_event(void) {
 }
 
 /*!
-  @brief Send neighbor table request to node(s)
-
-  @param target_node_id - target node id to send request to (0 for all nodes)
-  @param *addr - ip address to send to send request to
-  @ret ERR_OK if successful
-*/
-BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr) {
-  BmErr err = BmOK;
-  BcmpNeighborTableRequest neighbor_table_req = {.target_node_id =
-                                                     target_node_id};
-  TARGET_NODE_ID = target_node_id;
-  err = bm_timer_start(CTX.topo_timer, 10);
-  bm_err_check(err, bcmp_tx(addr, BcmpNeighborTableRequestMessage,
-                            (uint8_t *)&neighbor_table_req,
-                            sizeof(neighbor_table_req), 0, NULL));
-  return err;
-}
-
-/*!
-  @brief Send reply to neighbor table request
-
-  @param *neighbor_table_reply - reply message
-  @param *addr - ip address to send reply to
-  @ret ERR_OK if successful
-*/
-static BmErr bcmp_send_neighbor_table(void *addr) {
-  static uint8_t num_ports = 0;
-  num_ports = bm_l2_get_num_ports();
-  BmErr err = BmENOMEM;
-
-  // Check our neighbors
-  uint8_t num_neighbors = 0;
-  BcmpNeighbor *neighbor = bcmp_get_neighbors(&num_neighbors);
-  uint16_t neighbor_table_len = sizeof(BcmpNeighborTableReply) +
-                                sizeof(BcmpPortInfo) * num_ports +
-                                sizeof(BcmpNeighborInfo) * num_neighbors;
-
-  // TODO - handle more gracefully
-  if (neighbor_table_len > bcmp_table_max_len) {
-    return BmEINVAL;
-  }
-
-  uint8_t *neighbor_table_reply_buff = (uint8_t *)bm_malloc(neighbor_table_len);
-  if (neighbor_table_reply_buff) {
-    memset(neighbor_table_reply_buff, 0, neighbor_table_len);
-
-    BcmpNeighborTableReply *neighbor_table_reply =
-        (BcmpNeighborTableReply *)neighbor_table_reply_buff;
-    neighbor_table_reply->node_id = node_id();
-
-    // set the other vars
-    neighbor_table_reply->port_len = num_ports;
-    neighbor_table_reply->neighbor_len = num_neighbors;
-
-    // assemble the port list here
-    for (uint8_t port = 0; port < num_ports; port++) {
-      neighbor_table_reply->port_list[port].state = bm_l2_get_port_state(port);
-    }
-
-    assemble_neighbor_info_list(
-        (BcmpNeighborInfo *)&neighbor_table_reply->port_list[num_ports],
-        neighbor, num_neighbors);
-
-    err = bcmp_tx(addr, BcmpNeighborTableReplyMessage,
-                  (uint8_t *)neighbor_table_reply, neighbor_table_len, 0, NULL);
-
-    bm_free(neighbor_table_reply_buff);
-  }
-
-  return err;
-}
-
-/*!
-  @brief Handle neighbor table requests
-
-  @param *neighbor_table_req - message to process
-  @param *src - source ip of requester
-  @param *dst - destination ip of request (used for responding to the correct multicast address)
-  @return BmOK if successful
-  @return BmErr if failed
-*/
-static BmErr bcmp_process_neighbor_table_request(BcmpProcessData data) {
-  BmErr err = BmEINVAL;
-  BcmpNeighborTableRequest *request = (BcmpNeighborTableRequest *)data.payload;
-  if (request && ((request->target_node_id == 0) ||
-                  node_id() == request->target_node_id)) {
-    err = bcmp_send_neighbor_table(data.dst);
-  }
-  return err;
-}
-
-/*!
-  @brief Handle neighbor table replies
-
-  @param *neighbor_table_reply - reply message to process
-*/
-static BmErr bcmp_process_neighbor_table_reply(BcmpProcessData data) {
-  BmErr err = BmEINVAL;
-  BcmpNeighborTableReply *reply = (BcmpNeighborTableReply *)data.payload;
-
-  if (TARGET_NODE_ID == reply->node_id && SENT_REQUEST) {
-    err = bm_timer_stop(CTX.topo_timer, 10);
-    // here we will assemble the entry for the SM
-    // malloc the buffer then memcpy it over
-    uint8_t *neighbor_entry_buff =
-        (uint8_t *)bm_malloc(sizeof(NeighborTableEntry));
-    if (err == BmOK && neighbor_entry_buff) {
-
-      memset(neighbor_entry_buff, 0, sizeof(NeighborTableEntry));
-      NeighborTableEntry *neighbor_entry =
-          (NeighborTableEntry *)neighbor_entry_buff;
-
-      uint16_t neighbor_table_len =
-          sizeof(BcmpNeighborTableReply) +
-          sizeof(BcmpPortInfo) * reply->port_len +
-          sizeof(BcmpNeighborInfo) * reply->neighbor_len;
-      neighbor_entry->neighbor_table_reply =
-          (BcmpNeighborTableReply *)bm_malloc(neighbor_table_len);
-
-      memcpy(neighbor_entry->neighbor_table_reply, reply, neighbor_table_len);
-
-      BcmpTopoQueueItem item = {.type = BcmpTopoEvtAddNode,
-                                .neighbor_entry = neighbor_entry,
-                                .callback = NULL};
-
-      bm_queue_send(CTX.evt_queue, &item, 0);
-    } else if (!neighbor_entry_buff) {
-      err = BmENOMEM;
-    }
-  }
-
-  return err;
-}
-
-/*!
-  @brief Timer handler for timeouts while waiting for neigbor tables
-
-  @details No work is done in the timer handler, but instead an event is queued
-           up to be handled in the BCMP task.
-
-  \param tmr unused
-  \return none
-*/
-static void topology_timer_handler(BmTimer tmr) {
-  (void)tmr;
-
-  BcmpTopoQueueItem item = {BcmpTopoEvtTimeout, NULL, NULL};
-
-  bm_queue_send(CTX.evt_queue, &item, 0);
-}
-
-/*!
   @brief BCMP Topology Task
 
-  @details Handles stepping through the network to request node's neighbor
+  BmErr Handles stepping through the network to request node's neighbor
            tables. Callback can be assigned/called to do something with the assembled network
            topology.
 
@@ -346,9 +226,6 @@ static void topology_timer_handler(BmTimer tmr) {
 */
 static void bcmp_topology_thread(void *parameters) {
   (void)parameters;
-
-  CTX.topo_timer = bm_timer_create("topology_timer", bcmp_topo_timeout_s * 1000,
-                                   true, NULL, topology_timer_handler);
 
   for (;;) {
     BcmpTopoQueueItem item;
@@ -426,31 +303,6 @@ static void bcmp_topology_thread(void *parameters) {
   }
 }
 
-/*!
-  @brief Initialize BCMP Topology Module
-
-  @return BmOK on success
-  @return BmErr on failure
-*/
-BmErr bcmp_topology_init(void) {
-  BmErr err = BmOK;
-  BcmpPacketCfg neighbor_request = {
-      false,
-      false,
-      bcmp_process_neighbor_table_request,
-  };
-  BcmpPacketCfg neighbor_reply = {
-      false,
-      false,
-      bcmp_process_neighbor_table_reply,
-  };
-
-  bm_err_check(err,
-               packet_add(&neighbor_request, BcmpNeighborTableRequestMessage));
-  bm_err_check(err, packet_add(&neighbor_reply, BcmpNeighborTableReplyMessage));
-  return err;
-}
-
 BmErr bcmp_topology_start(BcmpTopoCb callback) {
   BmErr err = BmOK;
 
@@ -508,8 +360,7 @@ static void network_topology_clear(NetworkTopology *network_topology) {
   }
 }
 
-static void
-network_topology_move_to_front(NetworkTopology *network_topology) {
+static void network_topology_move_to_front(NetworkTopology *network_topology) {
   if (network_topology && network_topology->length) {
     network_topology->cursor = network_topology->front;
     network_topology->index = 0;

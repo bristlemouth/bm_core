@@ -7,8 +7,11 @@ DEFINE_FFF_GLOBALS;
 
 extern "C" {
 #include "messages/neighbors.h"
+#include "mock_bcmp.h"
 #include "mock_bm_os.h"
+#include "mock_device.h"
 #include "mock_info.h"
+#include "mock_packet.h"
 }
 
 static uint32_t CALL_COUNT = 0;
@@ -19,6 +22,7 @@ public:
 
 private:
 protected:
+  uint32_t size_info;
   Neighbors() {}
   ~Neighbors() override {}
   void SetUp() override { CALL_COUNT = 0; }
@@ -27,6 +31,11 @@ protected:
     (void)discovered;
     (void)neighbor;
     CALL_COUNT++;
+  }
+  static void neighbor_timer_handler(BmTimer tmr) { (void)tmr; }
+  static BmErr neighbor_request_cb(BcmpNeighborTableReply *reply) {
+    (void)reply;
+    return BmOK;
   }
 };
 
@@ -79,4 +88,71 @@ TEST_F(Neighbors, neighbor_cb) {
   bcmp_neighbor_register_discovery_callback(neighbor_cb_tester);
   bcmp_neighbor_invoke_discovery_cb(true, NULL);
   ASSERT_EQ(CALL_COUNT, 1);
+}
+
+/*!
+  @brief Test obtaining a neighbor table with a request call and processing
+         the reply callback
+*/
+TEST_F(Neighbors, request_table) {
+  uint32_t addr = (uint32_t)RND.rnd_int(UINT32_MAX, UINT16_MAX);
+  uint64_t node_id = (uint64_t)RND.rnd_int(UINT32_MAX, UINT16_MAX);
+  BcmpNeighborTableReply *reply;
+  BcmpProcessData data;
+  reply = (BcmpNeighborTableReply *)bm_malloc(sizeof(BcmpNeighborTableReply));
+  reply->node_id = node_id;
+  reply->port_len = 2;
+  reply->neighbor_len = 2;
+  data.payload = (uint8_t *)reply;
+
+  EXPECT_EQ(bcmp_neighbor_init(), BmOK);
+
+  bm_timer_start_fake.return_val = BmOK;
+  bcmp_tx_fake.return_val = BmOK;
+  bm_timer_create_fake.return_val =
+      (BmTimer)RND.rnd_int(UINT32_MAX, UINT16_MAX);
+  EXPECT_EQ(bcmp_request_neighbor_table(node_id, &addr, neighbor_request_cb,
+                                        neighbor_timer_handler),
+            BmOK);
+
+  // Variable SENT_REQUEST currently un-reachable, cannot test full function
+  packet_process_invoke(BcmpNeighborTableReplyMessage, data);
+
+  // Test failures
+  bcmp_tx_fake.return_val = BmEBADMSG;
+  EXPECT_NE(bcmp_request_neighbor_table(node_id, &addr, NULL, NULL), BmOK);
+  bm_timer_start_fake.return_val = BmENOMEM;
+  EXPECT_NE(bcmp_request_neighbor_table(node_id, &addr, NULL, NULL), BmOK);
+  RESET_FAKE(bcmp_tx);
+
+  bm_free(reply);
+  packet_cleanup();
+}
+
+/*!
+ @brief Test request message callback
+*/
+TEST_F(Neighbors, request_reply) {
+  BcmpNeighborTableRequest request = {
+      (uint64_t)RND.rnd_int(UINT32_MAX, UINT16_MAX),
+  };
+  BcmpProcessData data;
+  data.payload = (uint8_t *)&request;
+
+  EXPECT_EQ(bcmp_neighbor_init(), BmOK);
+
+  node_id_fake.return_val = request.target_node_id;
+  bcmp_tx_fake.return_val = BmOK;
+  EXPECT_EQ(packet_process_invoke(BcmpNeighborTableRequestMessage, data), BmOK);
+
+  request.target_node_id = 0;
+  EXPECT_EQ(packet_process_invoke(BcmpNeighborTableRequestMessage, data), BmOK);
+
+  // Test failures
+  bcmp_tx_fake.return_val = BmEBADMSG;
+  EXPECT_NE(packet_process_invoke(BcmpNeighborTableRequestMessage, data), BmOK);
+  node_id_fake.return_val = 1;
+  EXPECT_NE(packet_process_invoke(BcmpNeighborTableRequestMessage, data), BmOK);
+
+  packet_cleanup();
 }
