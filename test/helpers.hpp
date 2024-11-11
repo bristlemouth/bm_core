@@ -32,7 +32,7 @@ class rnd_gen {
 public:
   rnd_gen() { srand(time(NULL)); }
 
-  size_t rnd_int(size_t mod, size_t min) {
+  uint64_t rnd_int(size_t mod, size_t min) {
     size_t ret = 0;
     ret = rand() % mod;
     ret = ret < min ? min : ret;
@@ -43,6 +43,16 @@ public:
     for (size_t i = 0U; i < size; i++) {
       buf[i] = rand() % UINT8_MAX;
     }
+  }
+
+  void rnd_str(char *s, size_t size) {
+    for (size_t i = 0U; i < size - 1; i++) {
+      s[i] = rand() % 127;
+      if (s[i] == '\0') {
+        s[i]++;
+      }
+    }
+    s[size - 1] = '\0';
   }
 };
 

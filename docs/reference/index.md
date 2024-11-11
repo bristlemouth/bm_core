@@ -8,5 +8,6 @@ The following are reference guides explaining how certain aspects of the Bristle
 l2.md
 bcmp.md
 middleware.md
+integrations.md
 utilities.md
 ```

@@ -54,6 +54,7 @@ add_compile_definitions(
 set(BM_INCLUDES
     ${CMAKE_CURRENT_LIST_DIR}/bcmp
     ${CMAKE_CURRENT_LIST_DIR}/common
+    ${CMAKE_CURRENT_LIST_DIR}/integrations
     ${CMAKE_CURRENT_LIST_DIR}/middleware
     ${CMAKE_CURRENT_LIST_DIR}/network
     ${CMAKE_CURRENT_LIST_DIR}/third_party
@@ -105,6 +106,7 @@ else()
     add_subdirectory(bcmp)
     add_subdirectory(middleware)
     add_subdirectory(common)
+    add_subdirectory(integrations)
     add_subdirectory(bm_common_messages)
     add_subdirectory(network)
     add_subdirectory(third_party)
@@ -117,5 +119,6 @@ else()
         bmmessages
         bmnetwork
         bmthirdparty
+        bmintegrations
     )
 endif()
