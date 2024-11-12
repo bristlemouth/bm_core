@@ -1,4 +1,4 @@
-#include "messages/topology.h"
+#include "topology.h"
 #include "bcmp.h"
 #include "bm_config.h"
 #include "bm_os.h"

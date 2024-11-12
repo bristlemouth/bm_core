@@ -1,6 +1,7 @@
 set(SOURCES
     spotter.c
     file_ops.c
+    topology.c
 )
 
 add_library(bmintegrations ${SOURCES})
