@@ -10,7 +10,6 @@
 #include "messages/ping.h"
 #include "messages/resource_discovery.h"
 #include "messages/time.h"
-#include "messages/topology.h"
 #include "packet.h"
 #include "util.h"
 #include <string.h>
@@ -102,7 +101,7 @@ BmErr bcmp_init(void) {
   time_init();
   bm_dfu_init();
   bcmp_config_init();
-  bcmp_topology_init();
+  bcmp_neighbor_init();
   bcmp_device_info_init();
   bcmp_resource_discovery_init();
 

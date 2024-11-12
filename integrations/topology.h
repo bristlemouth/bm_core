@@ -34,12 +34,7 @@ typedef struct {
 typedef void (*BcmpTopoCb)(NetworkTopology *network_topology);
 
 void network_topology_print(NetworkTopology *network_topology);
-
-// Neighbor table request defines, used to create the network topology
-BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr);
-
 BmErr bcmp_topology_init(void);
-// Topology task defines
 BmErr bcmp_topology_start(const BcmpTopoCb callback);
 
 #ifdef __cplusplus

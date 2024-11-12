@@ -11,7 +11,6 @@ set(SOURCES
     ping.c
     resource_discovery.c
     time.c
-    topology.c
     configuration.c
 )
 

@@ -223,9 +223,14 @@ set (NEIGHBORS_SRCS
 
     # Supporting Files
     ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
 
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/device_stub.c
+    ${STUB_DIR}/l2_stub.c
+    ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/info_stub.c
 )
 create_gtest("neighbors" "${NEIGHBORS_SRCS}")
@@ -270,7 +275,7 @@ create_gtest("l2" "${L2_SRCS}")
 # TOPOLOGY TESTS
 set (TOPOLOGY_SRCS
     # File we're testing
-    ${BCMP_DIR}/topology.c
+    ${INTEGRATIONS_DIR}/topology.c
 
     # Supporting Files
     ${COMMON_DIR}/util.c

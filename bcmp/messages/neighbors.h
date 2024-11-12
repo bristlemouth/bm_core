@@ -1,4 +1,6 @@
+#include "bm_os.h"
 #include "messages.h"
+#include "util.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -43,7 +45,9 @@ typedef struct BmNeighbor {
 typedef void (*NeighborCallback)(BcmpNeighbor *neighbor);
 typedef void (*NeighborDiscoveryCallback)(bool discovered,
                                           BcmpNeighbor *neighbor);
+typedef BmErr (*NeighborRequestCallback)(BcmpNeighborTableReply *reply);
 
+BmErr bcmp_neighbor_init(void);
 BcmpNeighbor *bcmp_get_neighbors(uint8_t *num_neighbors);
 void bcmp_check_neighbors(void);
 void bcmp_print_neighbor_info(BcmpNeighbor *neighbor);
@@ -54,6 +58,11 @@ BcmpNeighbor *bcmp_update_neighbor(uint64_t node_id, uint8_t port);
 void bcmp_neighbor_foreach(NeighborCallback cb);
 void bcmp_neighbor_register_discovery_callback(NeighborDiscoveryCallback cb);
 void bcmp_neighbor_invoke_discovery_cb(bool discovered, BcmpNeighbor *neighbor);
+BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr,
+                                  NeighborRequestCallback request,
+                                  BmTimerCallback timeout);
+void assemble_neighbor_info_list(BcmpNeighborInfo *neighbor_info_list,
+                                 BcmpNeighbor *neighbor, uint8_t num_neighbors);
 
 #ifdef __cplusplus
 }
