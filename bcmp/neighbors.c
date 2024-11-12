@@ -424,9 +424,9 @@ BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr,
   if (NEIGHBOR_TIMER) {
     bm_timer_delete(NEIGHBOR_TIMER, 10);
   }
-  NEIGHBOR_TIMER =
-      bm_timer_create("topology_timer", bcmp_neighbor_timer_timeout_s * 1000,
-                      true, NULL, timeout);
+  NEIGHBOR_TIMER = bm_timer_create("neighbor_request_timer",
+                                   bcmp_neighbor_timer_timeout_s * 1000, true,
+                                   NULL, timeout);
 
   if (NEIGHBOR_TIMER) {
     err = bm_timer_start(NEIGHBOR_TIMER, 10);
