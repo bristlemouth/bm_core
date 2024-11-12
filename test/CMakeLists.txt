@@ -275,7 +275,7 @@ create_gtest("l2" "${L2_SRCS}")
 # TOPOLOGY TESTS
 set (TOPOLOGY_SRCS
     # File we're testing
-    ${BCMP_DIR}/topology.c
+    ${INTEGRATIONS_DIR}/topology.c
 
     # Supporting Files
     ${COMMON_DIR}/util.c
