@@ -486,6 +486,13 @@ Multiple callbacks are able to be tied to the same subscription.
 Allowing multiple applications to utilize the same subscription topic.
 API is also available to unsubscribe to topics.
 
+In order to use the API required by the pubsub module,
+the following header must be included:
+
+```
+#include "pubsub.h"
+```
+
 ### API
 
 ```{eval-rst}
@@ -496,7 +503,7 @@ API is also available to unsubscribe to topics.
   :param *topic: topic string to subscribe to
   :param callback: callback function to call when data is received on this topic
 
-  :returns: true if able to properly subscribe to topic, false otherwise
+  :returns: BmOk if able to properly subscribe to topic, BmErr otherwise
 ```
 
 ```{eval-rst}
@@ -510,7 +517,7 @@ API is also available to unsubscribe to topics.
   :param topic_len: length of topic string
   :param callback: callback function to call when data is received on this topic
 
-  :returns: true if able to properly subscribe to topic, false otherwise
+  :returns: BmOk if able to properly subscribe to topic, BmErr otherwise
 ```
 
 ```{eval-rst}
@@ -521,7 +528,7 @@ API is also available to unsubscribe to topics.
   :param *topic: topic string to unsubscribe from
   :param callback: callback function to call when data is received on this topic
 
-  :returns: true if able to properly unsubscribed from topic, false otherwise
+  :returns: BmOk if able to properly unsubscribed from topic, BmErr otherwise
 ```
 
 ```{eval-rst}
@@ -535,7 +542,7 @@ API is also available to unsubscribe to topics.
   :param topic_len: length of topic string
   :param callback: callback function to call when data is received on this topic
 
-  :returns: true if able to properly unsubscribe from topic, false otherwise
+  :returns: BmOk if able to properly unsubscribed from topic, BmErr otherwise
 ```
 
 ```{eval-rst}
@@ -551,7 +558,7 @@ API is also available to unsubscribe to topics.
   :param type: type of data to publish, this is defined by the integrator (not currently used)
   :param version: version of the data to publish, this is defined by integrator (not currently used)
 
-  :returns: true if able to properly publish to topic, false otherwise
+  :returns: BmOk if able to properly publish to topic, BmErr otherwise
 ```
 
 ```{eval-rst}
@@ -568,5 +575,5 @@ API is also available to unsubscribe to topics.
   :param type: type of data to publish, this is defined by the integrator (not currently used)
   :param version: version of the data to publish, this is defined by integrator (not currently used)
 
-  :returns: true if able to properly publish to topic, false otherwise
+  :returns: BmOk if able to properly publish to topic, BmErr otherwise
 ```
