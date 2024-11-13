@@ -171,6 +171,19 @@ bool bcmp_config_status_request(uint64_t target_node_id,
   return rval;
 }
 
+/*!
+ @brief Delete key from partition
+
+ @details Delete a key from a target node's configuration partition
+
+ @param target_node_id Target node id to delete config value
+ @param partition Partition to delete configuration value from
+ @param key_len Length of the key name
+ @param key Pointer to the key name string
+ @param reply_cb Callback when a reply is received over the bus, can be NULL
+
+ @return true if delete message is sent properly, false otherwise
+ */
 bool bcmp_config_del_key(uint64_t target_node_id, BmConfigPartition partition,
                          size_t key_len, const char *key,
                          BmErr (*reply_cb)(uint8_t *)) {
