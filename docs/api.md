@@ -467,7 +467,7 @@ Public API supported by the BCMP time module is as follows:
 
   :param target_node_id: Target node id to obtain the current time from
 
-  :returns: BmErr value
+  :returns: BmOK if the get message was sent successfully, BmErr otherwise
 ```
 
 ```{eval-rst}
@@ -478,5 +478,5 @@ Public API supported by the BCMP time module is as follows:
   :param target_node_id: Target node id to set the current time on
   :param utc_us: Time to set on the target node represented in microseconds since epoch
 
-  :returns: BmErr value
+  :returns: BmOK if the set message was sent successfully, BmErr otherwise
 ```
