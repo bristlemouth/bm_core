@@ -9,14 +9,6 @@
 
 #define max_sub_str_len 256
 
-typedef struct {
-  uint8_t type;
-  uint8_t flags;
-  uint8_t topic_len;
-  BmPubSubHeader ext_header;
-  const char topic[0];
-} __attribute__((packed)) BmPubSubData;
-
 // Used for callback linked-list
 typedef struct BmPubSubNode {
   struct BmPubSubNode *next;
@@ -52,16 +44,16 @@ static PubSubCtx CTX;
   @return true if we've successfully subscribed
   @return false if failure
 */
-bool bm_sub(const char *topic, const BmPubSubCb callback) {
-  bool retv = false;
+BmErr bm_sub(const char *topic, const BmPubSubCb callback) {
+  BmErr err = BmEINVAL;
 
   uint16_t topic_len = bm_strnlen(topic, BM_TOPIC_MAX_LEN);
 
   if (topic_len && (topic_len < BM_TOPIC_MAX_LEN)) {
-    retv = bm_sub_wl(topic, topic_len, callback);
+    err = bm_sub_wl(topic, topic_len, callback);
   }
 
-  return retv;
+  return err;
 }
 
 /*!
@@ -74,25 +66,25 @@ bool bm_sub(const char *topic, const BmPubSubCb callback) {
   @return true if we've successfully subscribed
   @return false if failure
 */
-bool bm_sub_wl(const char *topic, uint16_t topic_len,
-               const BmPubSubCb callback) {
-  bool retv = true;
+BmErr bm_sub_wl(const char *topic, uint16_t topic_len,
+                const BmPubSubCb callback) {
+  BmErr err = BmEINVAL;
 
   do {
     // TODO - validate topic name if needed
 
     if (!topic || !topic_len || !callback) {
-      retv = false;
       break;
     }
 
     if (topic_len >= BM_TOPIC_MAX_LEN) {
-      retv = false;
+      err = BmEMSGSIZE;
       // Invalid topic len
       break;
     }
 
     BmSubNode *ptr = get_sub(topic, topic_len);
+    err = BmENOMEM;
 
     // Subscription already exists, add a new callback
     if (ptr) {
@@ -107,6 +99,7 @@ bool bm_sub_wl(const char *topic, uint16_t topic_len,
 
       if (ptr->sub.callbacks->callback_fn == callback) {
         // Callback already subscribed to this topic!
+        err = BmEAGAIN;
         break;
       }
 
@@ -118,7 +111,7 @@ bool bm_sub_wl(const char *topic, uint16_t topic_len,
         cb_node->callback_fn = callback;
         last_cb_node->next = cb_node;
 
-        retv = true;
+        err = BmOK;
       }
     } else {
       // Creating new subscription from scratch
@@ -153,23 +146,28 @@ bool bm_sub_wl(const char *topic, uint16_t topic_len,
         cb_node->callback_fn = callback;
         ptr->next->sub.callbacks = cb_node;
 
-        retv = true;
+        err = BmOK;
       }
     }
 
   } while (0);
 
-  if (retv) {
+  if (err == BmOK) {
     bm_debug("Subscribing to Topic: %.*s\n", topic_len, topic);
-    if (bcmp_resource_discovery_add_resource(
-            topic, topic_len, SUB, default_resource_add_timeout_ms) == BmOK) {
+    err = bcmp_resource_discovery_add_resource(topic, topic_len, SUB,
+                                               default_resource_add_timeout_ms);
+    if (err == BmOK) {
       bm_debug("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
+    } else if (err != BmEAGAIN) {
+      bm_debug("Error adding topic %.*s to BCMP resource table. Err: %d\n",
+               topic_len, topic, err);
     }
+    err = err == BmEAGAIN ? BmOK : err;
   } else {
     bm_debug("Unable to Subscribe to topic\n");
   }
 
-  return retv;
+  return err;
 }
 
 /*!
@@ -181,16 +179,16 @@ bool bm_sub_wl(const char *topic, uint16_t topic_len,
   @return true if we've successfully subscribed
   @return false if failure
 */
-bool bm_unsub(const char *topic, const BmPubSubCb callback) {
-  bool retv = false;
+BmErr bm_unsub(const char *topic, const BmPubSubCb callback) {
+  BmErr err = BmEINVAL;
 
   uint16_t topic_len = bm_strnlen(topic, BM_TOPIC_MAX_LEN);
 
   if (topic_len && (topic_len < BM_TOPIC_MAX_LEN)) {
-    retv = bm_unsub_wl(topic, topic_len, callback);
+    err = bm_unsub_wl(topic, topic_len, callback);
   }
 
-  return retv;
+  return err;
 }
 
 /*!
@@ -203,14 +201,19 @@ bool bm_unsub(const char *topic, const BmPubSubCb callback) {
   @return true if we've successfully unsubscribed
   @return false if failure
 */
-bool bm_unsub_wl(const char *topic, uint16_t topic_len,
-                 const BmPubSubCb callback) {
+BmErr bm_unsub_wl(const char *topic, uint16_t topic_len,
+                  const BmPubSubCb callback) {
 
-  bool retv = false;
+  BmErr err = BmEINVAL;
 
   do {
+    if (!topic || !topic_len || !callback) {
+      break;
+    }
+
     if (topic_len >= BM_TOPIC_MAX_LEN) {
       // Invalid topic len
+      err = BmEMSGSIZE;
       break;
     }
 
@@ -229,6 +232,7 @@ bool bm_unsub_wl(const char *topic, uint16_t topic_len,
 
       // Didn't find a matching callback to unsubscribe :'(
       if (cb_node->callback_fn != callback) {
+        err = BmENOENT;
         break;
       }
 
@@ -247,18 +251,18 @@ bool bm_unsub_wl(const char *topic, uint16_t topic_len,
         delete_sub(topic, topic_len);
       }
 
-      retv = true;
+      err = BmOK;
     }
 
   } while (0);
 
-  if (retv) {
+  if (err == BmOK) {
     bm_debug("Unubscribed from Topic: %s\n", topic);
   } else {
     bm_debug("Unable to Unsubscribe to topic\n");
   }
 
-  return retv;
+  return err;
 }
 
 /*!
@@ -273,17 +277,17 @@ bool bm_unsub_wl(const char *topic, uint16_t topic_len,
   @return true if data has been queued to be publish (does not guarantee that it will be published though!)
   @return false otherwise
 */
-bool bm_pub(const char *topic, const void *data, uint16_t len, uint8_t type,
-            uint8_t version) {
-  bool retv = false;
+BmErr bm_pub(const char *topic, const void *data, uint16_t len, uint8_t type,
+             uint8_t version) {
+  BmErr err = BmEINVAL;
 
   uint16_t topic_len = bm_strnlen(topic, BM_TOPIC_MAX_LEN);
 
   if (topic_len && (topic_len < BM_TOPIC_MAX_LEN)) {
-    retv = bm_pub_wl(topic, topic_len, data, len, type, version);
+    err = bm_pub_wl(topic, topic_len, data, len, type, version);
   }
 
-  return retv;
+  return err;
 }
 
 /*!
@@ -299,16 +303,26 @@ bool bm_pub(const char *topic, const void *data, uint16_t len, uint8_t type,
   @return true if data has been queued to be publish (does not guarantee that it will be published though!)
   @return false otherwise
 */
-bool bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
-               uint16_t len, uint8_t type, uint8_t version) {
-  bool retv = true;
+BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
+                uint16_t len, uint8_t type, uint8_t version) {
+  BmErr err = BmEINVAL;
 
   do {
+
+    if (!topic || !topic_len || !data || !len) {
+      break;
+    }
+
+    if (topic_len >= BM_TOPIC_MAX_LEN) {
+      err = BmEMSGSIZE;
+      // Invalid topic len
+      break;
+    }
 
     uint16_t message_size = sizeof(BmPubSubData) + topic_len + len;
     void *buf = bm_udp_new(message_size);
     if (!buf) {
-      retv = false;
+      err = BmENOMEM;
       break;
     }
 
@@ -332,7 +346,7 @@ bool bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
       do {
         void *buf_local = bm_udp_new(message_size);
         if (!buf_local) {
-          retv = false;
+          err = BmENOMEM;
           break;
         }
         BmPubSubData *local_header =
@@ -354,13 +368,11 @@ bool bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
       } while (0);
     }
 
-    if (bm_middleware_net_tx(buf, message_size)) {
-      retv = false;
-    }
+    err = bm_middleware_net_tx(buf, message_size);
     bm_udp_cleanup(buf);
   } while (0);
 
-  if (!retv) {
+  if (err != BmOK) {
     bm_debug("Unable to publish to topic\n");
   } else {
     if (bcmp_resource_discovery_add_resource(
@@ -369,7 +381,7 @@ bool bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
     }
   }
 
-  return retv;
+  return err;
 }
 
 /*!
