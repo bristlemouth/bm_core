@@ -167,7 +167,7 @@ Public API supported by the configuration module is as follows:
 
 ```{eval-rst}
 .. cpp:function:: bool set_config_uint(BmConfigPartition partition, const char *key, \
-                                       size_t key_len, uint32_t *value);
+                                       size_t key_len, uint32_t value);
 
   Set a configuration value that is an unsigned 32 bit integer.
 
@@ -181,7 +181,7 @@ Public API supported by the configuration module is as follows:
 
 ```{eval-rst}
 .. cpp:function:: bool set_config_int(BmConfigPartition partition, const char *key, \
-                                       size_t key_len, int32_t *value);
+                                       size_t key_len, int32_t value);
 
   Set a configuration value that is a signed 32 bit integer.
 
@@ -195,7 +195,7 @@ Public API supported by the configuration module is as follows:
 
 ```{eval-rst}
 .. cpp:function:: bool set_config_float(BmConfigPartition partition, const char *key, \
-                                       size_t key_len, float *value);
+                                       size_t key_len, float value);
 
   Set a configuration value that is a 32 bit float.
 
