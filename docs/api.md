@@ -352,7 +352,7 @@ Public API supported by the configuration module is as follows:
 ---
 
 ### Network API
-Configuration messages are sent over the Bristlemout Control Messaging Protocol (BCMP).
+Configuration messages are sent over the Bristlemouth Control Messaging Protocol (BCMP).
 Please see the [following](https://bristlemouth.notion.site/Networking-Overview-17bce3252c9a42fdb232c06b5e00d4cd?pvs=97#121e42806c3d4c7dbd296be3c87d7131)
 guide for further information on BCMP.
 
@@ -445,4 +445,38 @@ Public API supported by the BCMP configuration module is as follows:
   :param reply_cb: Callback when a reply is received over the bus, can be NULL
 
   :returns: true if delete message is sent properly, false otherwise
+```
+
+## Time
+Bristlemouth offer a time API that can be used to obtain or set the current time on a device.
+
+Time messages are sent over the Bristlemouth Control Messaging Protocol (BCMP).
+
+The following header file path must be included when calling BCMP time API:
+
+```
+#include "messages/time.h"
+```
+
+Public API supported by the BCMP time module is as follows:
+
+```{eval-rst}
+.. cpp:function:: BmErr bcmp_time_get_time(uint64_t target_node_id)
+
+  Get the current time from a target node.
+
+  :param target_node_id: Target node id to obtain the current time from
+
+  :returns: BmErr value
+```
+
+```{eval-rst}
+.. cpp:function:: BmErr bcmp_time_set_time(uint64_t target_node_id, uint64_t utc_us)
+
+  Set the current time on a target node.
+
+  :param target_node_id: Target node id to set the current time on
+  :param utc_us: Time to set on the target node represented in microseconds since epoch
+
+  :returns: BmErr value
 ```
