@@ -96,8 +96,19 @@
     html.writer-html4 .rst-content dl:not(.docutils)>dt,html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple)>dt {
       color: #FF6700;
       border-top: 3px solid #FF6700;
-      background: #FFFFFF;
+      border-bottom: 2px solid #FF6700;
+      background: #000000;
       width: 100%;
+    }
+    html.writer-html4 .rst-content dl:not(.docutils) dl:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple)>dt, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) dl:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple)>dt {
+      color: #FF6700;
+      border-top: 0px solid #FF6700;
+      background: #000000;
+      width: 100%;
+      border-left: 0px solid #FF6700;
+    }
+    html.writer-html4 .rst-content dl:not(.docutils) .descclassname, html.writer-html4 .rst-content dl:not(.docutils) .descname, html.writer-html4 .rst-content dl:not(.docutils) .sig-name, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) .descclassname, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) .descname, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) .sig-name {
+      color: #FFFFFF;
     }
     /* Main content view */
     .wy-nav-content {

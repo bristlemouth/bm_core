@@ -10,6 +10,22 @@
 #include <inttypes.h>
 #include <string.h>
 
+/*!
+ @brief Get a configuration value
+
+ @details Get a configuration value from a target node, in a selected partition
+          by key name
+
+ @param target_node_id Target node id to obtain config value
+ @param partition Partition to obtain configuration from
+ @param key_len Length of the key name
+ @param key Pointer to the key name string
+ @param err Error value passed in as a pointer
+ @param reply_cb Callback when a reply is received over the bus, can be NULL
+
+ @return true if get message is sent properly
+ @return false otherwise
+ */
 bool bcmp_config_get(uint64_t target_node_id, BmConfigPartition partition,
                      size_t key_len, const char *key, BmErr *err,
                      BmErr (*reply_cb)(uint8_t *)) {
@@ -40,6 +56,22 @@ bool bcmp_config_get(uint64_t target_node_id, BmConfigPartition partition,
   return rval;
 }
 
+/*!
+ @brief Set a configuration value
+
+ @details Set a configuration value on a target node, in a selected partition
+          by key name
+
+ @param target_node_id Target node id to set config value
+ @param partition Partition to set configuration
+ @param key_len Length of the key name
+ @param key Pointer to the key name string
+ @param err Error value passed in as a pointer
+ @param reply_cb Callback when a reply is received over the bus, can be NULL
+
+ @return true if set message is sent properly
+ @return false otherwise
+ */
 bool bcmp_config_set(uint64_t target_node_id, BmConfigPartition partition,
                      size_t key_len, const char *key, size_t value_size,
                      void *val, BmErr *err, BmErr (*reply_cb)(uint8_t *)) {
@@ -72,6 +104,19 @@ bool bcmp_config_set(uint64_t target_node_id, BmConfigPartition partition,
   return rval;
 }
 
+/*!
+ @brief Commit a configuration partition
+
+ @details Commit a configuration partition on a target node, this saves any
+          updated configuration values and resets the device
+
+ @param target_node_id Target node id to commit the configuration partition to
+ @param partition Partition to commit
+ @param err Error value passed in as a pointer
+
+ @return true if commit message is sent properly
+ @return false otherwise
+ */
 bool bcmp_config_commit(uint64_t target_node_id, BmConfigPartition partition,
                         BmErr *err) {
   bool rval = false;
@@ -92,6 +137,18 @@ bool bcmp_config_commit(uint64_t target_node_id, BmConfigPartition partition,
   return rval;
 }
 
+/*!
+ @brief Configuration partition status
+
+ @details Get the all of the key names from a target node's selected partition
+
+ @param target_node_id Target node id to obtaion the key names from
+ @param partition Configuration partition to obtain the key names from
+ @param err Error value passed in as a pointer
+ @param reply_cb Callback when a reply is received over the bus, can be NULL
+
+ @return true if status message is sent properly, false otherwise
+ */
 bool bcmp_config_status_request(uint64_t target_node_id,
                                 BmConfigPartition partition, BmErr *err,
                                 BmErr (*reply_cb)(uint8_t *)) {
@@ -114,16 +171,41 @@ bool bcmp_config_status_request(uint64_t target_node_id,
   return rval;
 }
 
-bool bcmp_config_status_response(uint64_t target_node_id,
-                                 BmConfigPartition partition, bool commited,
-                                 uint8_t num_keys, const ConfigKey *keys,
-                                 BmErr *err, uint16_t seq_num) {
+bool bcmp_config_del_key(uint64_t target_node_id, BmConfigPartition partition,
+                         size_t key_len, const char *key,
+                         BmErr (*reply_cb)(uint8_t *)) {
+  bool rval = false;
+  if (key) {
+    size_t msg_size = sizeof(BmConfigDeleteKeyRequest) + key_len;
+    BmConfigDeleteKeyRequest *del_msg =
+        (BmConfigDeleteKeyRequest *)bm_malloc(msg_size);
+    if (del_msg) {
+      del_msg->header.target_node_id = target_node_id;
+      del_msg->header.source_node_id = node_id();
+      del_msg->partition = partition;
+      del_msg->key_length = key_len;
+      memcpy(del_msg->key, key, key_len);
+      if (bcmp_tx(&multicast_ll_addr, BcmpConfigDeleteRequestMessage,
+                  (uint8_t *)(del_msg), msg_size, 0, reply_cb) == BmOK) {
+        rval = true;
+      }
+      bm_free(del_msg);
+    }
+  }
+  return rval;
+}
+
+static bool bcmp_config_status_response(uint64_t target_node_id,
+                                        BmConfigPartition partition,
+                                        bool commited, uint8_t num_keys,
+                                        const ConfigKey *keys, BmErr *err,
+                                        uint16_t seq_num) {
   bool rval = false;
   *err = BmEINVAL;
   size_t msg_size = sizeof(BmConfigStatusResponse);
   for (int i = 0; i < num_keys; i++) {
     msg_size += sizeof(BmConfigStatusKeyData);
-    msg_size += keys[i].keyLen;
+    msg_size += keys[i].key_len;
   }
   if (msg_size > bcmp_max_payload_size_bytes) {
     return false;
@@ -140,10 +222,10 @@ bool bcmp_config_status_response(uint64_t target_node_id,
       BmConfigStatusKeyData *key_data =
           (BmConfigStatusKeyData *)status_resp_msg->keyData;
       for (int i = 0; i < num_keys; i++) {
-        key_data->key_length = keys[i].keyLen;
-        memcpy(key_data->key, keys[i].keyBuffer, keys[i].keyLen);
+        key_data->key_length = keys[i].key_len;
+        memcpy(key_data->key, keys[i].key_buf, keys[i].key_len);
         key_data += sizeof(BmConfigStatusKeyData);
-        key_data += keys[i].keyLen;
+        key_data += keys[i].key_len;
       }
       *err = bcmp_tx(&multicast_ll_addr, BcmpConfigStatusResponseMessage,
                      (uint8_t *)status_resp_msg, msg_size, seq_num, NULL);
@@ -349,30 +431,6 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
     }
     }
   } while (0);
-}
-
-bool bcmp_config_del_key(uint64_t target_node_id, BmConfigPartition partition,
-                         size_t key_len, const char *key,
-                         BmErr (*reply_cb)(uint8_t *)) {
-  bool rval = false;
-  if (key) {
-    size_t msg_size = sizeof(BmConfigDeleteKeyRequest) + key_len;
-    BmConfigDeleteKeyRequest *del_msg =
-        (BmConfigDeleteKeyRequest *)bm_malloc(msg_size);
-    if (del_msg) {
-      del_msg->header.target_node_id = target_node_id;
-      del_msg->header.source_node_id = node_id();
-      del_msg->partition = partition;
-      del_msg->key_length = key_len;
-      memcpy(del_msg->key, key, key_len);
-      if (bcmp_tx(&multicast_ll_addr, BcmpConfigDeleteRequestMessage,
-                  (uint8_t *)(del_msg), msg_size, 0, reply_cb) == BmOK) {
-        rval = true;
-      }
-      bm_free(del_msg);
-    }
-  }
-  return rval;
 }
 
 static bool bcmp_config_send_del_key_response(uint64_t target_node_id,

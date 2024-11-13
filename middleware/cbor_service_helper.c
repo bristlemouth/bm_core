@@ -44,7 +44,7 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
 
     for (uint8_t i = 0; i < num_keys; i++) {
       ConfigKey key = keys[i];
-      err = cbor_encode_text_string(&map, key.keyBuffer, key.keyLen);
+      err = cbor_encode_text_string(&map, key.key_buf, key.key_len);
       if (err != CborNoError && err != CborErrorOutOfMemory) {
         break;
       }
@@ -52,7 +52,7 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
       bool internalSuccess = true;
       tmpBSize = MAX_STR_LEN_BYTES;
       memset(tmpB, 0, MAX_STR_LEN_BYTES);
-      if (get_config_cbor(type, key.keyBuffer, key.keyLen, tmpB, &tmpBSize) &&
+      if (get_config_cbor(type, key.key_buf, key.key_len, tmpB, &tmpBSize) &&
           cbor_parser_init(tmpB, tmpBSize, 0, &parser, &it) != CborNoError) {
         break;
       }
@@ -60,7 +60,7 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
         break;
       }
 
-      switch (key.valueType) {
+      switch (key.value_type) {
       case UINT32: {
         uint64_t temp;
         internalSuccess = (cbor_value_get_uint64(&it, &temp) == CborNoError);
