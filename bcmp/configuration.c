@@ -24,7 +24,7 @@ static bool find_key_idx(BmConfigPartition partition, const char *key,
   bool ret = false;
 
   for (int i = 0; i < config_partition->header.numKeys; i++) {
-    if (strncmp(key, config_partition->keys[i].keyBuffer, len) == 0) {
+    if (strncmp(key, config_partition->keys[i].key_buf, len) == 0) {
       *idx = i;
       ret = true;
       break;
@@ -53,8 +53,8 @@ static bool prepare_cbor_encoder(BmConfigPartition partition, const char *key,
       if (!*key_exists) {
         *key_idx = config_partition->header.numKeys;
       }
-      if (snprintf(config_partition->keys[*key_idx].keyBuffer,
-                   sizeof(config_partition->keys[*key_idx].keyBuffer), "%s",
+      if (snprintf(config_partition->keys[*key_idx].key_buf,
+                   sizeof(config_partition->keys[*key_idx].key_buf), "%s",
                    key) < 0) {
         break;
       }
@@ -134,10 +134,12 @@ void config_init(void) {
 }
 
 /*!
-* Get uint64 config
-* \param key[in] - null terminated key
-* \param value[out] - value
-* \returns - true if success, false otherwise.
+ @brief Get uint32 config
+
+ @param key[in] - null terminated key
+ @param value[out] - value
+
+ @returns - true if success, false otherwise.
 */
 bool get_config_uint(BmConfigPartition partition, const char *key,
                      size_t key_len, uint32_t *value) {
@@ -166,10 +168,12 @@ bool get_config_uint(BmConfigPartition partition, const char *key,
 }
 
 /*!
-* Get int32 config
-* \param key[in] - null terminated key
-* \param value[out] - value
-* \returns - true if success, false otherwise.
+ @brief Get int32 config
+
+ @param key[in] - null terminated key
+ @param value[out] - value
+
+ @returns - true if success, false otherwise.
 */
 bool get_config_int(BmConfigPartition partition, const char *key,
                     size_t key_len, int32_t *value) {
@@ -198,10 +202,12 @@ bool get_config_int(BmConfigPartition partition, const char *key,
 }
 
 /*!
-* Get float config
-* \param key[in] - null terminated key
-* \param value[out] - value
-* \returns - true if success, false otherwise.
+ @brief Get float config
+
+ @param key[in] - null terminated key
+ @param value[out] - value
+
+ @returns - true if success, false otherwise.
 */
 bool get_config_float(BmConfigPartition partition, const char *key,
                       size_t key_len, float *value) {
@@ -360,8 +366,8 @@ bool set_config_uint(BmConfigPartition partition, const char *key,
       if (cbor_encode_uint(&encoder, value) != CborNoError) {
         break;
       }
-      config_partition->keys[key_idx].valueType = UINT32;
-      config_partition->keys[key_idx].keyLen = key_len;
+      config_partition->keys[key_idx].value_type = UINT32;
+      config_partition->keys[key_idx].key_len = key_len;
       if (!key_exists) {
         config_partition->header.numKeys++;
       }
@@ -397,8 +403,8 @@ bool set_config_int(BmConfigPartition partition, const char *key,
       if (cbor_encode_int(&encoder, value) != CborNoError) {
         break;
       }
-      config_partition->keys[key_idx].valueType = INT32;
-      config_partition->keys[key_idx].keyLen = key_len;
+      config_partition->keys[key_idx].value_type = INT32;
+      config_partition->keys[key_idx].key_len = key_len;
       if (!key_exists) {
         config_partition->header.numKeys++;
       }
@@ -434,8 +440,8 @@ bool set_config_float(BmConfigPartition partition, const char *key,
       if (cbor_encode_float(&encoder, value) != CborNoError) {
         break;
       }
-      config_partition->keys[key_idx].valueType = FLOAT;
-      config_partition->keys[key_idx].keyLen = key_len;
+      config_partition->keys[key_idx].value_type = FLOAT;
+      config_partition->keys[key_idx].key_len = key_len;
       if (!key_exists) {
         config_partition->header.numKeys++;
       }
@@ -471,8 +477,8 @@ bool set_config_string(BmConfigPartition partition, const char *key,
       if (cbor_encode_text_string(&encoder, value, value_len) != CborNoError) {
         break;
       }
-      config_partition->keys[key_idx].valueType = STR;
-      config_partition->keys[key_idx].keyLen = key_len;
+      config_partition->keys[key_idx].value_type = STR;
+      config_partition->keys[key_idx].key_len = key_len;
       if (!key_exists) {
         config_partition->header.numKeys++;
       }
@@ -509,8 +515,8 @@ bool set_config_buffer(BmConfigPartition partition, const char *key,
       if (cbor_encode_byte_string(&encoder, value, value_len) != CborNoError) {
         break;
       }
-      config_partition->keys[key_idx].valueType = BYTES;
-      config_partition->keys[key_idx].keyLen = key_len;
+      config_partition->keys[key_idx].value_type = BYTES;
+      config_partition->keys[key_idx].key_len = key_len;
       if (!key_exists) {
         config_partition->header.numKeys++;
       }
@@ -557,8 +563,8 @@ bool set_config_cbor(BmConfigPartition partition, const char *key,
           break;
         }
         key_idx = config_partition->header.numKeys;
-        if (snprintf(config_partition->keys[key_idx].keyBuffer,
-                     sizeof(config_partition->keys[key_idx].keyBuffer), "%s",
+        if (snprintf(config_partition->keys[key_idx].key_buf,
+                     sizeof(config_partition->keys[key_idx].key_buf), "%s",
                      key) < 0) {
           break;
         }
@@ -567,8 +573,8 @@ bool set_config_cbor(BmConfigPartition partition, const char *key,
       if (!cbor_type_to_config(&it, &type)) {
         break;
       }
-      config_partition->keys[key_idx].valueType = type;
-      config_partition->keys[key_idx].keyLen = key_len;
+      config_partition->keys[key_idx].value_type = type;
+      config_partition->keys[key_idx].key_len = key_len;
       memcpy(config_partition->values[key_idx].valueBuffer, value, value_len);
       if (key_idx == config_partition->header.numKeys) {
         config_partition->header.numKeys++;

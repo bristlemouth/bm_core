@@ -32,9 +32,9 @@ typedef struct {
 } __attribute__((packed, aligned(1))) ConfigPartitionHeader;
 
 typedef struct {
-  char keyBuffer[MAX_KEY_LEN_BYTES];
-  size_t keyLen;
-  ConfigDataTypes valueType;
+  char key_buf[MAX_KEY_LEN_BYTES];
+  size_t key_len;
+  ConfigDataTypes value_type;
 } __attribute__((packed, aligned(1))) ConfigKey;
 
 typedef struct {

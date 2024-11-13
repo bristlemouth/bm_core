@@ -74,7 +74,7 @@ TEST_F(ConfigurationTest, BasicTest) {
   EXPECT_EQ(foo, result_foo);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 1);
-  EXPECT_EQ(strncmp("foo", key_list[0].keyBuffer, sizeof("foo")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
 
   // Second set. (overwrite)
   foo = 999;
@@ -86,7 +86,7 @@ TEST_F(ConfigurationTest, BasicTest) {
   EXPECT_EQ(foo, result_foo);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 1);
-  EXPECT_EQ(strncmp("foo", key_list[0].keyBuffer, sizeof("foo")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
 
   // int32_t
   int32_t bar = -1000;
@@ -103,8 +103,8 @@ TEST_F(ConfigurationTest, BasicTest) {
   EXPECT_EQ(bar, result_bar);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 2);
-  EXPECT_EQ(strncmp("bar", key_list[1].keyBuffer, sizeof("bar")), 0);
-  EXPECT_EQ(strncmp("foo", key_list[0].keyBuffer, sizeof("foo")), 0);
+  EXPECT_EQ(strncmp("bar", key_list[1].key_buf, sizeof("bar")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
 
   //  float
   float baz = 3.14159;
@@ -118,9 +118,9 @@ TEST_F(ConfigurationTest, BasicTest) {
   EXPECT_EQ(baz, result_baz);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 3);
-  EXPECT_EQ(strncmp("baz", key_list[2].keyBuffer, sizeof("baz")), 0);
-  EXPECT_EQ(strncmp("bar", key_list[1].keyBuffer, sizeof("bar")), 0);
-  EXPECT_EQ(strncmp("foo", key_list[0].keyBuffer, sizeof("foo")), 0);
+  EXPECT_EQ(strncmp("baz", key_list[2].key_buf, sizeof("baz")), 0);
+  EXPECT_EQ(strncmp("bar", key_list[1].key_buf, sizeof("bar")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
 
   // str
   const char *silly = "The quick brown fox jumps over the lazy dog";
@@ -136,10 +136,10 @@ TEST_F(ConfigurationTest, BasicTest) {
   EXPECT_EQ(strncmp(silly, result_silly, strlen(silly)), 0);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 4);
-  EXPECT_EQ(strncmp("silly", key_list[3].keyBuffer, sizeof("silly")), 0);
-  EXPECT_EQ(strncmp("baz", key_list[2].keyBuffer, sizeof("baz")), 0);
-  EXPECT_EQ(strncmp("bar", key_list[1].keyBuffer, sizeof("bar")), 0);
-  EXPECT_EQ(strncmp("foo", key_list[0].keyBuffer, sizeof("foo")), 0);
+  EXPECT_EQ(strncmp("silly", key_list[3].key_buf, sizeof("silly")), 0);
+  EXPECT_EQ(strncmp("baz", key_list[2].key_buf, sizeof("baz")), 0);
+  EXPECT_EQ(strncmp("bar", key_list[1].key_buf, sizeof("bar")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
 
   // Bytes
   uint8_t bytes[] = {0xde, 0xad, 0xbe, 0xef, 0x5a,
@@ -156,11 +156,11 @@ TEST_F(ConfigurationTest, BasicTest) {
   EXPECT_EQ(memcmp(bytes, result_bytes, size), 0);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 5);
-  EXPECT_EQ(strncmp("bytes", key_list[4].keyBuffer, sizeof("bytes")), 0);
-  EXPECT_EQ(strncmp("silly", key_list[3].keyBuffer, sizeof("silly")), 0);
-  EXPECT_EQ(strncmp("baz", key_list[2].keyBuffer, sizeof("baz")), 0);
-  EXPECT_EQ(strncmp("bar", key_list[1].keyBuffer, sizeof("bar")), 0);
-  EXPECT_EQ(strncmp("foo", key_list[0].keyBuffer, sizeof("foo")), 0);
+  EXPECT_EQ(strncmp("bytes", key_list[4].key_buf, sizeof("bytes")), 0);
+  EXPECT_EQ(strncmp("silly", key_list[3].key_buf, sizeof("silly")), 0);
+  EXPECT_EQ(strncmp("baz", key_list[2].key_buf, sizeof("baz")), 0);
+  EXPECT_EQ(strncmp("bar", key_list[1].key_buf, sizeof("bar")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
 
   // Remove key
   EXPECT_EQ(remove_key(BM_CFG_PARTITION_SYSTEM, "foo", strlen("foo")), true);
@@ -169,10 +169,10 @@ TEST_F(ConfigurationTest, BasicTest) {
             false);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 4);
-  EXPECT_EQ(strncmp("bytes", key_list[3].keyBuffer, sizeof("bytes")), 0);
-  EXPECT_EQ(strncmp("silly", key_list[2].keyBuffer, sizeof("silly")), 0);
-  EXPECT_EQ(strncmp("baz", key_list[1].keyBuffer, sizeof("baz")), 0);
-  EXPECT_EQ(strncmp("bar", key_list[0].keyBuffer, sizeof("bar")), 0);
+  EXPECT_EQ(strncmp("bytes", key_list[3].key_buf, sizeof("bytes")), 0);
+  EXPECT_EQ(strncmp("silly", key_list[2].key_buf, sizeof("silly")), 0);
+  EXPECT_EQ(strncmp("baz", key_list[1].key_buf, sizeof("baz")), 0);
+  EXPECT_EQ(strncmp("bar", key_list[0].key_buf, sizeof("bar")), 0);
   EXPECT_EQ(get_config_int(BM_CFG_PARTITION_SYSTEM, "bar", strlen("bar"),
                            &result_bar),
             true);
@@ -259,7 +259,7 @@ TEST_F(ConfigurationTest, cborGetSet) {
   EXPECT_EQ(foo, result_foo);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 1);
-  EXPECT_EQ(strncmp("foo", key_list[0].keyBuffer, sizeof("foo")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
   size_t buffer_size = sizeof(cborBuffer);
   EXPECT_EQ(get_config_cbor(BM_CFG_PARTITION_SYSTEM, "foo", strlen("foo"),
                             cborBuffer, &buffer_size),
