@@ -480,3 +480,6 @@ Public API supported by the BCMP time module is as follows:
 
   :returns: BmOK if the set message was sent successfully, BmErr otherwise
 ```
+
+## Services
+Bristlemouth offers a service API that can be used to build custom request/response services.
