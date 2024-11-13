@@ -448,7 +448,7 @@ Public API supported by the BCMP configuration module is as follows:
 ```
 
 ## Time
-Bristlemouth offer a time API that can be used to obtain or set the current time on a device.
+Bristlemouth offers a time API that can be used to obtain or set the current time on a device.
 
 Time messages are sent over the Bristlemouth Control Messaging Protocol (BCMP).
 
