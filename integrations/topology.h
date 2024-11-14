@@ -34,7 +34,6 @@ typedef struct {
 typedef void (*BcmpTopoCb)(NetworkTopology *network_topology);
 
 void network_topology_print(NetworkTopology *network_topology);
-BmErr bcmp_topology_init(void);
 BmErr bcmp_topology_start(const BcmpTopoCb callback);
 
 #ifdef __cplusplus
