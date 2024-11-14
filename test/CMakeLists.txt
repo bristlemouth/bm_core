@@ -141,7 +141,6 @@ set (BCMP_SRCS
     ${STUB_DIR}/resource_discovery_stub.c
     ${STUB_DIR}/ping_stub.c
     ${STUB_DIR}/neighbors_stub.c
-    ${STUB_DIR}/topology_stub.c
     ${STUB_DIR}/bm_ip_stub.c
 )
 create_gtest("bcmp" "${BCMP_SRCS}")
