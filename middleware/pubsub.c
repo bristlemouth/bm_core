@@ -99,7 +99,7 @@ BmErr bm_sub_wl(const char *topic, uint16_t topic_len,
 
       if (ptr->sub.callbacks->callback_fn == callback) {
         // Callback already subscribed to this topic!
-        err = BmEAGAIN;
+        err = BmOK;
         break;
       }
 

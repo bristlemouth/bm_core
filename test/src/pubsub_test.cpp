@@ -130,7 +130,7 @@ TEST_F(PubSub, subscribe) {
   // Test adding a callback that already exists
   bcmp_resource_discovery_add_resource_fake.return_val = BmOK;
   ASSERT_EQ(bm_sub(test_topic_1, sub_callback_0), BmOK);
-  ASSERT_EQ(bm_sub(test_topic_1, sub_callback_0), BmEAGAIN);
+  ASSERT_EQ(bm_sub(test_topic_1, sub_callback_0), BmOK);
 
   RESET_FAKE(bcmp_resource_discovery_add_resource);
 }
