@@ -482,8 +482,8 @@ int main(void) {
 }
 ```
 
-Multiple callbacks are able to be tied to the same subscription.
-Allowing multiple applications to utilize the same subscription topic.
+Multiple callbacks are able to be tied to the same subscription,
+allowing multiple applications to utilize the same topic.
 API is also available to unsubscribe to topics.
 
 In order to use the API required by the pubsub module,
@@ -528,7 +528,7 @@ the following header must be included:
   :param *topic: topic string to unsubscribe from
   :param callback: callback function to call when data is received on this topic
 
-  :returns: BmOk if able to properly unsubscribed from topic, BmErr otherwise
+  :returns: BmOk if able to properly unsubscribe from topic, BmErr otherwise
 ```
 
 ```{eval-rst}
@@ -542,7 +542,7 @@ the following header must be included:
   :param topic_len: length of topic string
   :param callback: callback function to call when data is received on this topic
 
-  :returns: BmOk if able to properly unsubscribed from topic, BmErr otherwise
+  :returns: BmOk if able to properly unsubscribe from topic, BmErr otherwise
 ```
 
 ```{eval-rst}

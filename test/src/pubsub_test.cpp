@@ -29,6 +29,7 @@ protected:
   void SetUp() override {
     CB0_CALLED = 0;
     CB1_CALLED = 0;
+    CB2_CALLED = 0;
   }
   void TearDown() override {}
   static void sub_callback_0(uint64_t node_id, const char *topic,
