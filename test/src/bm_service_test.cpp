@@ -39,11 +39,11 @@ TEST_F(BmService, init) { bm_service_init(); }
 
 TEST_F(BmService, register) {
   bm_semaphore_take_fake.return_val = BmOK;
-  bm_sub_wl_fake.return_val = true;
+  bm_sub_wl_fake.return_val = BmOK;
   ASSERT_EQ(bm_service_register(strlen(service), service, service_handler),
             true);
 
-  bm_sub_wl_fake.return_val = false;
+  bm_sub_wl_fake.return_val = BmEBADMSG;
   ASSERT_EQ(bm_service_register(strlen(service), service, service_handler),
             false);
 
@@ -58,21 +58,21 @@ TEST_F(BmService, register) {
 TEST_F(BmService, unregister) {
   // Add then remove service
   bm_semaphore_take_fake.return_val = BmOK;
-  bm_sub_wl_fake.return_val = true;
+  bm_sub_wl_fake.return_val = BmOK;
   ASSERT_EQ(bm_service_register(strlen(service), service, service_handler),
             true);
-  bm_unsub_wl_fake.return_val = true;
+  bm_unsub_wl_fake.return_val = BmOK;
   ASSERT_EQ(bm_service_unregister(strlen(service), service), true);
 
   bm_semaphore_take_fake.return_val = BmOK;
-  bm_sub_wl_fake.return_val = true;
+  bm_sub_wl_fake.return_val = BmOK;
   ASSERT_EQ(bm_service_register(strlen(service), service, service_handler),
             true);
-  bm_unsub_wl_fake.return_val = false;
+  bm_unsub_wl_fake.return_val = BmEBADMSG;
   ASSERT_EQ(bm_service_unregister(strlen(service), service), false);
 
   bm_semaphore_take_fake.return_val = BmOK;
-  bm_sub_wl_fake.return_val = true;
+  bm_sub_wl_fake.return_val = BmOK;
   ASSERT_EQ(bm_service_register(strlen(service), service, service_handler),
             true);
   bm_semaphore_take_fake.return_val = BmETIMEDOUT;

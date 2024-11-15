@@ -139,12 +139,13 @@ static bool _service_sub_unsub_to_req_topic(size_t service_strlen,
       memcpy(topic_str + service_strlen, BM_SERVICE_REQ_STR,
              strlen(BM_SERVICE_REQ_STR));
       if (sub) {
-        if (!bm_sub_wl(topic_str, topic_strlen, _service_request_received_cb)) {
+        if (bm_sub_wl(topic_str, topic_strlen, _service_request_received_cb) !=
+            BmOK) {
           break;
         }
       } else {
-        if (!bm_unsub_wl(topic_str, topic_strlen,
-                         _service_request_received_cb)) {
+        if (bm_unsub_wl(topic_str, topic_strlen,
+                        _service_request_received_cb) != BmOK) {
           break;
         }
       }

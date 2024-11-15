@@ -44,8 +44,8 @@ TEST_F(BmServiceRequest, request) {
   size_t size = RND.rnd_int(UINT8_MAX, UINT8_MAX / 2);
   uint8_t *data = (uint8_t *)bm_malloc(size);
   RND.rnd_array(data, size);
-  bm_pub_wl_fake.return_val = true;
-  bm_sub_wl_fake.return_val = true;
+  bm_pub_wl_fake.return_val = BmOK;
+  bm_sub_wl_fake.return_val = BmOK;
   ASSERT_EQ(bm_service_request(strlen(service), service, size,
                                (const uint8_t *)data, service_handler, 1000),
             true);
@@ -55,11 +55,11 @@ TEST_F(BmServiceRequest, request) {
                                MAX_BM_SERVICE_DATA_SIZE + 1,
                                (const uint8_t *)data, service_handler, 1000),
             false);
-  bm_pub_wl_fake.return_val = false;
+  bm_pub_wl_fake.return_val = BmEBADMSG;
   ASSERT_EQ(bm_service_request(strlen(service), service, size,
                                (const uint8_t *)data, service_handler, 1000),
             false);
-  bm_sub_wl_fake.return_val = false;
+  bm_sub_wl_fake.return_val = BmEBADMSG;
   ASSERT_EQ(bm_service_request(strlen(service), service, size,
                                (const uint8_t *)data, service_handler, 1000),
             false);

@@ -22,11 +22,11 @@ the following are their names and use cases:
   Publish string data to be stored/logged onto a file on the spotter's SD card.
   This function can also print directly to the spotter's console if the filename parameter is witheld.
 
-  :param: target_node_id: The node ID to send this to (0 = all nodes)
-  :param: file_name: file name to print to (this appends to a file),
+  :param target_node_id: The node ID to send this to (0 = all nodes)
+  :param file_name: file name to print to (this appends to a file),
                     omit if intention is print to the console
-  :param: print_time: whether or not the RTC timestamp shall be printed to the file/console
-  :param: format: printf styled format string
+  :param print_time: whether or not the RTC timestamp shall be printed to the file/console
+  :param format: printf styled format string
 
   :returns: BmOK on success, other value on failure
 ```
@@ -43,9 +43,9 @@ the following are their names and use cases:
     Iridium messages are limited to 340 bytes, and Spotter adds a
     29-byte header.
 
-  :param: data: Data to transmit
-  :param: data_len: Length of the data to transmit
-  :param: type: Network type to send over. Must be BmNetworkTypeCellularIriFallback.
+  :param data: Data to transmit
+  :param data_len: Length of the data to transmit
+  :param type: Network type to send over. Must be BmNetworkTypeCellularIriFallback.
 
   :returns: BmOK on success, other value on failure
 ```
@@ -54,7 +54,8 @@ the following are their names and use cases:
 
 The file operations integration is used to access data to/from a file on another node.
 This is beneficial,
-because not all nodes on a network may have a file system that can store persistent data.
+because not all nodes on a network may have a file system that can store persistent data,
+or may not be in an easily accessible location to retrieve persistently stored data.
 The integration offers the following API:
 
 ```{eval-rst}
@@ -62,10 +63,34 @@ The integration offers the following API:
 
   Append data to a file on another node's file system.
 
-  :param: target_node_id: The node ID to send this to (0 = all nodes)
-  :param: file_name: file name to append data to
-  :param: buf: buffer to append to file
-  :param: len: length of buffer to append to file
+  :param target_node_id: The node ID to send this to (0 = all nodes)
+  :param file_name: file name to append data to
+  :param buf: buffer to append to file
+  :param len: length of buffer to append to file
+
+  :returns: BmOK on success, other value on failure
+```
+
+## Topology
+
+The topology integration is used to obtain all of the nodes on a network.
+This is useful as it can inform an application of the node IDs on a network,
+as well as the information of the neighbors on each node,
+which port the the neighbors are on as well as the state of those ports.
+Topology is obtained by requesting the neighbor information,
+done through the BCMP neighbors messaging,
+from local nodes
+and iterating down the network to all other nodes based on their neighbor information.
+A separate thread is utilized to handle a topology event.
+
+```{eval-rst}
+.. cpp:function:: BmErr bcmp_topology_start(const BcmpTopoCb callback)
+
+  Start a topology event.
+  A callback is invoked once the topology event has finished
+  and all of the node's neighbor information has been aquired on the network.
+
+  :param callback: Callback which is invoked after topology event has finished.
 
   :returns: BmOK on success, other value on failure
 ```

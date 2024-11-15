@@ -38,9 +38,7 @@ BmErr bm_file_append(uint64_t target_node_id, const char *file_name,
       memcpy(file_append_pub->fnameAndData, file_name, fname_len);
       memcpy(&file_append_pub->fnameAndData[fname_len], buf, len);
       err = bm_pub("fappend", file_append_pub, file_append_pub_len,
-                   FAPPEND_TYPE, BM_COMMON_PUB_SUB_VERSION)
-                ? BmOK
-                : BmENETDOWN;
+                   FAPPEND_TYPE, BM_COMMON_PUB_SUB_VERSION);
       bm_free(file_append_pub);
     }
   }

@@ -72,8 +72,9 @@ BmErr spotter_log(uint64_t target_node_id, const char *file_name,
     }
 
     err = BmENOMEM;
+    // Add 1 for NULL termination character on data_len
     size_t printf_pub_len =
-        sizeof(bm_print_publication_t) + data_len + fname_len;
+        sizeof(bm_print_publication_t) + data_len + fname_len + 1;
     printf_pub = (bm_print_publication_t *)bm_malloc(printf_pub_len);
 
     if (printf_pub) {
@@ -99,13 +100,13 @@ BmErr spotter_log(uint64_t target_node_id, const char *file_name,
       }
 
       if (file_name) {
-        if (!bm_pub(SPOTTER_FPRINTF_TOPIC, printf_pub, printf_pub_len,
-                    FPRINTF_TYPE, BM_COMMON_PUB_SUB_VERSION)) {
+        if (bm_pub(SPOTTER_FPRINTF_TOPIC, printf_pub, printf_pub_len,
+                   FPRINTF_TYPE, BM_COMMON_PUB_SUB_VERSION) != BmOK) {
           err = BmENETDOWN;
         }
       } else {
-        if (!bm_pub(SPOTTER_PRINTF_TOPIC, printf_pub, printf_pub_len,
-                    PRINTF_TYPE, BM_COMMON_PUB_SUB_VERSION)) {
+        if (bm_pub(SPOTTER_PRINTF_TOPIC, printf_pub, printf_pub_len,
+                   PRINTF_TYPE, BM_COMMON_PUB_SUB_VERSION) != BmOK) {
           err = BmENETDOWN;
         }
       }
@@ -153,9 +154,7 @@ BmErr spotter_tx_data(const void *data, uint16_t data_len,
       header->type = type;
       memcpy(header->data, data, data_len);
       err = bm_pub(SPOTTER_TRANSMIT_DATA_TOPIC, data_buf, msg_len,
-                   SPOTTER_TRANSMIT_TOPIC_TYPE, BM_COMMON_PUB_SUB_VERSION)
-                ? BmOK
-                : BmENETDOWN;
+                   SPOTTER_TRANSMIT_TOPIC_TYPE, BM_COMMON_PUB_SUB_VERSION);
     } while (0);
     bm_free(data_buf);
   }

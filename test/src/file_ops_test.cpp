@@ -28,13 +28,13 @@ TEST_F(FileOps, fappend) {
   RND.rnd_array(buf, UINT8_MAX);
 
   // Test proper use cases
-  bm_pub_fake.return_val = true;
+  bm_pub_fake.return_val = BmOK;
   ASSERT_EQ(bm_file_append(node_id, file_name, buf, array_size(buf)), BmOK);
 
   // Test improper use cases
-  bm_pub_fake.return_val = false;
+  bm_pub_fake.return_val = BmEBADMSG;
   ASSERT_EQ(bm_file_append(node_id, file_name, buf, array_size(buf)),
-            BmENETDOWN);
+            BmEBADMSG);
   ASSERT_EQ(bm_file_append(node_id, NULL, buf, array_size(buf)), BmEINVAL);
   ASSERT_EQ(bm_file_append(node_id, file_name, NULL, 0), BmEINVAL);
 }
