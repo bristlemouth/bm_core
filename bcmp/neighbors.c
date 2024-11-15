@@ -425,7 +425,7 @@ BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr,
     bm_timer_delete(NEIGHBOR_TIMER, 10);
   }
   NEIGHBOR_TIMER = bm_timer_create("neighbor_request_timer",
-                                   bcmp_neighbor_timer_timeout_s * 1000, true,
+                                   bcmp_neighbor_timer_timeout_s * 1000, false,
                                    NULL, timeout);
 
   if (NEIGHBOR_TIMER) {
