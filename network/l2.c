@@ -4,6 +4,14 @@
 #include "bm_os.h"
 #include "util.h"
 
+//TODO tie this into CTX variable and make callback associated with network device
+// this would be bm_l2_register_interrupt_callback as a trait in the network device
+#include "FreeRTOS.h"
+#include "queue.h"
+
+static L2IntCb gpfIntCallback = NULL;
+static void *gpIntCBParam = NULL;
+
 #define ethernet_packet_size_byte 14
 #define ipv6_version_traffic_class_flow_label_size_bytes 4
 #define ipv6_payload_length_size_bytes 2
@@ -33,6 +41,7 @@
 typedef enum {
   L2Tx,
   L2Rx,
+  L2Irq,
 } BmL2QueueType;
 
 typedef struct {
@@ -177,6 +186,12 @@ static void bm_l2_thread(void *parameters) {
         bm_l2_process_rx_evt(&event);
         break;
       }
+      case L2Irq: {
+        if (gpfIntCallback) {
+          (*gpfIntCallback)(gpIntCBParam, 0, NULL);
+        }
+        break;
+      }
       default: {
       }
       }
@@ -219,6 +234,31 @@ BmErr bm_l2_init(NetworkDevice network_device) {
     err = BmENOMEM;
   }
   return err;
+}
+
+BmErr bm_l2_register_interrupt_callback(L2IntCb const *intCallback,
+                                        void *hDevice) {
+  gpfIntCallback = (L2IntCb)intCallback;
+  gpIntCBParam = hDevice;
+  return BmOK;
+}
+
+bool bm_l2_handle_device_interrupt(const void *pinHandle, uint8_t value,
+                                   void *args) {
+
+  (void)args;
+  (void)pinHandle;
+  (void)value;
+  L2QueueElement int_evt = {0, NULL, L2Irq, 0};
+
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+  if (CTX.evt_queue) {
+    xQueueSendToFrontFromISR(CTX.evt_queue, &int_evt,
+                             &xHigherPriorityTaskWoken);
+  }
+
+  return xHigherPriorityTaskWoken;
 }
 
 /*!
