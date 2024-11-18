@@ -118,7 +118,7 @@ BmErr bcmp_init(NetworkDevice network_device) {
   time_init();
   bm_dfu_init();
   bcmp_config_init();
-  bcmp_neighbor_init();
+  bcmp_neighbor_init(network_device.trait->num_ports());
   bcmp_device_info_init();
   bcmp_resource_discovery_init();
 

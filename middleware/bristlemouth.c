@@ -4,6 +4,7 @@
 #include "bm_service.h"
 #include "l2.h"
 #include "middleware.h"
+#include "topology.h"
 
 #define BM_MIDDLEWARE_PORT 4321
 
@@ -16,6 +17,7 @@ BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb) {
   bm_err_check(err, bm_l2_init(network_device));
   bm_err_check(err, bm_ip_init());
   bm_err_check(err, bcmp_init(network_device));
+  bm_err_check(err, topology_init(network_device.trait->num_ports()));
 
   if (err == BmOK) {
     bm_service_init();

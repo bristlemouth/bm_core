@@ -16,10 +16,11 @@
 // Pointer to neighbor linked-list
 static BcmpNeighbor *NEIGHBORS;
 static uint8_t NUM_NEIGHBORS = 0;
-NeighborDiscoveryCallback NEIGHBOR_DISCOVERY_CB = NULL;
-NeighborRequestCallback NEIGHBOR_REQUEST_CB = NULL;
+static NeighborDiscoveryCallback NEIGHBOR_DISCOVERY_CB = NULL;
+static NeighborRequestCallback NEIGHBOR_REQUEST_CB = NULL;
 static uint64_t TARGET_NODE_ID = 0;
-BmTimer NEIGHBOR_TIMER = NULL;
+static uint8_t NUM_PORTS = 0;
+static BmTimer NEIGHBOR_TIMER = NULL;
 
 /*!
   @brief Send reply to neighbor table request
@@ -29,15 +30,13 @@ BmTimer NEIGHBOR_TIMER = NULL;
   @ret ERR_OK if successful
 */
 static BmErr bcmp_send_neighbor_table(void *addr) {
-  static uint8_t num_ports = 0;
-  num_ports = bm_l2_get_num_ports();
   BmErr err = BmENOMEM;
 
   // Check our neighbors
   uint8_t num_neighbors = 0;
   BcmpNeighbor *neighbor = bcmp_get_neighbors(&num_neighbors);
   uint16_t neighbor_table_len = sizeof(BcmpNeighborTableReply) +
-                                sizeof(BcmpPortInfo) * num_ports +
+                                sizeof(BcmpPortInfo) * NUM_PORTS +
                                 sizeof(BcmpNeighborInfo) * num_neighbors;
 
   // TODO - handle more gracefully
@@ -54,16 +53,16 @@ static BmErr bcmp_send_neighbor_table(void *addr) {
     neighbor_table_reply->node_id = node_id();
 
     // set the other vars
-    neighbor_table_reply->port_len = num_ports;
+    neighbor_table_reply->port_len = NUM_PORTS;
     neighbor_table_reply->neighbor_len = num_neighbors;
 
     // assemble the port list here
-    for (uint8_t port = 0; port < num_ports; port++) {
+    for (uint8_t port = 0; port < NUM_PORTS; port++) {
       neighbor_table_reply->port_list[port].state = bm_l2_get_port_state(port);
     }
 
     assemble_neighbor_info_list(
-        (BcmpNeighborInfo *)&neighbor_table_reply->port_list[num_ports],
+        (BcmpNeighborInfo *)&neighbor_table_reply->port_list[NUM_PORTS],
         neighbor, num_neighbors);
 
     err = bcmp_tx(addr, BcmpNeighborTableReplyMessage,
@@ -120,8 +119,9 @@ static BmErr bcmp_process_neighbor_table_reply(BcmpProcessData data) {
   @return BmOK on success
   @return BmErr on failure
 */
-BmErr bcmp_neighbor_init(void) {
+BmErr bcmp_neighbor_init(uint8_t num_ports) {
   BmErr err = BmOK;
+  NUM_PORTS = num_ports;
   BcmpPacketCfg neighbor_request = {
       false,
       false,

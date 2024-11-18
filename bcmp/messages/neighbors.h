@@ -47,7 +47,7 @@ typedef void (*NeighborDiscoveryCallback)(bool discovered,
                                           BcmpNeighbor *neighbor);
 typedef BmErr (*NeighborRequestCallback)(BcmpNeighborTableReply *reply);
 
-BmErr bcmp_neighbor_init(void);
+BmErr bcmp_neighbor_init(uint8_t num_ports);
 BcmpNeighbor *bcmp_get_neighbors(uint8_t *num_neighbors);
 void bcmp_check_neighbors(void);
 void bcmp_print_neighbor_info(BcmpNeighbor *neighbor);
