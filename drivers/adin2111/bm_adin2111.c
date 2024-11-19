@@ -1,5 +1,6 @@
 #include "bm_adin2111.h"
 #include "aligned_malloc.h"
+#include "bm_config.h"
 #include "bm_os.h"
 #include <stdbool.h>
 #include <string.h>
@@ -182,7 +183,7 @@ static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
     goto end;
   }
   memcpy(buffer_description->pBuf, data, length);
-  buffer_description->bufSize = length;
+  buffer_description->trxSize = length;
   buffer_description->cbFunc = tx_complete;
   adin2111_TxPort_e tx_port = ADIN2111_TX_PORT_FLOOD;
   if (port_mask == 1) {
@@ -190,7 +191,11 @@ static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
   } else if (port_mask == 2) {
     tx_port = ADIN2111_TX_PORT_2;
   }
-  adin2111_SubmitTxBuffer(&DEVICE_STRUCT, tx_port, buffer_description);
+  if (adin2111_SubmitTxBuffer(&DEVICE_STRUCT, tx_port, buffer_description) !=
+      ADI_ETH_SUCCESS) {
+    free_tx_buffer(buffer_description);
+  }
+
 end:
   return err;
 }
@@ -208,13 +213,20 @@ static void receive_callback_(void *device, uint32_t event,
                               void *buffer_description_param) {
   (void)device;
   (void)event;
+  adi_eth_BufDesc_t *buffer_description = NULL;
 
   if (NETWORK_DEVICE.callbacks->receive) {
-    adi_eth_BufDesc_t *buffer_description =
-        (adi_eth_BufDesc_t *)buffer_description_param;
+    buffer_description = (adi_eth_BufDesc_t *)buffer_description_param;
     uint8_t port_mask = 1 << buffer_description->port;
     NETWORK_DEVICE.callbacks->receive(port_mask, buffer_description->pBuf,
-                                      buffer_description->bufSize);
+                                      buffer_description->trxSize);
+  }
+
+  // Re-submit buffer into ADIN's RX queue
+  adi_eth_Result_e result =
+      adin2111_SubmitRxBuffer(&DEVICE_STRUCT, buffer_description);
+  if (result != ADI_ETH_SUCCESS) {
+    bm_debug("Unable to re-submit RX Buffer\n");
   }
 }
 

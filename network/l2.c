@@ -233,6 +233,7 @@ BmErr bm_l2_init(NetworkDevice network_device) {
   } else {
     err = BmENOMEM;
   }
+  bm_err_check(err, CTX.network_device.trait->enable(CTX.network_device.self));
   return err;
 }
 
