@@ -27,8 +27,21 @@ static adin2111_DriverConfig_t DRIVER_CONFIG = {
     .tsCaptPin = ADIN2111_TS_CAPT_MUX_NA,
 };
 static adi_eth_BufDesc_t RX_BUFFERS[RX_QUEUE_NUM_ENTRIES];
+static HAL_Callback_t ADIN2111_MAC_INT_CALLBACK = NULL;
+static void *ADIN2111_MAC_INT_CALLBACK_PARAM = NULL;
 
 /**************** Private Helper Functions ****************/
+
+// Required by the Analog Devices adi_hal.h to be implementeed by the application.
+// We save the pointer here in our driver wrapper to simplify Bristlemouth integration.
+uint32_t HAL_RegisterCallback(HAL_Callback_t const *intCallback,
+                              void *hDevice) {
+  // Analog Devices code has a bug at adi_mac.c:633 where they
+  // cast a function pointer to a function pointer pointer incorrectly.
+  ADIN2111_MAC_INT_CALLBACK = (const HAL_Callback_t)intCallback;
+  ADIN2111_MAC_INT_CALLBACK_PARAM = hDevice;
+  return ADI_ETH_SUCCESS;
+}
 
 // Called by the driver when the link status changes
 // If the user has registered a callback, call it
@@ -274,13 +287,26 @@ static inline BmErr adin2111_port_stats_(void *self, uint8_t port_index,
   return adin2111_port_stats(port_index, stats);
 }
 
+// L2 calls this trait function from a thread
+// after getting out of the external pin interrupt context.
+static BmErr adin2111_handle_interrupt(void *self) {
+  (void)self;
+  BmErr err = BmENODEV;
+  if (ADIN2111_MAC_INT_CALLBACK) {
+    ADIN2111_MAC_INT_CALLBACK(ADIN2111_MAC_INT_CALLBACK_PARAM, 0, NULL);
+    err = BmOK;
+  }
+  return err;
+}
+
 static void create_network_device(void) {
-  static NetworkDeviceTrait const trait = {.send = adin2111_netdevice_send_,
-                                           .enable = adin2111_netdevice_enable_,
-                                           .disable =
-                                               adin2111_netdevice_disable_,
-                                           .num_ports = adin2111_num_ports,
-                                           .port_stats = adin2111_port_stats_};
+  static NetworkDeviceTrait const trait = {
+      .send = adin2111_netdevice_send_,
+      .enable = adin2111_netdevice_enable_,
+      .disable = adin2111_netdevice_disable_,
+      .num_ports = adin2111_num_ports,
+      .port_stats = adin2111_port_stats_,
+      .handle_interrupt = adin2111_handle_interrupt};
   static NetworkDeviceCallbacks callbacks = {0};
   NETWORK_DEVICE.self = NULL;
   NETWORK_DEVICE.trait = &trait;

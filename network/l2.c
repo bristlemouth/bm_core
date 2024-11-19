@@ -187,9 +187,7 @@ static void bm_l2_thread(void *parameters) {
         break;
       }
       case L2Irq: {
-        if (gpfIntCallback) {
-          (*gpfIntCallback)(gpIntCBParam, 0, NULL);
-        }
+        CTX.network_device.trait->handle_interrupt(CTX.network_device.self);
         break;
       }
       default: {
