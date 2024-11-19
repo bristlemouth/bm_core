@@ -77,7 +77,7 @@ uint32_t HAL_RegisterCallback(HAL_Callback_t const *intCallback,
 // We save the pointer here in our driver wrapper to simplify Bristlemouth integration.
 uint32_t HAL_SpiRegisterCallback(HAL_Callback_t const *spiCallback,
                                  void *hDevice) {
-  // Analog Devices code has a bug at adi_mac.c:633 where they
+  // Analog Devices code has a bug at adi_mac.c:535 where they
   // cast a function pointer to a function pointer pointer incorrectly.
   ADIN2111_MAC_SPI_CALLBACK = (const HAL_Callback_t)spiCallback;
   ADIN2111_MAC_SPI_CALLBACK_PARAM = hDevice;
