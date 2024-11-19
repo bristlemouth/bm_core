@@ -1,6 +1,7 @@
 #include "l2.h"
 #include "bm_config.h"
 #include "bm_ip.h"
+#include "bm_network_generic.h"
 #include "bm_os.h"
 #include "util.h"
 
@@ -8,9 +9,6 @@
 // this would be bm_l2_register_interrupt_callback as a trait in the network device
 #include "FreeRTOS.h"
 #include "queue.h"
-
-static L2IntCb gpfIntCallback = NULL;
-static void *gpIntCBParam = NULL;
 
 #define ethernet_packet_size_byte 14
 #define ipv6_version_traffic_class_flow_label_size_bytes 4
@@ -58,6 +56,7 @@ typedef struct {
   uint8_t enabled_ports_mask;
   BmQueue evt_queue;
   BmTaskHandle task_handle;
+  L2LinkChangeCb link_change_cb;
 } BmL2Ctx;
 
 static BmL2Ctx CTX = {0};
@@ -197,6 +196,35 @@ static void bm_l2_thread(void *parameters) {
   }
 }
 
+static void link_change(uint8_t port_idx, bool is_up) {
+  uint8_t port_mask = 1 << (port_idx);
+  if (is_up) {
+    CTX.enabled_ports_mask |= port_mask;
+  } else {
+    CTX.enabled_ports_mask &= ~port_mask;
+  }
+
+  if (CTX.link_change_cb) {
+    CTX.link_change_cb(port_idx, is_up);
+  } else {
+    bm_debug("port%u %s\n", port_idx, is_up ? "up" : "down");
+  }
+}
+
+static BmErr bm_l2_handle_device_interrupt(void) {
+
+  L2QueueElement int_evt = {0, NULL, L2Irq, 0};
+
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+  if (CTX.evt_queue) {
+    xQueueSendToFrontFromISR(CTX.evt_queue, &int_evt,
+                             &xHigherPriorityTaskWoken);
+  }
+
+  return xHigherPriorityTaskWoken == pdTRUE ? BmOK : BmEPERM;
+}
+
 /*!
   @brief Deinitialize L2 Layer
 
@@ -220,7 +248,9 @@ void bm_l2_deinit(void) {
  */
 BmErr bm_l2_init(NetworkDevice network_device) {
   BmErr err = BmEINVAL;
+  bm_network_register_int_callback(bm_l2_handle_device_interrupt);
   network_device.callbacks->receive = bm_l2_rx;
+  network_device.callbacks->link_change = link_change;
   CTX.network_device = network_device;
   CTX.num_ports = network_device.trait->num_ports();
   CTX.all_ports_mask = (1 << CTX.num_ports) - 1;
@@ -235,29 +265,13 @@ BmErr bm_l2_init(NetworkDevice network_device) {
   return err;
 }
 
-BmErr bm_l2_register_interrupt_callback(L2IntCb const *intCallback,
-                                        void *hDevice) {
-  gpfIntCallback = (L2IntCb)intCallback;
-  gpIntCBParam = hDevice;
-  return BmOK;
-}
-
-bool bm_l2_handle_device_interrupt(const void *pinHandle, uint8_t value,
-                                   void *args) {
-
-  (void)args;
-  (void)pinHandle;
-  (void)value;
-  L2QueueElement int_evt = {0, NULL, L2Irq, 0};
-
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-  if (CTX.evt_queue) {
-    xQueueSendToFrontFromISR(CTX.evt_queue, &int_evt,
-                             &xHigherPriorityTaskWoken);
+BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb) {
+  BmErr err = BmEINVAL;
+  if (cb) {
+    err = BmOK;
+    CTX.link_change_cb = cb;
   }
-
-  return xHigherPriorityTaskWoken;
+  return err;
 }
 
 /*!

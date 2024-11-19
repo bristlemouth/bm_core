@@ -3,6 +3,7 @@
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "dfu.h"
+#include "l2.h"
 #include "messages/config.h"
 #include "messages/heartbeat.h"
 #include "messages/info.h"
@@ -110,20 +111,21 @@ void bcmp_link_change(uint8_t port, bool state) {
   @return none
 */
 BmErr bcmp_init(NetworkDevice network_device) {
+  BmErr err = BmOK;
   CTX.queue = bm_queue_create(bcmp_evt_queue_len, sizeof(BcmpQueueItem));
-  network_device.callbacks->link_change = bcmp_link_change;
 
-  bcmp_heartbeat_init();
-  ping_init();
-  time_init();
-  bm_dfu_init();
-  bcmp_config_init();
-  bcmp_neighbor_init(network_device.trait->num_ports());
-  bcmp_device_info_init();
-  bcmp_resource_discovery_init();
-
-  return bm_task_create(bcmp_thread, "BCMP", 1024, NULL, bcmp_task_priority,
-                        NULL);
+  bm_err_check(err, bm_l2_register_link_change_callback(bcmp_link_change));
+  bm_err_check(err, bcmp_heartbeat_init());
+  bm_err_check(err, ping_init());
+  bm_err_check(err, time_init());
+  bm_err_check(err, bm_dfu_init());
+  bm_err_check(err, bcmp_config_init());
+  bm_err_check(err, bcmp_neighbor_init(network_device.trait->num_ports()));
+  bm_err_check(err, bcmp_device_info_init());
+  bm_err_check(err, bcmp_resource_discovery_init());
+  bm_err_check(err, bm_task_create(bcmp_thread, "BCMP", 1024, NULL,
+                                   bcmp_task_priority, NULL));
+  return err;
 }
 
 void *bcmp_get_queue(void) { return CTX.queue; }
