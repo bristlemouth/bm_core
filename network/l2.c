@@ -5,11 +5,6 @@
 #include "bm_os.h"
 #include "util.h"
 
-//TODO tie this into CTX variable and make callback associated with network device
-// this would be bm_l2_register_interrupt_callback as a trait in the network device
-#include "FreeRTOS.h"
-#include "queue.h"
-
 #define ethernet_packet_size_byte 14
 #define ipv6_version_traffic_class_flow_label_size_bytes 4
 #define ipv6_payload_length_size_bytes 2
@@ -215,14 +210,14 @@ static BmErr bm_l2_handle_device_interrupt(void) {
 
   L2QueueElement int_evt = {0, NULL, L2Irq, 0};
 
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  uint32_t xHigherPriorityTaskWoken = 0;
 
   if (CTX.evt_queue) {
-    xQueueSendToFrontFromISR(CTX.evt_queue, &int_evt,
-                             &xHigherPriorityTaskWoken);
+    bm_queue_send_to_front_from_isr(CTX.evt_queue, &int_evt,
+                                    &xHigherPriorityTaskWoken);
   }
 
-  return xHigherPriorityTaskWoken == pdTRUE ? BmOK : BmEPERM;
+  return xHigherPriorityTaskWoken ? BmOK : BmENOMEM;
 }
 
 /*!
