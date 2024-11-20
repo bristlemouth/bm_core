@@ -210,14 +210,11 @@ static BmErr bm_l2_handle_device_interrupt(void) {
 
   L2QueueElement int_evt = {0, NULL, L2Irq, 0};
 
-  uint32_t xHigherPriorityTaskWoken = 0;
-
   if (CTX.evt_queue) {
-    bm_queue_send_to_front_from_isr(CTX.evt_queue, &int_evt,
-                                    &xHigherPriorityTaskWoken);
+    return bm_queue_send_to_front_from_isr(CTX.evt_queue, &int_evt);
   }
 
-  return xHigherPriorityTaskWoken ? BmOK : BmENOMEM;
+  return BmENOMEM;
 }
 
 /*!
