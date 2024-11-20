@@ -32,10 +32,9 @@ BmErr bm_queue_send(BmQueue queue, const void *item, uint32_t timeout_ms) {
   }
 }
 
-BmErr bm_queue_send_to_front_from_isr(BmQueue queue, const void *item, uint32_t *task_woken) {
-  BaseType_t higher_priority_task_woken = pdFALSE;
-  if (xQueueSendToFrontFromISR(queue, item, &higher_priority_task_woken) == pdPASS) {
-    *task_woken = higher_priority_task_woken;
+BmErr bm_queue_send_to_front_from_isr(BmQueue queue, const void *item, uint32_t *higher_priority_task_woken) {
+  // BaseType_t higher_priority_task_woken = pdFALSE;
+  if (xQueueSendToFrontFromISR(queue, item, higher_priority_task_woken) == pdPASS) {
     return BmOK;
   } else {
     return BmENOMEM;
