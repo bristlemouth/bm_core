@@ -158,16 +158,15 @@ static void bm_l2_rx(uint8_t port_mask, uint8_t *data, size_t length) {
 }
 
 /*!
- @brief Add egress port to IP address and update UDP checksum
+  @brief Add egress port to IP address and update UDP checksum
 
- @details Updates the payload with the egress port necessary,
-          this API should be ran from the network device driver's
-          bristlemouth facing module (ex: bm_adin2111.c) when formatting
-          a message to be sent
+  @details Updates the payload with the egress port necessary to send packets
+           along to the network driver
 
- @param payload buffer with frame
- @param port port in which frame is going out of
- @return none
+
+  @param payload buffer with frame
+  @param port port in which frame is going out of
+  @return none
 */
 static inline void network_add_egress_port(uint8_t *payload, uint8_t port) {
   // Modify egress port byte in IP address
