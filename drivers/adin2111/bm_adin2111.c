@@ -214,35 +214,27 @@ static void tx_complete(void *device_param, uint32_t event,
 
 // Allocate buffers for sending, copy the given data, and submit to the driver
 static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
-                                     uint8_t port_mask) {
+                                     uint8_t port) {
   BmErr err = BmOK;
 
-  for (uint32_t port = 0; port < ADIN2111_PORT_NUM; port++) {
-    if (port_mask & (0x01 << port)) {
-
-      adi_eth_BufDesc_t *buffer_description =
-          bm_malloc(sizeof(adi_eth_BufDesc_t));
-      if (!buffer_description) {
-        err = BmENOMEM;
-        goto end;
-      }
-      memset(buffer_description, 0, sizeof(adi_eth_BufDesc_t));
-      buffer_description->pBuf = aligned_malloc(DMA_ALIGN_SIZE, length);
-      if (!buffer_description->pBuf) {
-        bm_free(buffer_description);
-        err = BmENOMEM;
-        goto end;
-      }
-      memcpy(buffer_description->pBuf, data, length);
-      buffer_description->trxSize = length;
-      buffer_description->cbFunc = tx_complete;
-      uint8_t bm_egress_port = 0x01 << port;
-      network_add_egress_port(buffer_description->pBuf, bm_egress_port);
-      if (adin2111_SubmitTxBuffer(&DEVICE_STRUCT, port, buffer_description) !=
-          ADI_ETH_SUCCESS) {
-        free_tx_buffer(buffer_description);
-      }
-    }
+  adi_eth_BufDesc_t *buffer_description = bm_malloc(sizeof(adi_eth_BufDesc_t));
+  if (!buffer_description) {
+    err = BmENOMEM;
+    goto end;
+  }
+  memset(buffer_description, 0, sizeof(adi_eth_BufDesc_t));
+  buffer_description->pBuf = aligned_malloc(DMA_ALIGN_SIZE, length);
+  if (!buffer_description->pBuf) {
+    bm_free(buffer_description);
+    err = BmENOMEM;
+    goto end;
+  }
+  memcpy(buffer_description->pBuf, data, length);
+  buffer_description->trxSize = length;
+  buffer_description->cbFunc = tx_complete;
+  if (adin2111_SubmitTxBuffer(&DEVICE_STRUCT, port, buffer_description) !=
+      ADI_ETH_SUCCESS) {
+    free_tx_buffer(buffer_description);
   }
 
 end:
@@ -251,9 +243,9 @@ end:
 
 // Trait wrapper function to convert self from void* to Adin2111*
 static inline BmErr adin2111_netdevice_send_(void *self, uint8_t *data,
-                                             size_t length, uint8_t port_mask) {
+                                             size_t length, uint8_t port) {
   (void)self;
-  return adin2111_netdevice_send(data, length, port_mask);
+  return adin2111_netdevice_send(data, length, port);
 }
 
 // Called by the driver on received data

@@ -10,8 +10,7 @@ typedef struct {
 } NetworkDeviceCallbacks;
 
 typedef struct {
-  BmErr (*const send)(void *self, uint8_t *data, size_t length,
-                      uint8_t port_mask);
+  BmErr (*const send)(void *self, uint8_t *data, size_t length, uint8_t port);
   BmErr (*const enable)(void *self);
   BmErr (*const disable)(void *self);
   uint8_t (*const num_ports)(void);

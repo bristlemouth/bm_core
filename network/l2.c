@@ -5,7 +5,17 @@
 #include "bm_os.h"
 #include "util.h"
 
-#define ethernet_packet_size_byte 14
+/* We store the egress port for the RX device and the ingress port of the TX device
+   in bytes 5 (index 4) and 6 (index 5) of the SRC IPv6 address. */
+#define egress_port_idx 4
+#define ingress_port_idx 5
+
+// Ethernet Header Sizes
+#define ethernet_destination_size_bytes 6
+#define ethernet_src_size_bytes 6
+#define ethernet_type_size_bytes 2
+
+// IPV6 Header Sizes
 #define ipv6_version_traffic_class_flow_label_size_bytes 4
 #define ipv6_payload_length_size_bytes 2
 #define ipv6_next_header_size_bytes 1
@@ -13,14 +23,52 @@
 #define ipv6_source_address_size_bytes 16
 #define ipv6_destination_address_size_bytes 16
 
+// UDP Header Sizes
+#define udp_src_size_bytes 2
+#define udp_destination_size_bytes 2
+#define udp_length_size_bytes 2
+#define udp_checksum_size_bytes 2
+
+// Ethernet Offsets
+#define ethernet_destination_offset (0)
+#define ethernet_src_offset                                                    \
+  (ethernet_destination_offset + ethernet_destination_size_bytes)
+#define ethernet_type_offset (ethernet_src_offset + ethernet_src_size_bytes)
+
+// Ethernet Getters
+#define ethernet_get_type(buf) (uint8_to_uint16(&buf[ethernet_type_offset]))
+
+// IPV6 Offsets
+#define ipv6_version_traffic_class_flow_label_offset                           \
+  (ethernet_type_offset + ethernet_type_size_bytes)
+#define ipv6_payload_length_offset                                             \
+  (ipv6_version_traffic_class_flow_label_offset +                              \
+   ipv6_version_traffic_class_flow_label_size_bytes)
+#define ipv6_next_header_offset                                                \
+  (ipv6_payload_length_offset + ipv6_payload_length_size_bytes)
+#define ipv6_hop_limit_offset                                                  \
+  (ipv6_next_header_offset + ipv6_next_header_size_bytes)
 #define ipv6_source_address_offset                                             \
-  (ethernet_packet_size_byte +                                                 \
-   ipv6_version_traffic_class_flow_label_size_bytes +                          \
-   ipv6_payload_length_size_bytes + ipv6_next_header_size_bytes +              \
-   ipv6_hop_limit_size_bytes)
+  (ipv6_hop_limit_offset + ipv6_hop_limit_size_bytes)
 #define ipv6_destination_address_offset                                        \
   (ipv6_source_address_offset + ipv6_source_address_size_bytes)
 
+// IPV6 Getters
+#define ipv6_get_version_traffic_class_flow_label(buf)                         \
+  (uint8_to_uint32(&buf[ipv6_version_traffic_class_flow_label_offset]))
+#define ipv6_get_payload_length(buf)                                           \
+  (uint8_to_uint16(&buf[ipv6_payload_length_offset]))
+#define ipv6_get_next_header(buf) (buf[ipv6_next_header_offset])
+#define ipv6_get_hop_limit(buf) (buf[ipv6_hop_limit_offset])
+
+// UDP Offsets
+#define udp_src_offset                                                         \
+  (ipv6_destination_address_offset + ipv6_destination_address_size_bytes)
+#define udp_destination_offset (udp_src_offset + udp_src_size_bytes)
+#define udp_length_offset (udp_destination_offset + udp_destination_size_bytes)
+#define udp_checksum_offset (udp_length_offset + udp_length_size_bytes)
+
+// Network Helper Macros
 #define add_egress_port(addr, port)                                            \
   (addr[ipv6_source_address_offset + egress_port_idx] = port)
 #define add_ingress_port(addr, port)                                           \
@@ -110,6 +158,42 @@ static void bm_l2_rx(uint8_t port_mask, uint8_t *data, size_t length) {
 }
 
 /*!
+ @brief Add egress port to IP address and update UDP checksum
+
+ @details Updates the payload with the egress port necessary,
+          this API should be ran from the network device driver's
+          bristlemouth facing module (ex: bm_adin2111.c) when formatting
+          a message to be sent
+
+ @param payload buffer with frame
+ @param port port in which frame is going out of
+ @return none
+*/
+static inline void network_add_egress_port(uint8_t *payload, uint8_t port) {
+  // Modify egress port byte in IP address
+  add_egress_port(payload, port);
+
+  //
+  // Correct checksum to account for change in ip address
+  //
+  if (ethernet_get_type(payload) == ethernet_type_ipv6) {
+    if (ipv6_get_next_header(payload) == ip_proto_udp) {
+      // Undo 1's complement
+      payload[udp_checksum_offset] ^= 0xFFFF;
+
+      // Add port to checksum (we can only do this because the value was previously 0)
+      // Since udp checksum is sum of uint16_t bytes
+      payload[udp_checksum_offset] += port;
+
+      // Do 1's complement again
+      payload[udp_checksum_offset] ^= 0xFFFF;
+    } else if (ipv6_get_next_header(payload) == ip_proto_bcmp) {
+      // fix checksum for BCMP
+    }
+  }
+}
+
+/*!
   @brief Process TX Event
 
   @details Receive message from L2 queue and send to the network device,
@@ -120,10 +204,16 @@ static void bm_l2_rx(uint8_t port_mask, uint8_t *data, size_t length) {
 static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
   if (tx_evt) {
     uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
-    BmErr err = CTX.network_device.trait->send(
-        CTX.network_device.self, payload, tx_evt->length, tx_evt->port_mask);
-    if (err != BmOK) {
-      bm_debug("Failed to send TX buffer to network\n");
+    for (uint8_t port = 0; port < CTX.num_ports; port++) {
+      if (tx_evt->port_mask & (0x01 << port)) {
+        uint8_t bm_egress_port = 0x01 << port;
+        network_add_egress_port(payload, bm_egress_port);
+        BmErr err = CTX.network_device.trait->send(
+            CTX.network_device.self, payload, tx_evt->length, port);
+        if (err != BmOK) {
+          bm_debug("Failed to send TX buffer to network\n");
+        }
+      }
     }
     bm_l2_free(tx_evt->buf);
   }
