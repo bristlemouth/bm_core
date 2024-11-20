@@ -16,3 +16,10 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, bm_ip_tx_copy, void *, const void *, uint32_t,
                        uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bm_ip_tx_perform, void *, const void *);
 DEFINE_FAKE_VOID_FUNC(bm_ip_tx_cleanup, void *);
+DEFINE_FAKE_VALUE_FUNC(void *, bm_udp_bind_port, uint16_t, BmUdpPortBindCb);
+DEFINE_FAKE_VALUE_FUNC(void *, bm_udp_new, uint32_t);
+DEFINE_FAKE_VALUE_FUNC(void *, bm_udp_get_payload, void *);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bm_udp_reference_update, void *);
+DEFINE_FAKE_VOID_FUNC(bm_udp_cleanup, void *);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bm_udp_tx_perform, void *, void *, uint32_t,
+                       const void *, uint16_t);

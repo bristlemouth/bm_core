@@ -258,7 +258,7 @@ static bool _service_request_send_request(uint32_t msg_id, const char *service,
   header->data_size = data_len;
   memcpy(header->data, data, data_len);
   rval = bm_pub_wl(request_str, request_str_len, req_data, req_len, 0,
-                   BM_COMMON_PUB_SUB_VERSION);
+                   BM_COMMON_PUB_SUB_VERSION) == BmOK;
 
   // Free memory
   bm_free(request_str);
@@ -277,7 +277,7 @@ static bool _service_request_sub_to_reply_topic(const char *service,
   memcpy(rep_str, service, service_strlen);
   memcpy(rep_str + service_strlen, BM_SERVICE_REP_STR,
          strlen(BM_SERVICE_REP_STR));
-  rval = bm_sub_wl(rep_str, rep_str_len, _service_request_cb);
+  rval = bm_sub_wl(rep_str, rep_str_len, _service_request_cb) == BmOK;
   bm_free(rep_str);
   return rval;
 }
