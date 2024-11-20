@@ -141,7 +141,6 @@ set (BCMP_SRCS
     ${STUB_DIR}/resource_discovery_stub.c
     ${STUB_DIR}/ping_stub.c
     ${STUB_DIR}/neighbors_stub.c
-    ${STUB_DIR}/topology_stub.c
     ${STUB_DIR}/bm_ip_stub.c
 )
 create_gtest("bcmp" "${BCMP_SRCS}")
@@ -475,7 +474,7 @@ set (SPOTTER_SRCS
 )
 create_gtest("spotter" "${SPOTTER_SRCS}")
 
-# SPOTTER TESTS
+# FILE OPERATION TESTS
 set (FILE_OPS_SRCS
     # File we're testing
     ${INTEGRATIONS_DIR}/file_ops.c
@@ -488,3 +487,19 @@ set (FILE_OPS_SRCS
     ${STUB_DIR}/pubsub_stub.c
 )
 create_gtest("file_ops" "${FILE_OPS_SRCS}")
+
+# PUBSUB TESTS
+set (PUBSUB_SRCS
+    # File we're testing
+    ${MIDDLEWARE_DIR}/pubsub.c
+
+    # Supporting Files
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/bm_ip_stub.c
+    ${STUB_DIR}/middleware_stub.c
+    ${STUB_DIR}/resource_discovery_stub.c
+)
+create_gtest("pubsub" "${PUBSUB_SRCS}")

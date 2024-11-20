@@ -33,7 +33,7 @@ TEST_F(Spotter, printf) {
   const char *s2 = "testing 2";
 
   // Test proper use cases
-  bm_pub_fake.return_val = true;
+  bm_pub_fake.return_val = BmOK;
   ASSERT_EQ(spotter_log(node_id, file_name, print_time, "%s:%s", s1, s2), BmOK);
   ASSERT_EQ(spotter_log(node_id, NULL, print_time, "%s:%s", s1, s2), BmOK);
 
@@ -43,7 +43,7 @@ TEST_F(Spotter, printf) {
             BmEMSGSIZE);
   ASSERT_EQ(spotter_log(node_id, file_name, print_time, "%s", long_string),
             BmEMSGSIZE);
-  bm_pub_fake.return_val = false;
+  bm_pub_fake.return_val = BmEBADMSG;
   ASSERT_EQ(spotter_log(node_id, file_name, print_time, "%s:%s", s1, s2),
             BmENETDOWN);
   ASSERT_EQ(spotter_log(node_id, NULL, print_time, "%s:%s", s1, s2),
@@ -55,16 +55,16 @@ TEST_F(Spotter, tx_data) {
   RND.rnd_array(buf, UINT8_MAX);
 
   // Test proper use cases
-  bm_pub_fake.return_val = true;
+  bm_pub_fake.return_val = BmOK;
   ASSERT_EQ(
       spotter_tx_data(buf, array_size(buf), BmNetworkTypeCellularIriFallback),
       BmOK);
 
   // Test improper use cases
-  bm_pub_fake.return_val = false;
+  bm_pub_fake.return_val = BmEBADMSG;
   ASSERT_EQ(
       spotter_tx_data(buf, array_size(buf), BmNetworkTypeCellularIriFallback),
-      BmENETDOWN);
+      BmEBADMSG);
   ASSERT_EQ(spotter_tx_data(buf, UINT16_MAX, BmNetworkTypeCellularIriFallback),
             BmEINVAL);
 }
