@@ -4,6 +4,42 @@
 const bm_ip_addr multicast_global_addr = {{0x3FF, 0x0, 0x0, 0x1000000}, 0};
 const bm_ip_addr multicast_ll_addr = {{0x2FF, 0x0, 0x0, 0x1000000}, 0};
 
+/*!
+ @brief Add egress port to IP address and update UDP checksum
+
+ @details Updates the payload with the egress port necessary,
+          this API should be ran from the network device driver's
+          bristlemouth facing module (ex: bm_adin2111.c) when formatting
+          a message to be sent
+
+ @param payload buffer with frame
+ @param port port in which frame is going out of
+ @return none
+*/
+void network_add_egress_port(uint8_t *payload, uint8_t port) {
+  // Modify egress port byte in IP address
+  add_egress_port(payload, port);
+
+  //
+  // Correct checksum to account for change in ip address
+  //
+  if (ethernet_get_type(payload) == ethernet_type_ipv6) {
+    if (ipv6_get_next_header(payload) == ip_proto_udp) {
+      // Undo 1's complement
+      payload[udp_checksum_offset] ^= 0xFFFF;
+
+      // Add port to checksum (we can only do this because the value was previously 0)
+      // Since udp checksum is sum of uint16_t bytes
+      payload[udp_checksum_offset] += port;
+
+      // Do 1's complement again
+      payload[udp_checksum_offset] ^= 0xFFFF;
+    } else if (ipv6_get_next_header(payload) == ip_proto_bcmp) {
+      // fix checksum for BCMP
+    }
+  }
+}
+
 uint32_t time_remaining(uint32_t start, uint32_t current, uint32_t timeout) {
   int32_t remaining = (int32_t)((start + timeout) - current);
 

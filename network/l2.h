@@ -12,11 +12,6 @@ extern "C" {
 #define bm_l2_tx_task_priority 7
 #endif
 
-/* We store the egress port for the RX device and the ingress port of the TX device
-   in bytes 5 (index 4) and 6 (index 5) of the SRC IPv6 address. */
-#define egress_port_idx 4
-#define ingress_port_idx 5
-
 typedef void (*L2LinkChangeCb)(uint8_t port, bool state);
 
 BmErr bm_l2_link_output(void *buf, uint32_t length);

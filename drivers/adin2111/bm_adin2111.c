@@ -212,58 +212,6 @@ static void tx_complete(void *device_param, uint32_t event,
   free_tx_buffer(buffer_description);
 }
 
-#include "bcmp.h"
-#include "l2.h"
-#include "lwip/api.h"
-#include "lwip/debug.h"
-#include "lwip/ip.h"
-#include "lwip/nd6.h"
-#include "lwip/pbuf.h"
-#include "lwip/prot/ip6.h"
-#include "lwip/stats.h"
-#include "lwip/udp.h"
-#include "netif/ethernet.h"
-typedef struct {
-  struct eth_hdr eth_hdr;
-  struct ip6_hdr ip6_hdr;
-  uint8_t payload[0];
-} net_header_t;
-
-/*!
-  Add egress port to IP address and update UDP checksum
-
-  \param buff buffer with frame
-  \param port port in which frame is going out of
-  \return none
-*/
-static void add_egress_port(uint8_t *buff, uint8_t port) {
-  net_header_t *header = (net_header_t *)buff;
-
-  // Modify egress port byte in IP address
-  uint8_t *pbyte = (uint8_t *)&header->ip6_hdr.src;
-  pbyte[egress_port_idx] = port;
-
-  //
-  // Correct checksum to account for change in ip address
-  //
-  if (header->eth_hdr.type == ETHTYPE_IPV6) {
-    if (header->ip6_hdr._nexth == IP_PROTO_UDP) {
-      struct udp_hdr *udp_hdr = (struct udp_hdr *)header->payload;
-      // Undo 1's complement
-      udp_hdr->chksum ^= 0xFFFF;
-
-      // Add port to checksum (we can only do this because the value was previously 0)
-      // Since udp checksum is sum of uint16_t bytes
-      udp_hdr->chksum += port;
-
-      // Do 1's complement again
-      udp_hdr->chksum ^= 0xFFFF;
-    } else if (header->ip6_hdr._nexth == IpProtoBcmp) {
-      // fix checksum for BCMP
-    }
-  }
-}
-
 // Allocate buffers for sending, copy the given data, and submit to the driver
 static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
                                      uint8_t port_mask) {
@@ -289,7 +237,7 @@ static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
       buffer_description->trxSize = length;
       buffer_description->cbFunc = tx_complete;
       uint8_t bm_egress_port = 0x01 << port;
-      add_egress_port(buffer_description->pBuf, bm_egress_port);
+      network_add_egress_port(buffer_description->pBuf, bm_egress_port);
       if (adin2111_SubmitTxBuffer(&DEVICE_STRUCT, port, buffer_description) !=
           ADI_ETH_SUCCESS) {
         free_tx_buffer(buffer_description);

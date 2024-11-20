@@ -81,7 +81,7 @@ The following is an explanation of how these modules function:
     NetworkData *data = (NetworkData *)payload;
 
     ret = ip6_chksum_pseudo(data->pbuf,
-                            IpProtoBcmp,
+                            ip_proto_bcmp,
                             size,
                             (ip_addr *)lwip_get_src_ip(payload),
                             (ip_addr *)lwip_get_dst_ip(payload));
