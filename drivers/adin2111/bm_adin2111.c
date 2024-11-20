@@ -1,7 +1,6 @@
 #include "bm_adin2111.h"
 #include "aligned_malloc.h"
 #include "bm_config.h"
-#include "bm_network_generic.h"
 #include "bm_os.h"
 #include <stdbool.h>
 #include <string.h>
@@ -36,31 +35,9 @@ static adin2111_DriverConfig_t DRIVER_CONFIG = {
 static adi_eth_BufDesc_t RX_BUFFERS[RX_QUEUE_NUM_ENTRIES];
 static HAL_Callback_t ADIN2111_MAC_INT_CALLBACK = NULL;
 static void *ADIN2111_MAC_INT_CALLBACK_PARAM = NULL;
-static HAL_Callback_t ADIN2111_MAC_SPI_CALLBACK = NULL;
-static void *ADIN2111_MAC_SPI_CALLBACK_PARAM = NULL;
 static struct LinkChange LINK_CHANGE = {NULL, ADIN2111_PORT_1};
 
 /**************** Private Helper Functions ****************/
-
-// Required by the Analog Devices adi_hal.h to be implementeed by the application.
-// The user will implement the bm_network_spi_read_write function in their application.
-uint32_t HAL_SpiReadWrite(uint8_t *pBufferTx, uint8_t *pBufferRx,
-                          uint32_t nbBytes, bool useDma) {
-
-  uint32_t ret =
-      bm_network_spi_read_write(pBufferTx, pBufferRx, nbBytes, useDma) == BmOK
-          ? 0
-          : 1;
-  if (ret == 0) {
-    if (ADIN2111_MAC_SPI_CALLBACK) {
-      ADIN2111_MAC_SPI_CALLBACK(ADIN2111_MAC_SPI_CALLBACK_PARAM, 0, NULL);
-    }
-  } else {
-    bm_debug("Network SPI Read/Write Failed\n");
-  }
-
-  return ret;
-}
 
 // Required by the Analog Devices adi_hal.h to be implementeed by the application.
 // We save the pointer here in our driver wrapper to simplify Bristlemouth integration.
@@ -70,17 +47,6 @@ uint32_t HAL_RegisterCallback(HAL_Callback_t const *intCallback,
   // cast a function pointer to a function pointer pointer incorrectly.
   ADIN2111_MAC_INT_CALLBACK = (const HAL_Callback_t)intCallback;
   ADIN2111_MAC_INT_CALLBACK_PARAM = hDevice;
-  return ADI_ETH_SUCCESS;
-}
-
-// Required by the Analog Devices adi_hal.h to be implementeed by the application.
-// We save the pointer here in our driver wrapper to simplify Bristlemouth integration.
-uint32_t HAL_SpiRegisterCallback(HAL_Callback_t const *spiCallback,
-                                 void *hDevice) {
-  // Analog Devices code has a bug at adi_mac.c:535 where they
-  // cast a function pointer to a function pointer pointer incorrectly.
-  ADIN2111_MAC_SPI_CALLBACK = (const HAL_Callback_t)spiCallback;
-  ADIN2111_MAC_SPI_CALLBACK_PARAM = hDevice;
   return ADI_ETH_SUCCESS;
 }
 

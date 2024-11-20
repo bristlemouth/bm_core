@@ -14,6 +14,7 @@ extern "C" {
 
 typedef void (*L2LinkChangeCb)(uint8_t port, bool state);
 
+BmErr bm_l2_handle_device_interrupt(void);
 BmErr bm_l2_link_output(void *buf, uint32_t length);
 void bm_l2_deinit(void);
 BmErr bm_l2_init(NetworkDevice network_device);

@@ -18,7 +18,6 @@ FAKE_VOID_FUNC(network_device_power_cb, bool);
 FAKE_VALUE_FUNC(uint32_t, HAL_DisableIrq);
 FAKE_VALUE_FUNC(uint32_t, HAL_EnableIrq);
 FAKE_VALUE_FUNC(uint32_t, HAL_GetEnableIrq);
-FAKE_VALUE_FUNC(uint32_t, HAL_RegisterCallback, HAL_Callback_t const *, void *);
 FAKE_VALUE_FUNC(uint32_t, HAL_SpiReadWrite, uint8_t *, uint8_t *, uint32_t,
                 bool);
 FAKE_VALUE_FUNC(uint32_t, HAL_SpiRegisterCallback, HAL_Callback_t const *,

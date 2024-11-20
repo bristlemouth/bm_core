@@ -1,7 +1,6 @@
 #include "l2.h"
 #include "bm_config.h"
 #include "bm_ip.h"
-#include "bm_network_generic.h"
 #include "bm_os.h"
 #include "util.h"
 
@@ -295,7 +294,7 @@ static void link_change(uint8_t port_idx, bool is_up) {
   }
 }
 
-static BmErr bm_l2_handle_device_interrupt(void) {
+BmErr bm_l2_handle_device_interrupt(void) {
 
   L2QueueElement int_evt = {0, NULL, L2Irq, 0};
 
@@ -329,7 +328,6 @@ void bm_l2_deinit(void) {
  */
 BmErr bm_l2_init(NetworkDevice network_device) {
   BmErr err = BmEINVAL;
-  bm_network_register_int_callback(bm_l2_handle_device_interrupt);
   network_device.callbacks->receive = bm_l2_rx;
   network_device.callbacks->link_change = link_change;
   CTX.network_device = network_device;

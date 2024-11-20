@@ -134,6 +134,7 @@ set (BCMP_SRCS
     ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/time_stub.c
+    ${STUB_DIR}/l2_stub.c
     ${STUB_DIR}/dfu_stub.c
     ${STUB_DIR}/config_stub.c
     ${STUB_DIR}/heartbeat_stub.c
@@ -517,5 +518,6 @@ set(BRISTLEMOUTH_SRCS
     ${STUB_DIR}/bm_ip_stub.c
     ${STUB_DIR}/l2_stub.c
     ${STUB_DIR}/bm_service_stub.c
+    ${STUB_DIR}/topology_stub.c
 )
 create_gtest("bristlemouth" "${BRISTLEMOUTH_SRCS}")
