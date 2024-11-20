@@ -37,7 +37,7 @@ BmErr bcmp_time_set_time(uint64_t target_node_id, uint64_t utc_us) {
  This function sends a system time get message to the specified target node.
 
  @param[in] target_node_id The ID of the target node.
- @return BmErr if the message was sent successfully, BmEINVAL otherwise.
+ @return BmOK if the message was sent successfully, BmEINVAL otherwise.
  */
 BmErr bcmp_time_get_time(uint64_t target_node_id) {
   BmErr err = BmOK;
