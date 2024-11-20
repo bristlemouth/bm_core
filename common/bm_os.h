@@ -37,6 +37,7 @@ BmQueue bm_queue_create(uint32_t queue_length, uint32_t item_size);
 void bm_queue_delete(BmQueue queue);
 BmErr bm_queue_receive(BmQueue queue, void *item, uint32_t timeout_ms);
 BmErr bm_queue_send(BmQueue queue, const void *item, uint32_t timeout_ms);
+BmErr bm_queue_send_to_front_from_isr(BmQueue queue, const void *item);
 
 // Semaphore functions
 BmSemaphore bm_semaphore_create(void);
