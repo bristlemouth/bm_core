@@ -35,6 +35,11 @@ BmErr bm_queue_send(BmQueue queue, const void *item, uint32_t timeout_ms) {
 BmErr bm_queue_send_to_front_from_isr(BmQueue queue, const void *item) {
   BaseType_t higher_priority_task_woken = pdFALSE;
   if (xQueueSendToFrontFromISR(queue, item, &higher_priority_task_woken) == pdPASS) {
+    // The portYIELD_FROM_ISR() is safe to do on ARM Cortex-M architectures because
+    // it sets a pending switch bit in the NVIC such that once all interrupts are complete
+    // it knows to tell the scheduler to do a context switch. On some other architectures,
+    // the yield may immediately call the scheduler to perform the context switch so this
+    // function should be the last thing called from the ISR if possible.
     portYIELD_FROM_ISR(higher_priority_task_woken);
     return BmOK;
   } else {
