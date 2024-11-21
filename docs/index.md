@@ -9,6 +9,6 @@ The following is a guide to integrating custom hardware into the bristlemouth ec
 :caption: Contents:
 
 usage
-api
-reference/index
+api/api
+reference/reference
 ```
