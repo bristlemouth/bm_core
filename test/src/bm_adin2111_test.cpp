@@ -15,6 +15,8 @@ FAKE_VOID_FUNC(__enable_irq);
 
 FAKE_VOID_FUNC(network_device_power_cb, bool);
 
+FAKE_VALUE_FUNC(uint32_t, HAL_EnterCriticalSection);
+FAKE_VALUE_FUNC(uint32_t, HAL_ExitCriticalSection);
 FAKE_VALUE_FUNC(uint32_t, HAL_DisableIrq);
 FAKE_VALUE_FUNC(uint32_t, HAL_EnableIrq);
 FAKE_VALUE_FUNC(uint32_t, HAL_GetEnableIrq);

@@ -32,9 +32,9 @@ extern "C" {
 #define ADI_HAL_ERROR           (1)
 
 /*! Disables all processor interrupts. */
-#define     ADI_HAL_ENTER_CRITICAL_SECTION(...)     __disable_irq()
+#define     ADI_HAL_ENTER_CRITICAL_SECTION(...)     HAL_EnterCriticalSection()
 /*! Re-enables processor interrupts. */
-#define     ADI_HAL_EXIT_CRITICAL_SECTION(...)      __enable_irq()
+#define     ADI_HAL_EXIT_CRITICAL_SECTION(...)      HAL_ExitCriticalSection()
 
 /*!
 * @brief Callback function definition for HAL.

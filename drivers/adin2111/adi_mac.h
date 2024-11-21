@@ -155,9 +155,9 @@ extern "C" {
 #define ADI_MAC_TS_FREE_CNT_LSB_IN_NS  (100.0/12.0)
 
 /*! Byte order conversion for 16-bit values. */
-#define HTON16(a)                           ((uint16_t)((((a) & 0xFF) << 8) | (((a) >> 8) & 0xFF)))
+#define HTON16(a)                           (__builtin_bswap16(a))
 /*! Byte order conversion for 32-bit values. */
-#define HTON32(a)                           __REV((a))
+#define HTON32(a)                           (__builtin_bswap32(a))
 
 /*! MDIO Device Address extraction from 32-bit PHY register address. */
 #define DEVTYPE(a)                          (a >> 16)
