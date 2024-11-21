@@ -1,6 +1,7 @@
 set(SOURCES
     bm_service.c
     bm_service_request.c
+    bristlemouth.c
     cbor_service_helper.c
     config_cbor_map_service.c
     echo_service.c
@@ -15,4 +16,4 @@ target_include_directories(middleware PUBLIC
     .
 )
 
-target_link_libraries(middleware PRIVATE bmcommon bcmp bmmessages bmthirdparty)
+target_link_libraries(middleware PRIVATE bmadin2111 bmcommon bcmp bmmessages bmthirdparty)

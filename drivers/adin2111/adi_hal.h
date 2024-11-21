@@ -31,14 +31,10 @@ extern "C" {
 /*! HAL return code indicating an error has been encountered. */
 #define ADI_HAL_ERROR           (1)
 
-void __disable_irq(void);
-void __enable_irq(void);
-long unsigned int __REV(long unsigned int value);
-
 /*! Disables all processor interrupts. */
-#define     ADI_HAL_ENTER_CRITICAL_SECTION(...)     __disable_irq()
+#define     ADI_HAL_ENTER_CRITICAL_SECTION(...)     HAL_EnterCriticalSection()
 /*! Re-enables processor interrupts. */
-#define     ADI_HAL_EXIT_CRITICAL_SECTION(...)      __enable_irq()
+#define     ADI_HAL_EXIT_CRITICAL_SECTION(...)      HAL_ExitCriticalSection()
 
 /*!
 * @brief Callback function definition for HAL.

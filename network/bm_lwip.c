@@ -24,8 +24,7 @@
 #define ifname1 'm'
 #define ethernet_mtu 1500
 
-//TODO: this will have to be moved as we go along
-extern struct netif netif;
+static struct netif netif;
 
 typedef struct {
   BmErr (*udp_cb)(void *, uint64_t, uint32_t);
@@ -92,7 +91,7 @@ static uint16_t message_get_checksum(void *payload, uint32_t size) {
   uint16_t ret = UINT16_MAX;
   LwipLayout *data = (LwipLayout *)payload;
 
-  ret = ip6_chksum_pseudo(data->pbuf, IpProtoBcmp, size,
+  ret = ip6_chksum_pseudo(data->pbuf, ip_proto_bcmp, size,
                           (ip_addr_t *)message_get_src_ip(payload),
                           (ip_addr_t *)message_get_dst_ip(payload));
 
@@ -284,7 +283,7 @@ BmErr bm_ip_init(void) {
     bm_debug("Could not join ff03::1\n");
   }
 
-  CTX.raw_pcb = raw_new(IpProtoBcmp);
+  CTX.raw_pcb = raw_new(ip_proto_bcmp);
   if (CTX.raw_pcb) {
     raw_recv(CTX.raw_pcb, ip_recv, NULL);
     err = raw_bind(CTX.raw_pcb, IP_ADDR_ANY) == ERR_OK ? BmOK : BmEACCES;

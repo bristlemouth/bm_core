@@ -538,7 +538,7 @@ static BmErr dfu_copy_and_process_message(BcmpProcessData data) {
   return err;
 }
 
-void bm_dfu_init(void) {
+BmErr bm_dfu_init(void) {
   BmDfuEvent evt;
   BmErr retval;
 
@@ -595,6 +595,7 @@ void bm_dfu_init(void) {
                packet_add(&process_dfu_message, BcmpDFUBootCompleteMessage));
   bm_err_check(err,
                packet_add(&process_dfu_message, BcmpDFULastMessageMessage));
+  return err;
 }
 
 bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,

@@ -7,11 +7,12 @@ and you're wondering what would be required to make your device compatible with 
 read on!
 
 ## Setting Up The Repository
+
 The repository can be added as a git submodule to a project utilizing the `git submodule add` command,
 see [this](https://git-scm.com/book/en/v2/Git-Tools-Submodules) for more information.
 Or placed into a project by any other method.
 If cloned/added as a submodule to your project,
-make sure you update all of the submodules in `bm_core` by  `cd`'ing into `bm_core` and running:
+make sure you update all of the submodules in `bm_core` by `cd`'ing into `bm_core` and running:
 `git submodule update --init`.
 
 ## Configuration Header File
@@ -26,7 +27,9 @@ In order to ensure that this file is referenced properly in bm_core,
 please view [Build System Integration](#build_system_integration).
 
 (build_system_integration)=
+
 ## Build System Integration
+
 Bristlemouth heavily relies on being built with CMake.
 In order to integrate it within your own project,
 CMake is highly recommended.
@@ -36,7 +39,6 @@ with the following elements:
 
 - LWIP as the IP stack
 - FreeRTOS as the OS
-
 
 ```cmake
 # Setup variables to hold include files here
@@ -94,29 +96,39 @@ Bristlemouth can be integrated into other build systems by...
 <!--- Show how other build systems can utilize bm--->
 
 ## Running The Bristlemouth Stack
-Once Bristlemouth has been added to the project,
-it can be integrated within the project by configuring the following components:
 
-<!--- TODO: Refine this--->
-- Network Interface
-- Bristlemouth
-
-These items are configured by calling their initialization functions.
-An example of this and how the Bristlemouth stack is to be serviced is shown below:
+Once Bristlemouth has been added to the project build,
+the code integration is very simple: a single call to `bristlemouth_init`.
 
 ```C
-Adin2111 adin;
-Bristlemouth bm;
+#include "bristlemouth.h"
 
-int main() {
-    // other sensor setup
-    adin->init(...pins...spi peripheral...);
-    bm->init(adin, config);
-    for(;;) {
-        // other sensor code
-        bm->update();
+void network_device_power_callback(bool on) {
+    // Provide or cut off power to the network chip.
+    // On the mote, we set pin PH1 high or low.
+}
+
+int main(void) {
+    // ... your other setup code...
+
+    BmErr err = bristlemouth_init(network_device_power_callback);
+    if (err != BmOK) {
+        // handle error appropriately for your system
+    }
+
+    while (true) {
+        // ... your other ongoing code...
     }
 }
 ```
 
-<!--- Explain function parameters here?--->
+This assumes the use of the Bristlemouth mote hardware with lwip and FreeRTOS.
+Other future integrations are possible and even easy without many changes.
+Some examples are other IP stacks,
+other operating systems,
+and other single-pair ethernet (SPE) chips.
+
+If you need to perform such an integration,
+you should post details on the
+[forum](https://bristlemouth.discourse.group/).
+We will help you very quickly!

@@ -16,7 +16,6 @@
   @return BmErr on failure
 */
 BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
-  // TODO: abstract time since boot microseconds?
   BcmpHeartbeat heartbeat = {.time_since_boot_us =
                                  bm_ticks_to_ms(bm_get_tick_count()) * 1000,
                              .liveliness_lease_dur_s = lease_duration_s};

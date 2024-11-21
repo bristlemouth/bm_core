@@ -2,7 +2,7 @@
 #include "messages/neighbors.h"
 #include "util.h"
 
-DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_init);
+DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_init, uint8_t);
 DECLARE_FAKE_VALUE_FUNC(BcmpNeighbor *, bcmp_get_neighbors, uint8_t *);
 DECLARE_FAKE_VOID_FUNC(bcmp_check_neighbors);
 DECLARE_FAKE_VOID_FUNC(bcmp_print_neighbor_info, BcmpNeighbor *);

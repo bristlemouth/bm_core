@@ -1,7 +1,7 @@
 #include "mock_bm_os.h"
 #include "mock_neighbors.h"
 
-DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_init);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_init, uint8_t);
 DEFINE_FAKE_VALUE_FUNC(BcmpNeighbor *, bcmp_get_neighbors, uint8_t *);
 DEFINE_FAKE_VOID_FUNC(bcmp_check_neighbors);
 DEFINE_FAKE_VOID_FUNC(bcmp_print_neighbor_info, BcmpNeighbor *);

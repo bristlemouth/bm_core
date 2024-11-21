@@ -105,7 +105,7 @@ TEST_F(Neighbors, request_table) {
   reply->neighbor_len = 2;
   data.payload = (uint8_t *)reply;
 
-  EXPECT_EQ(bcmp_neighbor_init(), BmOK);
+  EXPECT_EQ(bcmp_neighbor_init(2), BmOK);
 
   bm_timer_start_fake.return_val = BmOK;
   bcmp_tx_fake.return_val = BmOK;
@@ -139,7 +139,7 @@ TEST_F(Neighbors, request_reply) {
   BcmpProcessData data;
   data.payload = (uint8_t *)&request;
 
-  EXPECT_EQ(bcmp_neighbor_init(), BmOK);
+  EXPECT_EQ(bcmp_neighbor_init(2), BmOK);
 
   node_id_fake.return_val = request.target_node_id;
   bcmp_tx_fake.return_val = BmOK;
