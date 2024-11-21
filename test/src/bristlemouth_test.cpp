@@ -19,5 +19,5 @@ TEST(Bristlemouth, init) {
 
 TEST(Bristlemouth, network_device) {
   NetworkDevice network_device = bristlemouth_network_device();
-   EXPECT_NE(network_device.trait, nullptr);
+  EXPECT_NE(network_device.trait, nullptr);
 }
