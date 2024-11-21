@@ -7,10 +7,6 @@ DEFINE_FFF_GLOBALS;
 extern "C" {
 void *bm_malloc(size_t size) { return malloc(size); }
 void bm_free(void *p) { free(p); }
-
-FAKE_VALUE_FUNC(uint32_t, __REV, uint32_t);
-FAKE_VOID_FUNC(__disable_irq);
-FAKE_VOID_FUNC(__enable_irq);
 }
 
 FAKE_VOID_FUNC(network_device_power_cb, bool);

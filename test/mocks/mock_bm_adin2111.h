@@ -16,10 +16,6 @@ DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_disable, void *);
 DECLARE_FAKE_VALUE_FUNC(uint8_t, netdevice_num_ports);
 DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_port_stats, void *, uint8_t, void *);
 
-DECLARE_FAKE_VALUE_FUNC(uint32_t, __REV, uint32_t);
-DECLARE_FAKE_VOID_FUNC(__disable_irq);
-DECLARE_FAKE_VOID_FUNC(__enable_irq);
-
 NetworkDevice create_mock_network_device(void);
 
 #ifdef __cplusplus
