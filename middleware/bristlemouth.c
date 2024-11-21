@@ -1,5 +1,6 @@
 #include "bristlemouth.h"
 #include "bcmp.h"
+#include "bm_adin2111.h"
 #include "bm_ip.h"
 #include "bm_service.h"
 #include "l2.h"
