@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
   <diagram name="Page-1" id="HMv95JZd37HtdOTtruG_">
-    <mxGraphModel dx="977" dy="627" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="684" dy="515" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -16,7 +16,7 @@
         <mxCell id="gICdmpGwAMncEI22UhPr-8" value="Responsible for:" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13.3;fontColor=#000000;align=left;spacing=0;verticalAlign=middle;strokeColor=none;strokeOpacity=100;fillOpacity=100;rounded=1;absoluteArcSize=1;arcSize=9;fillColor=none;strokeWidth=1.5;lucidId=sTpa8f46LPAu;" parent="gICdmpGwAMncEI22UhPr-7" vertex="1">
           <mxGeometry x="20" width="210" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="gICdmpGwAMncEI22UhPr-9" value="&lt;ul style=&quot;margin: 0px; padding-left: 10px; list-style-position: inside; list-style-type: disc; font-size: 11px;&quot;&gt;&lt;li style=&quot;text-align: left;&quot;&gt;Handling:&lt;/li&gt;&lt;ul&gt;&lt;li style=&quot;text-align: left;&quot;&gt;rx events from ethernet driver&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;tx events to ethernet driver&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;enabling/disabling power to downstream devices&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;link changes from ethernet driver&lt;/li&gt;&lt;/ul&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;&quot;&gt;Initializing Ethernet Driver&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;&quot;&gt;Providing a link output to the IP abstraction (transmit wrapper)&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13;spacing=0;strokeColor=none;strokeOpacity=100;fillOpacity=100;rounded=1;absoluteArcSize=1;arcSize=9;fillColor=none;strokeWidth=1.5;lucidId=CVpaMHye50hT;container=1;collapsible=0;fontColor=#000000;" parent="gICdmpGwAMncEI22UhPr-7" vertex="1">
+        <mxCell id="gICdmpGwAMncEI22UhPr-9" value="&lt;ul style=&quot;margin: 0px; padding-left: 10px; list-style-position: inside; list-style-type: disc; font-size: 11px;&quot;&gt;&lt;li style=&quot;text-align: left;&quot;&gt;Handling:&lt;/li&gt;&lt;ul&gt;&lt;li style=&quot;text-align: left;&quot;&gt;rx events from ethernet driver&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;tx events to ethernet driver&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;link changes from network device&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;&quot;&gt;Providing a link output to the IP stack abstraction (a transmit wrapper)&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13;spacing=0;strokeColor=none;strokeOpacity=100;fillOpacity=100;rounded=1;absoluteArcSize=1;arcSize=9;fillColor=none;strokeWidth=1.5;lucidId=CVpaMHye50hT;container=1;collapsible=0;fontColor=#000000;" parent="gICdmpGwAMncEI22UhPr-7" vertex="1">
           <mxGeometry x="10" y="30" width="230" height="120" as="geometry" />
         </mxCell>
         <mxCell id="TYPSVwXlaEJTnAn6_-3O-6" value="&lt;ul style=&quot;margin: 0px; padding-left: 10px; list-style-position: inside; list-style-type: disc; font-size: 11px;&quot;&gt;&lt;li style=&quot;text-align: left;&quot;&gt;Providing a layer of abstraction away from from the selected IP stack that is being used within the application&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;Sending messages upstream through the network stack&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;Handling messages to be sent through the L2 layer to the ethernet driver&lt;/li&gt;&lt;/ul&gt;" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13;spacing=0;strokeColor=none;strokeOpacity=100;fillOpacity=100;rounded=1;absoluteArcSize=1;arcSize=9;fillColor=none;strokeWidth=1.5;lucidId=CVpaMHye50hT;container=1;collapsible=0;fontColor=#000000;" parent="1" vertex="1">
@@ -28,7 +28,7 @@
         <mxCell id="TYPSVwXlaEJTnAn6_-3O-18" value="" style="group" parent="1" vertex="1" connectable="0">
           <mxGeometry x="162.25" y="470" width="171.5" height="285" as="geometry" />
         </mxCell>
-        <mxCell id="SoL7yf-537_D2qSoBvsr-10" value="" style="group" vertex="1" connectable="0" parent="TYPSVwXlaEJTnAn6_-3O-18">
+        <mxCell id="SoL7yf-537_D2qSoBvsr-10" value="" style="group" parent="TYPSVwXlaEJTnAn6_-3O-18" vertex="1" connectable="0">
           <mxGeometry x="0.75" y="165" width="170" height="115" as="geometry" />
         </mxCell>
         <mxCell id="TYPSVwXlaEJTnAn6_-3O-19" value="API" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13.3;fontStyle=1;spacing=0;verticalAlign=top;strokeColor=#000000;rounded=1;absoluteArcSize=1;arcSize=93;fillColor=#FF6700;strokeWidth=NaN;container=0;pointerEvents=0;collapsible=0;recursiveResize=0;lucidId=_Jpa2be36_ob;fontColor=#000000;" parent="SoL7yf-537_D2qSoBvsr-10" vertex="1">
@@ -46,31 +46,31 @@
         <mxCell id="TYPSVwXlaEJTnAn6_-3O-27" value="&lt;font style=&quot;font-size: 9px;&quot;&gt;Calls&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="1" vertex="1">
           <mxGeometry x="353" y="520" width="60" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="SoL7yf-537_D2qSoBvsr-1" value="&lt;b&gt;10BASE-T1L Driver&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;arcSize=7;verticalAlign=top;fontColor=#000000;" vertex="1" parent="1">
+        <mxCell id="SoL7yf-537_D2qSoBvsr-1" value="&lt;b&gt;10BASE-T1L Driver&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;arcSize=7;verticalAlign=top;fontColor=#000000;" parent="1" vertex="1">
           <mxGeometry x="363" y="640" width="334" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="SoL7yf-537_D2qSoBvsr-2" value="&lt;ul style=&quot;margin: 0px; padding-left: 10px;list-style-position: inside; list-style-type:disc&quot;&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;Obtaining data on the line and passing it to the L2 receive callback&lt;/font&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;Transmitting data to send on the line&lt;/font&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;Handling up or down link changes and passing the event to the L2 callback&lt;/font&gt;&lt;/li&gt;&lt;/ul&gt;" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13;spacing=0;strokeColor=none;strokeOpacity=100;fillOpacity=100;rounded=1;absoluteArcSize=1;arcSize=9;fillColor=none;strokeWidth=1.5;lucidId=CVpaMHye50hT;container=1;collapsible=0;fontColor=#000000;" vertex="1" parent="1">
+        <mxCell id="SoL7yf-537_D2qSoBvsr-2" value="&lt;ul style=&quot;margin: 0px; padding-left: 10px;list-style-position: inside; list-style-type:disc&quot;&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;Obtaining data on the line and passing it to the L2 receive callback&lt;/font&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;Transmitting data to send on the line&lt;/font&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;Handling up or down link changes and passing the event to the L2 callback&lt;/font&gt;&lt;/li&gt;&lt;/ul&gt;" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13;spacing=0;strokeColor=none;strokeOpacity=100;fillOpacity=100;rounded=1;absoluteArcSize=1;arcSize=9;fillColor=none;strokeWidth=1.5;lucidId=CVpaMHye50hT;container=1;collapsible=0;fontColor=#000000;" parent="1" vertex="1">
           <mxGeometry x="382" y="670" width="300" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="SoL7yf-537_D2qSoBvsr-3" value="Responsible for:" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13.3;fontColor=#000000;align=left;spacing=0;verticalAlign=middle;strokeColor=none;strokeOpacity=100;fillOpacity=100;rounded=1;absoluteArcSize=1;arcSize=9;fillColor=none;strokeWidth=1.5;lucidId=sTpa8f46LPAu;" vertex="1" parent="SoL7yf-537_D2qSoBvsr-2">
+        <mxCell id="SoL7yf-537_D2qSoBvsr-3" value="Responsible for:" style="html=1;overflow=block;blockSpacing=1;whiteSpace=wrap;fontSize=13.3;fontColor=#000000;align=left;spacing=0;verticalAlign=middle;strokeColor=none;strokeOpacity=100;fillOpacity=100;rounded=1;absoluteArcSize=1;arcSize=9;fillColor=none;strokeWidth=1.5;lucidId=sTpa8f46LPAu;" parent="SoL7yf-537_D2qSoBvsr-2" vertex="1">
           <mxGeometry y="-32" width="300" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="SoL7yf-537_D2qSoBvsr-11" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+        <mxCell id="SoL7yf-537_D2qSoBvsr-11" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="487.44000000000005" y="610" as="sourcePoint" />
             <mxPoint x="487" y="640" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="SoL7yf-537_D2qSoBvsr-12" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+        <mxCell id="SoL7yf-537_D2qSoBvsr-12" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="562" y="640" as="sourcePoint" />
             <mxPoint x="562.44" y="610" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="SoL7yf-537_D2qSoBvsr-13" value="&lt;font style=&quot;font-size: 9px;&quot;&gt;Initializes/Calls&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+        <mxCell id="SoL7yf-537_D2qSoBvsr-13" value="&lt;font style=&quot;font-size: 9px;&quot;&gt;Initializes/Calls&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="1" vertex="1">
           <mxGeometry x="413" y="600" width="60" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="SoL7yf-537_D2qSoBvsr-14" value="&lt;font style=&quot;font-size: 9px;&quot;&gt;Callbacks&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+        <mxCell id="SoL7yf-537_D2qSoBvsr-14" value="&lt;font style=&quot;font-size: 9px;&quot;&gt;Callbacks&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="1" vertex="1">
           <mxGeometry x="567" y="600" width="60" height="30" as="geometry" />
         </mxCell>
       </root>
