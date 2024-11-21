@@ -279,6 +279,17 @@ static void bm_l2_thread(void *parameters) {
   }
 }
 
+/*!
+  @brief Link Change Callback For Network Device
+
+  @details This API is called when there is a link change event on the network
+           device, this will set the ports available to be activated/deactivated
+
+  @param port_idx Index of port that is active or deactivated
+  @param is_up If the port index is active or deactivated
+
+  @return none
+ */
 static void link_change(uint8_t port_idx, bool is_up) {
   uint8_t port_mask = 1 << (port_idx);
   if (is_up) {
@@ -294,6 +305,16 @@ static void link_change(uint8_t port_idx, bool is_up) {
   }
 }
 
+/*!
+ @brief Queues Interrupt Event
+
+ @details This function is called by the user when an interrupt event has been
+          received from the network device, this queues and event to be handled
+          in the l2 thread
+
+ @return BmOK on success
+ @return BmENOMEM on failure
+ */
 BmErr bm_l2_handle_device_interrupt(void) {
 
   L2QueueElement int_evt = {0, NULL, L2Irq, 0};
@@ -322,7 +343,9 @@ void bm_l2_deinit(void) {
 
 /*!
   @brief Initialize L2 layer
+
   @details bm_l2_deinit must be called before this is called again to free resources
+
   @param netif The already-initialized network interface
   @return BmOK if successful, an error otherwise
  */
@@ -344,6 +367,17 @@ BmErr bm_l2_init(NetworkDevice network_device) {
   return err;
 }
 
+/*!
+ @brief Register A Link Change Callback
+
+ @details This will allow a link change event to be handled from upper layers
+          of the bristlemouth stack
+
+ @param cb callback to occur when a link change event occurs
+
+ @return BmOK on success
+ @return BmEINVAL on failure
+ */
 BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb) {
   BmErr err = BmEINVAL;
   if (cb) {
