@@ -134,6 +134,7 @@ set (BCMP_SRCS
     ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/time_stub.c
+    ${STUB_DIR}/l2_stub.c
     ${STUB_DIR}/dfu_stub.c
     ${STUB_DIR}/config_stub.c
     ${STUB_DIR}/heartbeat_stub.c
@@ -142,6 +143,7 @@ set (BCMP_SRCS
     ${STUB_DIR}/ping_stub.c
     ${STUB_DIR}/neighbors_stub.c
     ${STUB_DIR}/bm_ip_stub.c
+    ${STUB_DIR}/bm_adin2111_stub.c
 )
 create_gtest("bcmp" "${BCMP_SRCS}")
 
@@ -268,6 +270,7 @@ set (L2_SRCS
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_ip_stub.c
+    ${STUB_DIR}/bm_adin2111_stub.c
 )
 create_gtest("l2" "${L2_SRCS}")
 
@@ -503,3 +506,18 @@ set (PUBSUB_SRCS
     ${STUB_DIR}/resource_discovery_stub.c
 )
 create_gtest("pubsub" "${PUBSUB_SRCS}")
+
+# Bristlemouth integration main top-level test
+set(BRISTLEMOUTH_SRCS
+    # File we're testing
+    ${MIDDLEWARE_DIR}/bristlemouth.c
+
+    # Stubs
+    ${STUB_DIR}/bm_adin2111_stub.c
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/bm_ip_stub.c
+    ${STUB_DIR}/l2_stub.c
+    ${STUB_DIR}/bm_service_stub.c
+    ${STUB_DIR}/topology_stub.c
+)
+create_gtest("bristlemouth" "${BRISTLEMOUTH_SRCS}")

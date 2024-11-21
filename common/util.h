@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+// Error Return Values
 typedef enum {
   BmOK = 0,
   BmEPERM = 1,
@@ -39,6 +40,11 @@ typedef enum {
 #ifndef bcmp_topo_task_priority
 #define bcmp_topo_task_priority 3
 #endif
+
+// IP Stack Related Items
+#define ethernet_type_ipv6 (0x86DDU)
+#define ip_proto_udp (17)
+#define ip_proto_bcmp (0xBC)
 
 typedef struct {
   uint16_t year;
@@ -87,6 +93,14 @@ void swap_16bit(void *x);
 void swap_32bit(void *x);
 void swap_64bit(void *x);
 size_t bm_strnlen(const char *s, size_t max_length);
+
+static inline uint16_t uint8_to_uint16(uint8_t *buf) {
+  return (uint16_t)(buf[1] | buf[0] << 8);
+}
+
+static inline uint32_t uint8_to_uint32(uint8_t *buf) {
+  return (uint32_t)(buf[3] | buf[2] << 8 | buf[1] << 16 | buf[0] << 24);
+}
 
 //TODO: make this endian agnostic and platform agnostic
 /*!

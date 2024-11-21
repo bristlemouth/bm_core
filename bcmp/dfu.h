@@ -1,13 +1,12 @@
 #ifndef __BM_DFU_H__
 #define __BM_DFU_H__
 
+#include "bm_os.h"
+#include "lib_state_machine.h"
+#include "messages.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "bm_os.h"
-#include "messages.h"
-#include "lib_state_machine.h"
-
 
 // TODO - remove these when we can if we can
 #ifdef __cplusplus
@@ -95,8 +94,9 @@ typedef struct __attribute__((__packed__)) {
 } ReboootClientUpdateInfo;
 
 #ifndef ENABLE_TESTING
-extern ReboootClientUpdateInfo client_update_reboot_info __attribute__((section(".noinit")));
-#else // ENABLE_TESTING
+extern ReboootClientUpdateInfo client_update_reboot_info
+    __attribute__((section(".noinit")));
+#else  // ENABLE_TESTING
 extern ReboootClientUpdateInfo client_update_reboot_info;
 #endif // ENABLE_TESTING
 
@@ -108,13 +108,15 @@ void bm_dfu_set_pending_state_change(uint8_t new_state);
 
 void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code);
 void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num);
-void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code);
+void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success,
+                       BmDfuErr err_code);
 void bm_dfu_send_heartbeat(uint64_t dst_node_id);
 
-void bm_dfu_init(void);
+BmErr bm_dfu_init(void);
 void bm_dfu_process_message(uint8_t *buf, size_t len);
 bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
-                            UpdateFinishCb update_finish_callback, uint32_t timeoutMs);
+                            UpdateFinishCb update_finish_callback,
+                            uint32_t timeoutMs);
 
 /*!
  * UNIT TEST FUNCTIONS BELOW HERE
