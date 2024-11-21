@@ -27,3 +27,7 @@ BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb) {
   bm_err_check(err, bm_middleware_init(BM_MIDDLEWARE_PORT));
   return err;
 }
+
+NetworkDevice bristlemouth_network_device(void) {
+  return adin2111_network_device();
+}

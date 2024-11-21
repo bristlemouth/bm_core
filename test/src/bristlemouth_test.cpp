@@ -16,3 +16,8 @@ TEST(Bristlemouth, init) {
   BmErr err = bristlemouth_init(netdev_power_cb);
   EXPECT_EQ(err, BmOK);
 }
+
+TEST(Bristlemouth, network_device) {
+  NetworkDevice network_device = bristlemouth_network_device();
+   EXPECT_NE(network_device.trait, nullptr);
+}
