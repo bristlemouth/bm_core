@@ -17,7 +17,7 @@ Services most commonly will be implemented to provide a response/reply to a requ
 ### Registering Services
 
 To register a service, you must provide a service ID and a service handler callback.
-The sevrice ID is a string that uniquely identifies the service.
+The service ID is a string that uniquely identifies the service.
 The service handler callback is user defined and is invoked when a service request is received.
 Registering a service will add the service to the list of available services and the service will
 appear in the subscription list as `node_id/serivce ID/req`.
@@ -49,7 +49,7 @@ Unregistering a service will remove the service from the list of available servi
 requests will no longer be forwarded to the service handler callback.
 
 ```{eval-rst}
-.. cpp:funciton:: bool bm_service_unregister(size_t service_strlen, const char *service)
+.. cpp:function:: bool bm_service_unregister(size_t service_strlen, const char *service)
 
   Unregister a service.
 
@@ -97,9 +97,4 @@ and a timeout to expire the request if no reply is received.
 ```
 
 ## Examples
-
-### echo_service
-<!-- TODO -->
-
-### sys_info_service
-<!-- TODO -->
+Check out the [middleware reference](../reference/middleware.md#supported-services) for more example services.
