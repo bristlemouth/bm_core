@@ -572,6 +572,8 @@ set(BRISTLEMOUTH_SRCS
     ${STUB_DIR}/bm_adin2111_stub.c
     ${STUB_DIR}/bcmp_stub.c
     ${STUB_DIR}/bm_ip_stub.c
+    ${STUB_DIR}/configuration_stub.c
+    ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/l2_stub.c
     ${STUB_DIR}/bm_service_stub.c
     ${STUB_DIR}/topology_stub.c
