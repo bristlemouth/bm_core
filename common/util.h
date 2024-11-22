@@ -30,6 +30,7 @@ typedef enum {
   BmEALREADY = 114,
   BmEINPROGRESS = 115,
   BmECANCELED = 125,
+  BmENOTINTREC = 140,
 } BmErr;
 
 // Task Priorities

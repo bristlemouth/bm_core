@@ -461,8 +461,12 @@ BmErr process_received_message(void *payload, uint32_t size) {
       } else {
         // Utilize parsing callback
         if (cfg->process && (err = cfg->process(data)) != BmOK) {
-          bm_debug("Error processing parsed cb: %d of message %d\n", err,
+          if (err == BmENOTINTREC) {
+            bm_debug("Received a %d message that is not intended for us\n", data.header->type);
+          } else {
+            bm_debug("Error processing parsed cb: %d of message %d\n", err,
                    data.header->type);
+          }
         }
       }
     }
