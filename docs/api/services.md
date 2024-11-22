@@ -20,9 +20,14 @@ To register a service, you must provide a service ID and a service handler callb
 The sevrice ID is a string that uniquely identifies the service.
 The service handler callback is user defined and is invoked when a service request is received.
 Registering a service will add the service to the list of available services and the service will
-appear in the pub/sub list as `node_id/serivce ID/rep`. This means that the service will be replied
-to when it is requested. In other words, the service will publish to the `node_id/service ID/rep` topic
-when it is requested. This means the requesting node must subscribe to the `node_id/service ID/rep` topic, and this is automatically handled by the service requests component.
+appear in the subscription list as `node_id/serivce ID/req`.
+This is the topic that the service will listen on for incoming requests.
+
+When a request is made to the service, the service handler callback will be invoked with the
+request data and the service handler callback should respond with the appropriate response data.
+The response data will be sent back to the requester on the topic `node_id/service ID/rep`.
+This topic will then appear in the publication list as `node_id/service ID/rep`.
+This is the topic that the requester will listen on for the response.
 
 ```{eval-rst}
 .. cpp:function:: bool bm_service_register(size_t service_strlen, const char *service, \
@@ -61,6 +66,12 @@ and invoking the appropriate service response callback when a response is receiv
 Outbound requests each should have a unique ID, callback, and timeout.
 If the request times out, the service request handler will invoke the callback with a "fail".
 If the request is successful, the service request handler will invoke the callback with a "success".
+
+When a service request is made, the request data will be sent to the service on the topic
+`node_id/service ID/req`, the topic that the recipient should be subscribed to.
+This topic will then appear in the requesters's publication list.
+Likewise, the requester will subscribe to the topic `node_id/service ID/rep` to receive the response.
+This topic will appear in the requester's subscription list.
 
 ### Sending Service Requests
 
