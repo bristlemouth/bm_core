@@ -426,6 +426,9 @@ BmErr process_received_message(void *payload, uint32_t size) {
     buf = PACKET.cb.data(payload);
     data.header = (BcmpHeader *)buf;
     data.payload = (uint8_t *)(buf + sizeof(BcmpHeader));
+    if (data.payload == NULL) {
+      return err;
+    }
     data.src = PACKET.cb.src_ip(payload);
     data.dst = PACKET.cb.dst_ip(payload);
     data.size = size;
