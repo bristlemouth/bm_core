@@ -348,6 +348,14 @@ Public API supported by the BCMP configuration module is as follows:
   :param key: Pointer to the key name string
   :param err: Error value passed in as a pointer
   :param reply_cb: Callback when a reply is received over the bus, can be NULL
+                   the uint8_t buffer should be cast to BmConfigValue * before
+                   use, ex:
+
+                   BmErr my_cb_function(uint8_t *data) {
+                     BmConfigValue *msg = (BmConfigValue *)data;
+
+                     // ... insert other logic here ...
+                   }
 
   :returns: true if get message is sent properly, false otherwise
 ```
@@ -366,6 +374,14 @@ Public API supported by the BCMP configuration module is as follows:
   :param key: Pointer to the key name string
   :param err: Error value passed in as a pointer
   :param reply_cb: Callback when a reply is received over the bus, can be NULL
+                   the uint8_t buffer should be cast to BmConfigSet * before
+                   use, ex:
+
+                   BmErr my_cb_function(uint8_t *data) {
+                     BmConfigSet *msg = (BmConfigSet *)data;
+
+                     // ... insert other logic here ...
+                   }
 
   :returns: true if set message is sent properly, false otherwise
 ```
@@ -396,6 +412,14 @@ Public API supported by the BCMP configuration module is as follows:
   :param partition: Configuration partition to obtain the key names from
   :param err: Error value passed in as a pointer
   :param reply_cb: Callback when a reply is received over the bus, can be NULL
+                   the uint8_t buffer should be cast to BmConfigStatusRequest * before
+                   use, ex:
+
+                   BmErr my_cb_function(uint8_t *data) {
+                     BmConfigStatusRequest *msg = (BmConfigStatusRequest *)data;
+
+                     // ... insert other logic here ...
+                   }
 
   :returns: true if status message is sent properly, false otherwise
 ```
@@ -412,6 +436,14 @@ Public API supported by the BCMP configuration module is as follows:
   :param key_len: Length of the key name
   :param key: Pointer to the key name string
   :param reply_cb: Callback when a reply is received over the bus, can be NULL
+                   the uint8_t buffer should be cast to BmConfigDeleteKeyRequest * before
+                   use, ex:
+
+                   BmErr my_cb_function(uint8_t *data) {
+                     BmConfigDeleteKeyRequest *msg = (BmConfigDeleteKeyRequest *)data;
+
+                     // ... insert other logic here ...
+                   }
 
   :returns: true if delete message is sent properly, false otherwise
 ```
