@@ -95,46 +95,51 @@ static bool bcmp_resource_populate_msg_data(ResourceType type,
 /*!
   Process the resource discovery request message.
 
-  \param in *req - request
-  \param in *dst - destination IP to reply to.
-  \return - None
+  \param in data - request data
+  \return - BmOK if successful, an error otherwise
 */
 static BmErr bcmp_process_resource_discovery_request(BcmpProcessData data) {
   BmErr err = BmEBADMSG;
   BcmpResourceTableRequest *req = (BcmpResourceTableRequest *)data.payload;
-  if (req->target_node_id == node_id()) {
+  do {
+    if (req->target_node_id != node_id()) {
+      break;
+    }
     size_t msg_len = sizeof(BcmpResourceTableReply);
     if (!bcmp_resource_compute_list_size(PUB, &msg_len)) {
       bm_debug("Failed to get publishers list\n.");
-      return err;
+      break;
     }
     if (!bcmp_resource_compute_list_size(SUB, &msg_len)) {
       bm_debug("Failed to get subscribers list\n.");
-      return err;
+      break;
     }
+
     // Create and fill the reply
     uint8_t *reply_buf = (uint8_t *)bm_malloc(msg_len);
-    if (reply_buf) {
-      BcmpResourceTableReply *repl = (BcmpResourceTableReply *)reply_buf;
-      repl->node_id = node_id();
-      uint32_t data_offset = 0;
-      if (!bcmp_resource_populate_msg_data(PUB, repl, &data_offset)) {
-        bm_debug("Failed to get publishers list\n.");
-        return err;
-      }
-      if (!bcmp_resource_populate_msg_data(SUB, repl, &data_offset)) {
-        bm_debug("Failed to get publishers list\n.");
-        return err;
-      }
-      if (bcmp_tx(data.dst, BcmpResourceTableReplyMessage, reply_buf, msg_len,
-                  0, NULL) != BmOK) {
-        bm_debug("Failed to send bcmp resource table reply\n");
-      } else {
-        err = BmOK;
-      };
-      bm_free(reply_buf);
+    if (reply_buf == NULL) {
+      err = BmENOMEM;
+      break;
     }
-  }
+    BcmpResourceTableReply *reply = (BcmpResourceTableReply *)reply_buf;
+    reply->node_id = node_id();
+    uint32_t data_offset = 0;
+    if (!bcmp_resource_populate_msg_data(PUB, reply, &data_offset)) {
+      bm_debug("Failed to get publishers list\n.");
+      break;
+    }
+    if (!bcmp_resource_populate_msg_data(SUB, reply, &data_offset)) {
+      bm_debug("Failed to get publishers list\n.");
+      break;
+    }
+
+    err = bcmp_tx(data.dst, BcmpResourceTableReplyMessage, reply_buf, msg_len,
+                  0, NULL);
+    if (err != BmOK) {
+      bm_debug("Failed to send bcmp resource table reply, error %d\n", err);
+    };
+    bm_free(reply_buf);
+  } while (0);
 
   return err;
 }
@@ -344,16 +349,17 @@ BmErr bcmp_resource_discovery_send_request(uint64_t target_node_id,
   BcmpResourceTableRequest req = {
       .target_node_id = target_node_id,
   };
-  if (bcmp_tx(&multicast_ll_addr, BcmpResourceTableRequestMessage,
-              (uint8_t *)&req, sizeof(req), 0, NULL) != BmOK) {
-    bm_debug("Failed to send bcmp resource table request\n");
-  } else {
+  err = bcmp_tx(&multicast_ll_addr, BcmpResourceTableRequestMessage,
+                (uint8_t *)&req, sizeof(req), 0, NULL);
+  if (err == BmOK) {
     item = ll_create_item(item, &cb, sizeof(cb), target_node_id);
     if (item && ll_item_add(&RESOURCE_REQUEST_LIST, item) == BmOK) {
       err = BmOK;
     } else {
       err = BmENOMEM;
     }
+  } else {
+    bm_debug("Failed to send bcmp resource table request, error %d\n", err);
   }
   return err;
 }
