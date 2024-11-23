@@ -1152,3 +1152,28 @@ TEST_F(BcmpDfu, client_confirm_skip)
     EXPECT_EQ(bm_dfu_client_confirm_enable_fake.call_count, 1);
     EXPECT_EQ(bm_dfu_client_confirm_enable_fake.arg0_val, true);
 }
+
+// Testing private function, not in header but not marked static
+extern "C" BmErr dfu_copy_and_process_message(BcmpProcessData data);
+
+TEST_F(BcmpDfu, forward_msg_for_other) {
+  // Forward message not intended for this node
+  BcmpDfuStart *fwd_start_msg = (BcmpDfuStart *)malloc(sizeof(BcmpDfuStart));
+  fwd_start_msg->header.frame_type = BcmpDFUStartMessage;
+  fwd_start_msg->info.addresses.dst_node_id = 0x7777beeffeed2222;
+  fwd_start_msg->info.addresses.src_node_id = 0xdeaddeaddeaddead;
+  BcmpProcessData data = {
+      .header = (BcmpHeader *)fwd_start_msg,
+      .payload = (uint8_t *)fwd_start_msg,
+      .size = sizeof(BcmpDfuStart),
+  };
+  dfu_copy_and_process_message(data);
+  EXPECT_EQ(bcmp_ll_forward_fake.call_count, 1);
+  RESET_FAKE(bcmp_ll_forward);
+
+  // Do not forward message intended for this node
+  fwd_start_msg->info.addresses.dst_node_id = 0xdeadbeefbeeffeed;
+  dfu_copy_and_process_message(data);
+  EXPECT_EQ(bcmp_ll_forward_fake.call_count, 0);
+  free(fwd_start_msg);
+}

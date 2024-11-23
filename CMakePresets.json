@@ -9,6 +9,7 @@
         {
             "name": "unit-tests",
             "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "ENABLE_TESTING": "1"
             }

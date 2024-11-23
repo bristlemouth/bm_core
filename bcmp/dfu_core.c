@@ -532,13 +532,20 @@ static void bm_dfu_event_thread(void *parameters) {
 //  \param pbuf[in] pbuf buffer
 //  \return none
 //*/
-static BmErr dfu_copy_and_process_message(BcmpProcessData data) {
+BmErr dfu_copy_and_process_message(BcmpProcessData data) {
   BmErr err = BmEINVAL;
-  uint8_t *buf = (uint8_t *)(bm_malloc((data.size)));
-  if (buf) {
-    memcpy(buf, data.payload, (data.size));
-    bm_dfu_process_message(buf, (data.size));
-    err = BmOK;
+  BmDfuFrame *frame = (BmDfuFrame *)data.payload;
+  BmDfuEventAddress *evt_addr = (BmDfuEventAddress *)frame->payload;
+  if (evt_addr->dst_node_id == node_id()) {
+    uint8_t *buf = (uint8_t *)(bm_malloc((data.size)));
+    if (buf) {
+      memcpy(buf, data.payload, (data.size));
+      bm_dfu_process_message(buf, (data.size));
+      err = BmOK;
+    }
+  } else {
+    err = bcmp_ll_forward(data.header, data.payload, data.size,
+                          data.ingress_port);
   }
   return err;
 }
