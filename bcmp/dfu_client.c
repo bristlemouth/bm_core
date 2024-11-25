@@ -53,21 +53,23 @@ static void bm_dfu_client_fail_update_and_reboot(void);
  *
  * @return none
  */
-static void bm_dfu_client_abort(BmDfuErr err) {
+static void bm_dfu_client_abort(BmDfuErr err_code) {
   BcmpDfuAbort abort_msg;
 
   /* Populate the appropriate event */
   abort_msg.err.addresses.dst_node_id = CLIENT_CTX.host_node_id;
   abort_msg.err.addresses.src_node_id = CLIENT_CTX.self_node_id;
-  abort_msg.err.err_code = err;
+  abort_msg.err.err_code = err_code;
   abort_msg.err.success = 0;
   abort_msg.header.frame_type = BcmpDFUAbortMessage;
-  if (bcmp_tx(&multicast_ll_addr,
-              (BcmpMessageType)(abort_msg.header.frame_type),
-              (uint8_t *)(&abort_msg), sizeof(abort_msg), 0, NULL)) {
+  BmErr err = bcmp_tx(&multicast_ll_addr,
+                      (BcmpMessageType)(abort_msg.header.frame_type),
+                      (uint8_t *)(&abort_msg), sizeof(abort_msg), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", abort_msg.header.frame_type);
   } else {
-    bm_debug("Failed to send message %d\n", abort_msg.header.frame_type);
+    bm_debug("Failed to send message %d, error %d\n",
+             abort_msg.header.frame_type, err);
   }
 }
 
@@ -76,12 +78,14 @@ static void bm_dfu_client_send_reboot_request() {
   reboot_req.addr.src_node_id = CLIENT_CTX.self_node_id;
   reboot_req.addr.dst_node_id = CLIENT_CTX.host_node_id;
   reboot_req.header.frame_type = BcmpDFURebootReqMessage;
-  if (bcmp_tx(&multicast_ll_addr,
-              (BcmpMessageType)(reboot_req.header.frame_type),
-              (uint8_t *)(&reboot_req), sizeof(BcmpDfuRebootReq), 0, NULL)) {
+  BmErr err = bcmp_tx(
+      &multicast_ll_addr, (BcmpMessageType)(reboot_req.header.frame_type),
+      (uint8_t *)(&reboot_req), sizeof(BcmpDfuRebootReq), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", reboot_req.header.frame_type);
   } else {
-    bm_debug("Failed to send message %d\n", reboot_req.header.frame_type);
+    bm_debug("Failed to send message %d, error %d\n",
+             reboot_req.header.frame_type, err);
   }
 }
 
@@ -90,12 +94,14 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
   boot_compl.addr.src_node_id = CLIENT_CTX.self_node_id;
   boot_compl.addr.dst_node_id = host_node_id;
   boot_compl.header.frame_type = BcmpDFUBootCompleteMessage;
-  if (bcmp_tx(&multicast_ll_addr,
-              (BcmpMessageType)(boot_compl.header.frame_type),
-              (uint8_t *)(&boot_compl), sizeof(BcmpDfuBootComplete), 0, NULL)) {
+  BmErr err = bcmp_tx(
+      &multicast_ll_addr, (BcmpMessageType)(boot_compl.header.frame_type),
+      (uint8_t *)(&boot_compl), sizeof(BcmpDfuBootComplete), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", boot_compl.header.frame_type);
   } else {
-    bm_debug("Failed to send message %d\n", boot_compl.header.frame_type);
+    bm_debug("Failed to send message %d, error %d\n",
+             boot_compl.header.frame_type, err);
   }
 }
 

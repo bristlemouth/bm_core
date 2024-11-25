@@ -198,10 +198,9 @@ bool bcmp_config_del_key(uint64_t target_node_id, BmConfigPartition partition,
       del_msg->partition = partition;
       del_msg->key_length = key_len;
       memcpy(del_msg->key, key, key_len);
-      if (bcmp_tx(&multicast_ll_addr, BcmpConfigDeleteRequestMessage,
-                  (uint8_t *)(del_msg), msg_size, 0, reply_cb) == BmOK) {
-        rval = true;
-      }
+      BmErr err = bcmp_tx(&multicast_ll_addr, BcmpConfigDeleteRequestMessage,
+                          (uint8_t *)(del_msg), msg_size, 0, reply_cb);
+      rval = (err == BmOK);
       bm_free(del_msg);
     }
   }
