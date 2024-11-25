@@ -138,9 +138,13 @@ static BmErr bcmp_process_ping_reply(BcmpProcessData data) {
 
     uint64_t diff = bm_ticks_to_ms(bm_get_tick_count()) - PING_REQUEST_TIMEOUT;
     bm_debug("🏓 %" PRIu16 " bytes from %016" PRIx64 " bcmp_seq=%" PRIu32
-             " time=%" PRIu64 " ms\n",
+             " time=%" PRIu64 " ms payload=",
              echo_reply->payload_len, echo_reply->node_id, echo_reply->seq_num,
              diff);
+    for (uint16_t i = 0; i < echo_reply->payload_len; i++) {
+      bm_debug("0x%X ", echo_reply->payload[i]);
+    }
+    bm_debug("\n");
     err = BmOK;
   }
 
