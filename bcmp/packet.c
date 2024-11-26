@@ -425,7 +425,7 @@ BmErr process_received_message(void *payload, uint32_t size) {
   if (payload && PACKET.initialized) {
     buf = PACKET.cb.data(payload);
     if (buf == NULL) {
-      bm_debug("Recieved BCMP message with NULL header!\n");
+      bm_debug("Recieved BCMP message with no contents!\n");
       return err;
     }
     data.header = (BcmpHeader *)buf;
