@@ -319,3 +319,11 @@ TEST_F(Packet, sequence_reply) {
             0);
   ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, 0);
 }
+
+TEST_F(Packet, null_payload) {
+  PacketTestData data = {};
+  RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
+  RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
+  // Test a completely null payload
+  ASSERT_EQ(process_received_message((void *)&data, sizeof(BcmpHeartbeat)), BmEINVAL);
+  }

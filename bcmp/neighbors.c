@@ -84,12 +84,13 @@ static BmErr bcmp_send_neighbor_table(void *addr) {
   @return BmErr if failed
 */
 static BmErr bcmp_process_neighbor_table_request(BcmpProcessData data) {
-  BmErr err = BmEINVAL;
+  BmErr err = BmENOTINTREC;
   BcmpNeighborTableRequest *request = (BcmpNeighborTableRequest *)data.payload;
-  if (request && ((request->target_node_id == 0) ||
-                  node_id() == request->target_node_id)) {
+
+  if (request->target_node_id == 0 || node_id() == request->target_node_id) {
     err = bcmp_send_neighbor_table(data.dst);
   }
+
   return err;
 }
 
@@ -99,7 +100,7 @@ static BmErr bcmp_process_neighbor_table_request(BcmpProcessData data) {
   @param *neighbor_table_reply - reply message to process
 */
 static BmErr bcmp_process_neighbor_table_reply(BcmpProcessData data) {
-  BmErr err = BmEINVAL;
+  BmErr err = BmENOTINTREC;
   BcmpNeighborTableReply *reply = (BcmpNeighborTableReply *)data.payload;
 
   if (TARGET_NODE_ID == reply->node_id) {
