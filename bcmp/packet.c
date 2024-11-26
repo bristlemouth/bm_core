@@ -416,7 +416,7 @@ BmErr packet_remove(BcmpMessageType type) {
  */
 BmErr process_received_message(void *payload, uint32_t size) {
   BmErr err = BmEINVAL;
-  BcmpProcessData data;
+  BcmpProcessData data = {0};
   BcmpSequencedRequestCb cb = NULL;
   BcmpRequestElement *request_message = NULL;
   BcmpPacketCfg *cfg = NULL;
@@ -424,11 +424,12 @@ BmErr process_received_message(void *payload, uint32_t size) {
 
   if (payload && PACKET.initialized) {
     buf = PACKET.cb.data(payload);
-    data.header = (BcmpHeader *)buf;
-    data.payload = (uint8_t *)(buf + sizeof(BcmpHeader));
-    if (data.payload == NULL) {
+    if (buf == NULL) {
+      bm_debug("Recieved BCMP message with NULL header!\n");
       return err;
     }
+    data.header = (BcmpHeader *)buf;
+    data.payload = (uint8_t *)(buf + sizeof(BcmpHeader));
     data.src = PACKET.cb.src_ip(payload);
     data.dst = PACKET.cb.dst_ip(payload);
     data.size = size;
@@ -476,7 +477,6 @@ BmErr process_received_message(void *payload, uint32_t size) {
       }
     }
   }
-
   return err;
 }
 
