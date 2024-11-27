@@ -267,6 +267,9 @@ set (L2_SRCS
     # File we're testing
     ${NETWORK_DIR}/l2.c
 
+    # Support files
+    ${COMMON_DIR}/util.c
+
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/bm_ip_stub.c

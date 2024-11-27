@@ -62,7 +62,7 @@ static void bm_dfu_client_abort(BmDfuErr err_code) {
   abort_msg.err.err_code = err_code;
   abort_msg.err.success = 0;
   abort_msg.header.frame_type = BcmpDFUAbortMessage;
-  BmErr err = bcmp_tx(&multicast_ll_addr,
+  BmErr err = bcmp_tx(&multicast_global_addr,
                       (BcmpMessageType)(abort_msg.header.frame_type),
                       (uint8_t *)(&abort_msg), sizeof(abort_msg), 0, NULL);
   if (err == BmOK) {
@@ -79,7 +79,7 @@ static void bm_dfu_client_send_reboot_request() {
   reboot_req.addr.dst_node_id = CLIENT_CTX.host_node_id;
   reboot_req.header.frame_type = BcmpDFURebootReqMessage;
   BmErr err = bcmp_tx(
-      &multicast_ll_addr, (BcmpMessageType)(reboot_req.header.frame_type),
+      &multicast_global_addr, (BcmpMessageType)(reboot_req.header.frame_type),
       (uint8_t *)(&reboot_req), sizeof(BcmpDfuRebootReq), 0, NULL);
   if (err == BmOK) {
     bm_debug("Message %d sent \n", reboot_req.header.frame_type);
@@ -95,7 +95,7 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
   boot_compl.addr.dst_node_id = host_node_id;
   boot_compl.header.frame_type = BcmpDFUBootCompleteMessage;
   BmErr err = bcmp_tx(
-      &multicast_ll_addr, (BcmpMessageType)(boot_compl.header.frame_type),
+      &multicast_global_addr, (BcmpMessageType)(boot_compl.header.frame_type),
       (uint8_t *)(&boot_compl), sizeof(BcmpDfuBootComplete), 0, NULL);
   if (err == BmOK) {
     bm_debug("Message %d sent \n", boot_compl.header.frame_type);
