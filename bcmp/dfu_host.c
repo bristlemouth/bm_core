@@ -114,7 +114,7 @@ static void bm_dfu_host_req_update() {
   update_start_req_evt.info.addresses.src_node_id = host_ctx.self_node_id;
   update_start_req_evt.info.addresses.dst_node_id = host_ctx.client_node_id;
   update_start_req_evt.header.frame_type = BcmpDFUStartMessage;
-  BmErr err = bcmp_tx(&multicast_ll_addr,
+  BmErr err = bcmp_tx(&multicast_global_addr,
                       (BcmpMessageType)(update_start_req_evt.header.frame_type),
                       (uint8_t *)(&update_start_req_evt),
                       sizeof(update_start_req_evt), 0, NULL);
@@ -161,7 +161,7 @@ static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest *req) {
       break;
     }
 
-    err = bcmp_tx(&multicast_ll_addr,
+    err = bcmp_tx(&multicast_global_addr,
                   (BcmpMessageType)(payload_header->header.frame_type), buf,
                   payload_len_plus_header, 0, NULL);
     if (err == BmOK) {
@@ -190,7 +190,7 @@ static void bm_dfu_host_send_reboot() {
   reboot_msg.addr.src_node_id = host_ctx.self_node_id;
   reboot_msg.addr.dst_node_id = host_ctx.client_node_id;
   reboot_msg.header.frame_type = BcmpDFURebootMessage;
-  BmErr err = bcmp_tx(&multicast_ll_addr,
+  BmErr err = bcmp_tx(&multicast_global_addr,
                       (BcmpMessageType)(reboot_msg.header.frame_type),
                       (uint8_t *)(&reboot_msg), sizeof(BcmpDfuReboot), 0, NULL);
   if (err == BmOK) {
