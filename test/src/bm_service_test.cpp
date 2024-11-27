@@ -9,11 +9,14 @@ DEFINE_FFF_GLOBALS;
 extern "C" {
 #include "bm_service.h"
 #include "mock_bm_os.h"
+#include "mock_bm_service_request.h"
 #include "mock_pubsub.h"
 }
 
 class BmService : public ::testing::Test {
 public:
+  rnd_gen RND;
+
 private:
 protected:
   const char *service = "/rand/service/name";
@@ -35,7 +38,18 @@ protected:
   }
 };
 
-TEST_F(BmService, init) { bm_service_init(); }
+TEST_F(BmService, init) {
+  bm_semaphore_create_fake.return_val =
+      (void *)RND.rnd_int(UINT64_MAX, UINT32_MAX);
+  bm_service_request_init_fake.return_val = BmOK;
+  ASSERT_EQ(bm_service_init(), BmOK);
+
+  bm_service_request_init_fake.return_val = BmENOMEM;
+  ASSERT_NE(bm_service_init(), BmOK);
+
+  bm_semaphore_create_fake.return_val = 0;
+  ASSERT_NE(bm_service_init(), BmOK);
+}
 
 TEST_F(BmService, register) {
   bm_semaphore_take_fake.return_val = BmOK;

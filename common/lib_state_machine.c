@@ -1,4 +1,5 @@
 #include "lib_state_machine.h"
+#include "bm_config.h"
 
 /*!
   Initialize the state machine
@@ -8,12 +9,17 @@
   \param[in] checkTransitionsForNextState Pointer to the function which will check for state transitions.
   \return N/A
 */
-void lib_sm_init(
-    LibSmContext *ctx, const LibSmState *init_state,
-    CheckTransitionsForNextState check_transitions_for_next_state) {
-  // configASSERT(checkTransitionsForNextState != NULL);
-  ctx->current_state = init_state;
-  ctx->check_transitions_for_next_state = check_transitions_for_next_state;
+BmErr lib_sm_init(LibSmContext *ctx, const LibSmState *init_state,
+                  CheckTransitionsForNextState check_transitions_for_next_state,
+                  const char *name) {
+  BmErr err = BmEINVAL;
+  if (check_transitions_for_next_state && ctx && init_state && name) {
+    ctx->current_state = init_state;
+    ctx->check_transitions_for_next_state = check_transitions_for_next_state;
+    ctx->name = name;
+    err = BmOK;
+  }
+  return err;
 }
 
 /*!
@@ -22,22 +28,35 @@ void lib_sm_init(
   \param[in] ctx Pointer to the state machine context.
   \return N/A
 */
-void lib_sm_run(LibSmContext *ctx) {
-  // configASSERT(ctx.current_state != NULL);
-  // configASSERT(ctx.current_state->run);
-  ctx->current_state->run();
-  const LibSmState *next_state =
-      ctx->check_transitions_for_next_state(ctx->current_state->state_enum);
-  // configASSERT(next_state != NULL);
-  if (ctx->current_state != next_state) {
-    if (ctx->current_state->on_state_exit) {
-      ctx->current_state->on_state_exit();
+BmErr lib_sm_run(LibSmContext *ctx) {
+  BmErr err = BmOK;
+  if (ctx->current_state && ctx->current_state->run) {
+    bm_err_check_print(err, ctx->current_state->run(),
+                       "running current state: %s of %s",
+                       ctx->current_state->state_name, ctx->name);
+    err = BmENODEV;
+    const LibSmState *next_state =
+        ctx->check_transitions_for_next_state(ctx->current_state->state_enum);
+    if (next_state) {
+      err = BmOK;
+      if (ctx->current_state != next_state) {
+        if (ctx->current_state->on_state_exit) {
+          bm_err_check_print(err, ctx->current_state->on_state_exit(),
+                             "exiting current state: %s of %s",
+                             ctx->current_state->state_name, ctx->name);
+        }
+        ctx->current_state = next_state;
+        if (ctx->current_state->on_state_entry) {
+          bm_err_check_print(err, ctx->current_state->on_state_entry(),
+                             "entering current state: %s of %s",
+                             ctx->current_state->state_name, ctx->name);
+        }
+      }
     }
-    ctx->current_state = next_state;
-    if (ctx->current_state->on_state_entry) {
-      ctx->current_state->on_state_entry();
-    }
+  } else {
+    err = BmEINVAL;
   }
+  return err;
 }
 
 /*!
@@ -47,7 +66,6 @@ void lib_sm_run(LibSmContext *ctx) {
   \return The name of the current state.
 */
 const char *lib_sm_get_current_state_name(const LibSmContext *ctx) {
-  // configASSERT(ctx.current_state->stateName != NULL);
   return ctx->current_state->state_name;
 }
 

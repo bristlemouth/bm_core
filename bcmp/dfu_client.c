@@ -41,9 +41,6 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id);
 static void bm_dfu_client_transition_to_error(BmDfuErr err);
 static void bm_dfu_client_fail_update_and_reboot(void);
 
-// TODO - throughout this file there are a bunch of configASSERTs that need to be replaced with error handling
-// or have something in bm_common that either calls and assert or perhaps some sort of print error function
-
 /**
  * @brief Send DFU Abort to Host
  *
@@ -116,10 +113,9 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
 static void chunk_timer_handler(BmTimer tmr) {
   (void)tmr;
   BmDfuEvent evt = {DfuEventChunkTimeout, NULL, 0};
+  BmErr err = BmOK;
 
-  if (bm_queue_send(CLIENT_CTX.dfu_event_queue, &evt, 0) != BmOK) {
-    // configASSERT(false);
-  }
+  bm_err_check(err, bm_queue_send(CLIENT_CTX.dfu_event_queue, &evt, 0));
 }
 
 /**
@@ -134,8 +130,10 @@ static void chunk_timer_handler(BmTimer tmr) {
 static int32_t bm_dfu_process_payload(uint16_t len, uint8_t *buf) {
   int32_t retval = 0;
 
-  // configASSERT(len);
-  // configASSERT(buf);
+  if (!len || !buf) {
+    bm_debug("Invalid function parameters in %s\n", __func__);
+    return 1;
+  }
 
   do {
     if (bm_img_page_length > (len + CLIENT_CTX.img_page_byte_counter)) {
@@ -304,8 +302,8 @@ void bm_dfu_client_process_update_request(void) {
   }
 }
 
-void s_client_validating_run(void) {}
-void s_client_activating_run(void) {}
+BmErr s_client_validating_run(void) { return BmOK; }
+BmErr s_client_activating_run(void) { return BmOK; }
 
 /**
  * @brief Entry Function for the Client Receiving State
@@ -314,7 +312,7 @@ void s_client_activating_run(void) {}
  *
  * @return none
  */
-void s_client_receiving_entry(void) {
+BmErr s_client_receiving_entry(void) {
   /* Start from Chunk #0 */
   CLIENT_CTX.current_chunk = 0;
   CLIENT_CTX.chunk_retry_num = 0;
@@ -326,8 +324,7 @@ void s_client_receiving_entry(void) {
   bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
 
   /* Kickoff Chunk timeout */
-  // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-  bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+  return bm_timer_start(CLIENT_CTX.chunk_timer, 10);
 }
 
 /**
@@ -337,18 +334,18 @@ void s_client_receiving_entry(void) {
  *
  * @return none
  */
-void s_client_receiving_run(void) {
+BmErr s_client_receiving_run(void) {
   BmDfuEvent curr_evt = bm_dfu_get_current_event();
+  BmErr err = BmEINVAL;
 
-  if (curr_evt.type == DfuEventImageChunk) {
-    // configASSERT(curr_evt.buf);
+  if (curr_evt.type == DfuEventImageChunk && curr_evt.buf) {
+    err = BmOK;
     BmDfuFrame *frame = (BmDfuFrame *)(curr_evt.buf);
     BmDfuEventImageChunk *image_chunk_evt =
         (BmDfuEventImageChunk *)&((uint8_t *)(frame))[1];
 
     /* Stop Chunk Timer */
-    // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
-    bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
+    bm_err_check(err, bm_timer_stop(CLIENT_CTX.chunk_timer, 10));
 
     /* Get Chunk Length and Chunk */
     CLIENT_CTX.chunk_length = image_chunk_evt->payload_length;
@@ -370,8 +367,7 @@ void s_client_receiving_run(void) {
 
     if (CLIENT_CTX.current_chunk < CLIENT_CTX.num_chunks) {
       bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
-      // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-      bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+      bm_err_check(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
     } else {
       /* Process the frame */
       if (bm_dfu_process_end()) {
@@ -388,14 +384,12 @@ void s_client_receiving_run(void) {
       bm_dfu_client_transition_to_error(BmDfuErrTimeout);
     } else {
       bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
-      // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-      bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+      bm_err_check(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
     }
   } else if (
       curr_evt.type ==
       DfuEventReceivedUpdateRequest) { // The host dropped our previous ack to the image, and we need to sync up.
-    // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
-    bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
+    bm_err_check(err, bm_timer_stop(CLIENT_CTX.chunk_timer, 10));
     bm_dfu_send_ack(CLIENT_CTX.host_node_id, 1, BmDfuErrNone);
     // Start image from the beginning
     CLIENT_CTX.current_chunk = 0;
@@ -405,15 +399,15 @@ void s_client_receiving_run(void) {
     CLIENT_CTX.running_crc16 = 0;
     bm_delay(100); // Allow host to process ACK and Get ready to send chunk.
     bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
-    // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-    bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+    bm_err_check(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
   }
   /* TODO: (IMPLEMENT THIS PERIODICALLY ON HOST SIDE)
        If host is still waiting for chunk, it will send a heartbeat to client */
   else if (curr_evt.type == DfuEventHeartbeat) {
-    // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-    bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+    bm_err_check(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
   }
+
+  return err;
 }
 
 /**
@@ -423,7 +417,7 @@ void s_client_receiving_run(void) {
  *
  * @return none
  */
-void s_client_validating_entry(void) {
+BmErr s_client_validating_entry(void) {
   /* Verify image length */
   if (CLIENT_CTX.image_size != CLIENT_CTX.img_flash_offset) {
     bm_debug("Rx Len: %" PRIu32 ", Actual Len: %" PRIu32 "\n",
@@ -442,6 +436,8 @@ void s_client_validating_entry(void) {
       bm_dfu_client_transition_to_error(BmDfuErrBadCrc);
     }
   }
+
+  return BmOK;
 }
 
 /**
@@ -451,7 +447,7 @@ void s_client_validating_entry(void) {
  *
  * @return none
  */
-void s_client_activating_entry(void) {
+BmErr s_client_activating_entry(void) {
   /* Set as temporary switch. New application must confirm or else MCUBoot will
     switch back to old image */
   bm_debug("Successful transfer. Should be resetting\n");
@@ -459,6 +455,8 @@ void s_client_activating_entry(void) {
   /* Add a small delay so DFU_END message can get out to (Host Node + Desktop) before resetting device */
   bm_delay(10);
   bm_dfu_client_set_pending_and_reset();
+
+  return BmOK;
 }
 
 /**
@@ -468,14 +466,13 @@ void s_client_activating_entry(void) {
  *
  * @return none
  */
-void s_client_reboot_req_entry(void) {
+BmErr s_client_reboot_req_entry(void) {
   CLIENT_CTX.chunk_retry_num = 0;
   /* Request reboot */
   bm_dfu_client_send_reboot_request();
 
   /* Kickoff Chunk timeout */
-  // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-  bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+  return bm_timer_start(CLIENT_CTX.chunk_timer, 10);
 }
 
 /**
@@ -485,14 +482,17 @@ void s_client_reboot_req_entry(void) {
  *
  * @return none
  */
-void s_client_reboot_req_run(void) {
+BmErr s_client_reboot_req_run(void) {
   BmDfuEvent curr_evt = bm_dfu_get_current_event();
+  BmErr err = BmOK;
 
   if (curr_evt.type == DfuEventReboot) {
-    // configASSERT(curr_evt.buf);
-    // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
-    bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
-    bm_dfu_set_pending_state_change(BmDfuStateClientActivating);
+    if (curr_evt.buf) {
+      err = bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
+      bm_dfu_set_pending_state_change(BmDfuStateClientActivating);
+    } else {
+      err = BmENODATA;
+    }
   } else if (curr_evt.type == DfuEventChunkTimeout) {
     CLIENT_CTX.chunk_retry_num++;
     /* Try requesting reboot until max retries is reached */
@@ -501,10 +501,11 @@ void s_client_reboot_req_run(void) {
       bm_dfu_client_transition_to_error(BmDfuErrTimeout);
     } else {
       bm_dfu_client_send_reboot_request();
-      // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-      bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+      err = bm_timer_start(CLIENT_CTX.chunk_timer, 10);
     }
   }
+
+  return err;
 }
 
 /**
@@ -512,9 +513,11 @@ void s_client_reboot_req_run(void) {
  *
  * @return none
  */
-void s_client_update_done_entry(void) {
+BmErr s_client_update_done_entry(void) {
+  BmErr err = BmOK;
   CLIENT_CTX.host_node_id = client_update_reboot_info.host_node_id;
   CLIENT_CTX.chunk_retry_num = 0;
+
   if (git_sha() == client_update_reboot_info.gitSHA) {
     // We usually want to confirm the update, but if we want to force-confirm, we read a flag in the configuration,
     // confirm, reset the config flag, and then reboot.
@@ -525,14 +528,15 @@ void s_client_update_done_entry(void) {
     } else {
       bm_dfu_client_send_boot_complete(client_update_reboot_info.host_node_id);
       /* Kickoff Chunk timeout */
-      // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-      bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+      err = bm_timer_start(CLIENT_CTX.chunk_timer, 10);
     }
   } else {
     bm_dfu_update_end(client_update_reboot_info.host_node_id, false,
                       BmDfuErrWrongVer);
     bm_dfu_client_fail_update_and_reboot();
   }
+
+  return err;
 }
 
 /**
@@ -542,18 +546,21 @@ void s_client_update_done_entry(void) {
  *
  * @return none
  */
-void s_client_update_done_run(void) {
+BmErr s_client_update_done_run(void) {
+  BmErr err = BmOK;
   BmDfuEvent curr_evt = bm_dfu_get_current_event();
 
   if (curr_evt.type == DfuEventUpdateEnd) {
-    // configASSERT(curr_evt.buf);
-    // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
-    bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
-    bm_dfu_client_set_confirmed();
-    bm_debug("Boot confirmed!\n Update success!\n");
-    bm_dfu_update_end(client_update_reboot_info.host_node_id, true,
-                      BmDfuErrNone);
-    bm_dfu_set_pending_state_change(BmDfuStateIdle);
+    if (curr_evt.buf) {
+      err = bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
+      bm_dfu_client_set_confirmed();
+      bm_debug("Boot confirmed!\n Update success!\n");
+      bm_dfu_update_end(client_update_reboot_info.host_node_id, true,
+                        BmDfuErrNone);
+      bm_dfu_set_pending_state_change(BmDfuStateIdle);
+    } else {
+      err = BmENODATA;
+    }
   } else if (curr_evt.type == DfuEventChunkTimeout) {
     CLIENT_CTX.chunk_retry_num++;
     /* Try requesting confirmation until max retries is reached */
@@ -563,10 +570,11 @@ void s_client_update_done_run(void) {
     } else {
       /* Request confirmation */
       bm_dfu_client_send_boot_complete(client_update_reboot_info.host_node_id);
-      // configASSERT(xTimerStart(CLIENT_CTX.chunk_timer, 10));
-      bm_timer_start(CLIENT_CTX.chunk_timer, 10);
+      err = bm_timer_start(CLIENT_CTX.chunk_timer, 10);
     }
   }
+
+  return err;
 }
 
 /**
@@ -590,12 +598,15 @@ void bm_dfu_client_init(void) {
   CLIENT_CTX.chunk_timer = bm_timer_create(
       "DFU Client Chunk Timer", bm_ms_to_ticks(bm_dfu_client_chunk_timeout_ms),
       false, (void *)&tmr_id, chunk_timer_handler);
-  // configASSERT(CLIENT_CTX.chunk_timer);
+  if (!CLIENT_CTX.chunk_timer) {
+    bm_debug("Could not create DFU client timer...\n");
+  }
 }
 
 static void bm_dfu_client_transition_to_error(BmDfuErr err) {
-  // configASSERT(xTimerStop(CLIENT_CTX.chunk_timer, 10));
-  bm_timer_stop(CLIENT_CTX.chunk_timer, 10);
+  if (bm_timer_stop(CLIENT_CTX.chunk_timer, 10) != BmOK) {
+    bm_debug("Could not stop dfu timer in: %s\n", __func__);
+  }
   bm_dfu_set_error(err);
   bm_dfu_set_pending_state_change(BmDfuStateError);
 }

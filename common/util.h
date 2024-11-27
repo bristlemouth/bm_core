@@ -69,14 +69,15 @@ void date_time_from_utc(uint64_t utc_us, UtcDateTime *date_time);
   if (e == BmOK) {                                                             \
     e = f;                                                                     \
     if (e != BmOK) {                                                           \
-      printf("err: %d at %s:%d\n", e, __FILE__, __LINE__);                     \
+      bm_debug("err: %d at %s:%d\n", e, __FILE__, __LINE__);                   \
     }                                                                          \
   }
 #define bm_err_check_print(e, f, format, ...)                                  \
   if (e == BmOK) {                                                             \
     e = f;                                                                     \
     if (e != BmOK) {                                                           \
-      printf("err: %d at %s:%d\n" format, e, __FILE__, __LINE__, __VA_ARGS__); \
+      bm_debug("err: %d at %s:%d " format "\n", e, __FILE__, __LINE__,         \
+               __VA_ARGS__);                                                   \
     }                                                                          \
   }
 

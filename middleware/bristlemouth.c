@@ -1,6 +1,7 @@
 #include "bristlemouth.h"
 #include "bcmp.h"
 #include "bm_adin2111.h"
+#include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_service.h"
 #include "l2.h"
@@ -19,11 +20,7 @@ BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb) {
   bm_err_check(err, bm_ip_init());
   bm_err_check(err, bcmp_init(network_device));
   bm_err_check(err, topology_init(network_device.trait->num_ports()));
-
-  if (err == BmOK) {
-    bm_service_init();
-  }
-
+  bm_err_check(err, bm_service_init());
   bm_err_check(err, bm_middleware_init(BM_MIDDLEWARE_PORT));
   return err;
 }

@@ -6,13 +6,13 @@
 #define bm_dfu_host_heartbeat_timeout_ms 1000UL
 #define bm_dfu_update_default_timeout_ms (5 * 60 * 1000)
 
-typedef int (*bm_dfu_chunk_req_cb)(uint16_t chunk_num, uint16_t *chunk_len, uint8_t *buf,
-                                   uint16_t buf_len);
+typedef int (*bm_dfu_chunk_req_cb)(uint16_t chunk_num, uint16_t *chunk_len,
+                                   uint8_t *buf, uint16_t buf_len);
 
-void s_host_req_update_entry(void);
-void s_host_req_update_run(void);
-void s_host_update_entry(void);
-void s_host_update_run(void);
+BmErr s_host_req_update_entry(void);
+BmErr s_host_req_update_run(void);
+BmErr s_host_update_entry(void);
+BmErr s_host_update_run(void);
 
 void bm_dfu_host_init(void);
 void bm_dfu_host_set_params(UpdateFinishCb update_complete_callback,
