@@ -530,18 +530,6 @@ static void bm_dfu_event_thread(void *parameters) {
   }
 }
 
-static bool is_link_local_multicast(uint8_t *dst_ip) {
-  bool is_ll_multi = false;
-  if (dst_ip != NULL) {
-    // Link-local multicast address is FF02::1
-    uint8_t *ll_multi_bytes = (uint8_t *)&multicast_ll_addr;
-    is_ll_multi = dst_ip[0] == ll_multi_bytes[0] && // FF
-                  dst_ip[1] == ll_multi_bytes[1] && // 02
-                  dst_ip[15] == ll_multi_bytes[15]; // 01
-  }
-  return is_ll_multi;
-}
-
 ///*!
 //  Process a DFU message. Allocates memory that the consumer is in charge of freeing.
 //  \param pbuf[in] pbuf buffer
