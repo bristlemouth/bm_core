@@ -97,4 +97,4 @@ and a timeout to expire the request if no reply is received.
 ```
 
 ## Examples
-Check out the [middleware reference](../reference/middleware.md#supported-services) for more example services.
+Check out the [middleware reference](#supported_services) for more example services.
