@@ -530,11 +530,14 @@ static void bm_dfu_event_thread(void *parameters) {
   }
 }
 
-static bool is_link_local_multicast(void *dst_ip) {
+static bool is_link_local_multicast(uint8_t *dst_ip) {
   bool is_ll_multi = false;
   if (dst_ip != NULL) {
-    uint8_t *bytes = (uint8_t *)dst_ip;
-    is_ll_multi = bytes[0] == 0xFF && bytes[1] == 0x02 && bytes[15] == 0x01;
+    // Link-local multicast address is FF02::1
+    uint8_t *ll_multi_bytes = (uint8_t *)&multicast_ll_addr;
+    is_ll_multi = dst_ip[0] == ll_multi_bytes[0] && // FF
+                  dst_ip[1] == ll_multi_bytes[1] && // 02
+                  dst_ip[15] == ll_multi_bytes[15]; // 01
   }
   return is_ll_multi;
 }
