@@ -536,7 +536,7 @@ static void bm_dfu_event_thread(void *parameters) {
 //  \return none
 //*/
 BmErr dfu_copy_and_process_message(BcmpProcessData data) {
-  BmErr err = BmEINVAL;
+  BmErr err = BmENOTINTREC;
   BmDfuFrame *frame = (BmDfuFrame *)data.payload;
   BmDfuEventAddress *evt_addr = (BmDfuEventAddress *)frame->payload;
   if (evt_addr->dst_node_id == node_id()) {
