@@ -81,4 +81,6 @@ TEST(Adin2111, debug_packet_dump) {
   EXPECT_EQ(debug_packet_dump_cb_fake.call_count, 2);
   device.trait->send(device.self, (uint8_t *)"baz", 3, ADIN2111_PORT_MASK);
   EXPECT_EQ(debug_packet_dump_cb_fake.call_count, 3);
+  // We also expect packet dump on receive.
+  // There's no way to fake that in a test.
 }

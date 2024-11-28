@@ -220,17 +220,22 @@ static inline BmErr adin2111_netdevice_send_(void *self, uint8_t *data,
 
 // Called by the driver on received data
 // If the user has registered a callback, call it
-static void receive_callback_(void *device, uint32_t event,
-                              void *buffer_description_param) {
+static void receive_callback(void *device, uint32_t event,
+                             void *buffer_description_param) {
   (void)device;
   (void)event;
-  adi_eth_BufDesc_t *buffer_description = NULL;
+  adi_eth_BufDesc_t *buffer_description =
+      (adi_eth_BufDesc_t *)buffer_description_param;
 
   if (NETWORK_DEVICE.callbacks->receive) {
-    buffer_description = (adi_eth_BufDesc_t *)buffer_description_param;
     uint8_t port_mask = 1 << buffer_description->port;
     NETWORK_DEVICE.callbacks->receive(port_mask, buffer_description->pBuf,
                                       buffer_description->trxSize);
+  }
+
+  if (NETWORK_DEVICE.callbacks->debug_packet_dump) {
+    NETWORK_DEVICE.callbacks->debug_packet_dump(buffer_description->pBuf,
+                                                buffer_description->trxSize);
   }
 
   // Re-submit buffer into ADIN's RX queue
@@ -347,7 +352,7 @@ BmErr adin2111_init(void) {
     }
     memset(buffer_description->pBuf, 0, MAX_FRAME_BUF_SIZE);
     buffer_description->bufSize = MAX_FRAME_BUF_SIZE;
-    buffer_description->cbFunc = receive_callback_;
+    buffer_description->cbFunc = receive_callback;
   }
 
   // set up the static memory
