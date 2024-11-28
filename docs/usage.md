@@ -132,23 +132,23 @@ The following explains the necessary API for aforementioned subsystems.
 
 ### Configuration
 
-Keypair configuration values for the Bristlemouth stack are a paramount feature of the network stack.
+Key-value configurations for the Bristlemouth stack are a paramount feature of the network stack.
 [API](#configuration_api) is available get/set/delete keys locally on the device and over the network to other devices.
-Configuration keypair values are expected to be stored persistently across boots of the device.
-Meaning that the keypair values must be stored in some non-volatile memory (NVM).
+Configuration key-value pairs are expected to be stored persistently across boots of the device.
+Meaning that the key-value pairs must be stored in some non-volatile memory (NVM).
 This could be an external flash chipset,
 flash on the processor itself,
 EEPROM,
 eMMC,
 etc.
-There are three keypair partitions that must be taken into account in the NVM:
+There are three configuration partitions that must be taken into account in the NVM:
 
 1. User
 2. System
 3. Hardware
 
 These partitions do not have a maximum size,
-but should be adequately large enough to store the required keypair values expected to be set on the device.
+but should be adequately large enough to store the required key-value pairs expected to be set on the device.
 Minimally,
 each partition must be 4359 bytes (ensure it is aligned properly for the selected NVM method),
 see type defined structure `ConfigPartition` in `bm_core/bcmp/configuration.h`.
