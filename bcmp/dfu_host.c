@@ -9,6 +9,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#define timer_err_check_and_return(e, f)                                       \
+  bm_err_report(e, f);                                                         \
+  if (e != BmOK) {                                                             \
+    bm_dfu_host_transition_to_error(BmDfuErrAborted);                          \
+    return err;                                                                \
+  }
+
 typedef struct dfu_host_ctx_t {
   BmQueue dfu_event_queue;
   BmTimer ack_timer;
@@ -248,7 +255,7 @@ BmErr s_host_req_update_run(void) {
 
   if (curr_evt.type == DfuEventAckReceived) {
     /* Stop ACK Timer */
-    bm_err_check(err, bm_timer_stop(host_ctx.ack_timer, 10));
+    timer_err_check_and_return(err, bm_timer_stop(host_ctx.ack_timer, 10));
     BmDfuFrame *frame = (BmDfuFrame *)(curr_evt.buf);
     if (frame) {
       BmDfuEventResult *result_evt =
@@ -270,7 +277,7 @@ BmErr s_host_req_update_run(void) {
       bm_dfu_host_transition_to_error(BmDfuErrTimeout);
     } else {
       bm_dfu_host_req_update();
-      bm_err_check(err, bm_timer_start(host_ctx.ack_timer, 10));
+      timer_err_check_and_return(err, bm_timer_start(host_ctx.ack_timer, 10));
     }
   } else if (curr_evt.type == DfuEventAbort) {
     BmDfuErr dfu_err = BmDfuErrAborted;
@@ -320,12 +327,14 @@ BmErr s_host_update_run(void) {
 
       /* Request Next Chunk */
       /* Send Heartbeat to Client */
-      bm_err_check(err, bm_timer_start(host_ctx.heartbeat_timer, 10));
+      timer_err_check_and_return(err,
+                                 bm_timer_start(host_ctx.heartbeat_timer, 10));
 
       /* resend the frame to the client as is */
       bm_err_check(err, bm_dfu_host_send_chunk(chunk_req_evt));
 
-      bm_err_check(err, bm_timer_stop(host_ctx.heartbeat_timer, 10));
+      timer_err_check_and_return(err,
+                                 bm_timer_stop(host_ctx.heartbeat_timer, 10));
     } else {
       err = BmENODATA;
     }
@@ -338,7 +347,7 @@ BmErr s_host_update_run(void) {
       err = BmENODATA;
     }
   } else if (curr_evt.type == DfuEventUpdateEnd) {
-    bm_err_check(err, bm_timer_stop(host_ctx.update_timer, 100));
+    timer_err_check_and_return(err, bm_timer_stop(host_ctx.update_timer, 100));
     if (frame) {
       BmDfuEventResult *update_end_evt =
           (BmDfuEventResult *)(&((uint8_t *)(frame))[1]);
@@ -425,7 +434,7 @@ static void bm_dfu_host_transition_to_error(BmDfuErr dfu_err) {
   BmErr err = BmOK;
 
   bm_err_check(err,
-               bm_timer_stop(host_ctx.update_timer, 100) &&
+               bm_timer_stop(host_ctx.update_timer, 100) == BmOK &&
                        bm_timer_stop(host_ctx.heartbeat_timer, 10) == BmOK &&
                        bm_timer_stop(host_ctx.ack_timer, 10) == BmOK
                    ? BmOK

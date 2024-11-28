@@ -11,6 +11,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#define timer_err_check_and_return(e, f)                                       \
+  bm_err_report(e, f);                                                         \
+  if (e != BmOK) {                                                             \
+    bm_dfu_client_transition_to_error(BmDfuErrAborted);                        \
+    return err;                                                                \
+  }
+
 typedef struct DfuClientCtx {
   BmQueue dfu_event_queue;
   /* Variables from DFU Start */
@@ -339,13 +346,12 @@ BmErr s_client_receiving_run(void) {
   BmErr err = BmEINVAL;
 
   if (curr_evt.type == DfuEventImageChunk && curr_evt.buf) {
-    err = BmOK;
     BmDfuFrame *frame = (BmDfuFrame *)(curr_evt.buf);
     BmDfuEventImageChunk *image_chunk_evt =
         (BmDfuEventImageChunk *)&((uint8_t *)(frame))[1];
 
     /* Stop Chunk Timer */
-    bm_err_check(err, bm_timer_stop(CLIENT_CTX.chunk_timer, 10));
+    timer_err_check_and_return(err, bm_timer_stop(CLIENT_CTX.chunk_timer, 10));
 
     /* Get Chunk Length and Chunk */
     CLIENT_CTX.chunk_length = image_chunk_evt->payload_length;
@@ -367,7 +373,8 @@ BmErr s_client_receiving_run(void) {
 
     if (CLIENT_CTX.current_chunk < CLIENT_CTX.num_chunks) {
       bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
-      bm_err_check(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
+      timer_err_check_and_return(err,
+                                 bm_timer_start(CLIENT_CTX.chunk_timer, 10));
     } else {
       /* Process the frame */
       if (bm_dfu_process_end()) {
@@ -384,12 +391,13 @@ BmErr s_client_receiving_run(void) {
       bm_dfu_client_transition_to_error(BmDfuErrTimeout);
     } else {
       bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
-      bm_err_check(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
+      timer_err_check_and_return(err,
+                                 bm_timer_start(CLIENT_CTX.chunk_timer, 10));
     }
   } else if (
       curr_evt.type ==
       DfuEventReceivedUpdateRequest) { // The host dropped our previous ack to the image, and we need to sync up.
-    bm_err_check(err, bm_timer_stop(CLIENT_CTX.chunk_timer, 10));
+    timer_err_check_and_return(err, bm_timer_stop(CLIENT_CTX.chunk_timer, 10));
     bm_dfu_send_ack(CLIENT_CTX.host_node_id, 1, BmDfuErrNone);
     // Start image from the beginning
     CLIENT_CTX.current_chunk = 0;
@@ -399,12 +407,12 @@ BmErr s_client_receiving_run(void) {
     CLIENT_CTX.running_crc16 = 0;
     bm_delay(100); // Allow host to process ACK and Get ready to send chunk.
     bm_dfu_req_next_chunk(CLIENT_CTX.host_node_id, CLIENT_CTX.current_chunk);
-    bm_err_check(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
+    timer_err_check_and_return(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
   }
   /* TODO: (IMPLEMENT THIS PERIODICALLY ON HOST SIDE)
        If host is still waiting for chunk, it will send a heartbeat to client */
   else if (curr_evt.type == DfuEventHeartbeat) {
-    bm_err_check(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
+    timer_err_check_and_return(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
   }
 
   return err;

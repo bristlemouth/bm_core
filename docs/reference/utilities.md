@@ -3,6 +3,32 @@
 The following document describes some utility functions/macros that are used throughout Bristlemouth:
 
 ```{eval-rst}
+.. cpp:function:: bm_err_report(err, function)
+
+  Execute a function that returns `BmErr`,
+  if executed function returns an error,
+  then an error message will be printed describing the error found,
+  the line,
+  as well as the file the error occurred in.
+
+  :param err: The error value to be evaluated and assigned in the macro
+  :param function: Function to be ran and assigned to err if err is BmOK
+
+```
+
+```{eval-rst}
+.. cpp:function:: bm_err_check_print(err, function, format, ...)
+
+  This performs the same logic as above
+  but adds the ability to print a formatted string after the original error statement described above
+
+  :param err: The error value to be evaluated and assigned in the macro
+  :param function: Function to be ran and assigned to err if err is BmOK
+  :param format: String with formatting to add to error message
+  :param ...: Arguments for format
+```
+
+```{eval-rst}
 .. cpp:function:: bm_err_check(err, function)
 
   This macro is used to check the error state of a tracked `BmErr` variable

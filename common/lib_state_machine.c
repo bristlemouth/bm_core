@@ -23,17 +23,25 @@ BmErr lib_sm_init(LibSmContext *ctx, const LibSmState *init_state,
 }
 
 /*!
-  Run an iteration of the state machine
+  @brief Run an iteration of the state machine
 
-  \param[in] ctx Pointer to the state machine context.
-  \return N/A
+  @details This API runs through all state transitions and will print out
+           any errors that might have occurred in transitions, or while
+           running the current state
+
+  @param[in] ctx Pointer to the state machine context.
+  @return BmOK if all things 
 */
 BmErr lib_sm_run(LibSmContext *ctx) {
-  BmErr err = BmOK;
+  BmErr err = BmEINVAL;
+  BmErr run_err = BmOK;
+  BmErr exit_err = BmOK;
+  BmErr enter_err = BmOK;
+
   if (ctx->current_state && ctx->current_state->run) {
-    bm_err_check_print(err, ctx->current_state->run(),
-                       "running current state: %s of %s",
-                       ctx->current_state->state_name, ctx->name);
+    bm_err_report_print(run_err, ctx->current_state->run(),
+                        "running current state: %s of %s",
+                        ctx->current_state->state_name, ctx->name);
     err = BmENODEV;
     const LibSmState *next_state =
         ctx->check_transitions_for_next_state(ctx->current_state->state_enum);
@@ -41,20 +49,18 @@ BmErr lib_sm_run(LibSmContext *ctx) {
       err = BmOK;
       if (ctx->current_state != next_state) {
         if (ctx->current_state->on_state_exit) {
-          bm_err_check_print(err, ctx->current_state->on_state_exit(),
-                             "exiting current state: %s of %s",
-                             ctx->current_state->state_name, ctx->name);
+          bm_err_report_print(exit_err, ctx->current_state->on_state_exit(),
+                              "exiting current state: %s of %s",
+                              ctx->current_state->state_name, ctx->name);
         }
         ctx->current_state = next_state;
         if (ctx->current_state->on_state_entry) {
-          bm_err_check_print(err, ctx->current_state->on_state_entry(),
-                             "entering current state: %s of %s",
-                             ctx->current_state->state_name, ctx->name);
+          bm_err_report_print(enter_err, ctx->current_state->on_state_entry(),
+                              "entering current state: %s of %s",
+                              ctx->current_state->state_name, ctx->name);
         }
       }
     }
-  } else {
-    err = BmEINVAL;
   }
   return err;
 }
