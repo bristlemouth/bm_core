@@ -200,6 +200,11 @@ static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
   if (adin2111_SubmitTxBuffer(&DEVICE_STRUCT, port, buffer_description) !=
       ADI_ETH_SUCCESS) {
     free_tx_buffer(buffer_description);
+    goto end;
+  }
+
+  if (NETWORK_DEVICE.callbacks->debug_packet_dump) {
+    NETWORK_DEVICE.callbacks->debug_packet_dump(data, length);
   }
 
 end:

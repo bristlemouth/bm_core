@@ -7,6 +7,7 @@ typedef struct {
   void (*power)(bool on);
   void (*link_change)(uint8_t port_index, bool is_up);
   void (*receive)(uint8_t port_mask, uint8_t *data, size_t length);
+  void (*debug_packet_dump)(const uint8_t *data, size_t length);
 } NetworkDeviceCallbacks;
 
 typedef struct {
