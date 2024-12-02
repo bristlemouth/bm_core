@@ -91,9 +91,126 @@ For example,
 in FreeRTOS this would be every general header file that FreeRTOS provides,
 with the addition of the `FreeRTOSConfig.h` files location at a minimum.
 
-Bristlemouth can be integrated into other build systems by...
+<!--- TODO: show how other build systems can utilize bm--->
 
-<!--- Show how other build systems can utilize bm--->
+## Wrapper Functions
+
+In order to run the Bristlemouth stack,
+some functions must be implemented by the user to hook into the created library.
+These hook functions are necessary for the following subsystems:
+
+- Device Configuration
+- Device Firmware Updates (DFU)
+- RTC Time
+- Network Driver
+
+These functions are all declared in header files within `bm_core`,
+but must be defined by the integrator in their own application.
+
+Below is an example of how this would be implemented with an arbitrary header file named `some_bm_core_header.h`:
+
+`some_bm_core_header.h`
+```
+#include <stdint.h>
+
+void some_function(char *buf, uint32_t size);
+
+```
+
+`some_integrator_defined_source_file.c`
+```
+#include "some_bm_core_header.h"
+#include <stdlib.h>
+
+
+void some_function(char *buf, uint32_t size) {
+  printf("This buffer states: %.*s\n", size, buf);
+}
+```
+
+The following explains the necessary API for aforementioned subsystems.
+
+### Configuration
+
+Key-value configurations for the Bristlemouth stack are a paramount feature of the network stack.
+[API](#configuration_api) is available get/set/delete keys locally on the device and over the network to other devices.
+Configuration key-value pairs are expected to be stored persistently across boots of the device.
+Meaning that the key-value pairs must be stored in some non-volatile memory (NVM).
+This could be an external flash chipset,
+flash on the processor itself,
+EEPROM,
+eMMC,
+etc.
+There are three configuration partitions that must be taken into account in the NVM:
+
+1. User
+2. System
+3. Hardware
+
+These partitions do not have a maximum size,
+but should be adequately large enough to store the required key-value pairs expected to be set on the device.
+Minimally,
+each partition must be 4359 bytes (ensure it is aligned properly for the selected NVM method),
+see type defined structure `ConfigPartition` in `bm_core/bcmp/configuration.h`.
+
+The following shows how a 48kB EEPROM chip may be partitioned to hold the partitions mentioned above:
+
+```{image} config_eeprom_example.png
+:align: center
+:width: 1000
+:class: no-scaled-link
+```
+
+
+API that needs to be defined in the integrators application is found at `bm_core/bcmp/bm_configs_generic.h`.
+
+These functions are described below:
+
+```{eval-rst}
+.. cpp:function:: bool bm_config_read(BmConfigPartition partition, \
+                                      uint32_t offset, uint8_t *buffer, \
+                                      size_t length, uint32_t timeout_ms);
+
+  Read from a configuration partition and store read data into a buffer.
+  This is called when initializing the system to load the partitions into RAM.
+  Integrators are responsible for reading from the passed partition type within
+  their own definition of this function.
+
+  :param partition: Partition to read from (User, System, Hardware)
+  :param offset: Offset from beginning of partition location to read from
+  :param buffer: Buffer to store read data into
+  :param length: Length of buffer
+  :param timeout_ms: Timeout to read from partition in milliseconds
+
+  :returns: true if able to read from partition properly, false otherwise
+```
+
+```{eval-rst}
+.. cpp:function:: bool bm_config_write(BmConfigPartition partition, \
+                                      uint32_t offset, uint8_t *buffer, \
+                                      size_t length, uint32_t timeout_ms);
+
+  Write to a configuration partition from provided buffer.
+  This is only called when committing updated values to a specified partition.
+  Integrators are responsible for writing to the passed partition type within
+  their own definition of this function.
+
+  :param partition: Partition to write to (User, System, Hardware)
+  :param offset: Offset from beginning of partition location to write to
+  :param buffer: Buffer to write to specific partition
+  :param length: Length of buffer
+  :param timeout_ms: Timeout to write to partition in milliseconds
+
+  :returns: true if able to write to partition properly, false otherwise
+```
+
+```{eval-rst}
+.. cpp:function:: void bm_config_reset(void)
+
+  Reset the processor.
+  This is called when the configuration values are saved to flash (after a
+  commit).
+```
 
 ## Running The Bristlemouth Stack
 

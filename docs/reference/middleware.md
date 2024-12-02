@@ -20,6 +20,8 @@ the following diagram shows how these components work together:
 :class: no-scaled-link
 ```
 
+(supported_services)=
+
 ## Supported Services
 
 These services offer a request/reply form of communication.
