@@ -416,7 +416,7 @@ BmErr packet_remove(BcmpMessageType type) {
  */
 BmErr process_received_message(void *payload, uint32_t size) {
   BmErr err = BmEINVAL;
-  BcmpProcessData data;
+  BcmpProcessData data = {0};
   BcmpSequencedRequestCb cb = NULL;
   BcmpRequestElement *request_message = NULL;
   BcmpPacketCfg *cfg = NULL;
@@ -424,6 +424,10 @@ BmErr process_received_message(void *payload, uint32_t size) {
 
   if (payload && PACKET.initialized) {
     buf = PACKET.cb.data(payload);
+    if (buf == NULL) {
+      bm_debug("Recieved BCMP message with no contents!\n");
+      return err;
+    }
     data.header = (BcmpHeader *)buf;
     data.payload = (uint8_t *)(buf + sizeof(BcmpHeader));
     data.src = PACKET.cb.src_ip(payload);
@@ -461,13 +465,18 @@ BmErr process_received_message(void *payload, uint32_t size) {
       } else {
         // Utilize parsing callback
         if (cfg->process && (err = cfg->process(data)) != BmOK) {
-          bm_debug("Error processing parsed cb: %d of message %d\n", err,
-                   data.header->type);
+          if (err == BmENOTINTREC) {
+            bm_debug("Ignored a message of type: %d since it was not intended "
+                     "for us!\n",
+                     data.header->type);
+          } else {
+            bm_debug("Error processing parsed cb: %d of message %d\n", err,
+                     data.header->type);
+          }
         }
       }
     }
   }
-
   return err;
 }
 

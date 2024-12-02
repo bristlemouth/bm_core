@@ -72,9 +72,6 @@
   (addr[ipv6_source_address_offset + egress_port_idx] = port)
 #define add_ingress_port(addr, port)                                           \
   (addr[ipv6_source_address_offset + ingress_port_idx] = port)
-#define is_global_multicast(addr)                                              \
-  (((uint8_t *)(addr))[ipv6_destination_address_offset] == 0xFFU &&            \
-   ((uint8_t *)(addr))[ipv6_destination_address_offset + 1] == 0x03U)
 
 #define evt_queue_len (32)
 
@@ -233,7 +230,7 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
     // We need to code the RX Port into the IPV6 address passed up the stack
     add_ingress_port(payload, rx_evt->port_mask);
 
-    if (is_global_multicast(payload)) {
+    if (is_global_multicast(&payload[ipv6_destination_address_offset])) {
       uint8_t new_port_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
       bm_l2_tx(rx_evt->buf, rx_evt->length, new_port_mask);
     }

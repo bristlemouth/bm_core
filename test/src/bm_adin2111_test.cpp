@@ -10,6 +10,7 @@ void bm_free(void *p) { free(p); }
 }
 
 FAKE_VOID_FUNC(network_device_power_cb, bool);
+FAKE_VOID_FUNC(debug_packet_dump_cb, const uint8_t *, size_t);
 
 FAKE_VALUE_FUNC(uint32_t, HAL_EnterCriticalSection);
 FAKE_VALUE_FUNC(uint32_t, HAL_ExitCriticalSection);
@@ -69,4 +70,17 @@ TEST(Adin2111, port_stats) {
     // SEGFAULT because PHY is NULL, because no real SPI transactions
     EXPECT_DEATH(device.trait->port_stats(device.self, port, &stats), "");
   }
+}
+
+TEST(Adin2111, debug_packet_dump) {
+  NetworkDevice device = setup();
+  device.callbacks->debug_packet_dump = debug_packet_dump_cb;
+  device.trait->send(device.self, (uint8_t *)"foo", 3, ADIN2111_PORT_MASK);
+  EXPECT_EQ(debug_packet_dump_cb_fake.call_count, 1);
+  device.trait->send(device.self, (uint8_t *)"bar", 3, ADIN2111_PORT_MASK);
+  EXPECT_EQ(debug_packet_dump_cb_fake.call_count, 2);
+  device.trait->send(device.self, (uint8_t *)"baz", 3, ADIN2111_PORT_MASK);
+  EXPECT_EQ(debug_packet_dump_cb_fake.call_count, 3);
+  // We also expect packet dump on receive.
+  // There's no way to fake that in a test.
 }

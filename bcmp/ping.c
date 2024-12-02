@@ -100,7 +100,7 @@ static BmErr bcmp_send_ping_reply(BcmpEchoReply *echo_reply, void *addr,
 */
 static BmErr bcmp_process_ping_request(BcmpProcessData data) {
   BcmpEchoRequest *echo_req = (BcmpEchoRequest *)data.payload;
-  BmErr err = BmOK;
+  BmErr err = BmENOTINTREC;
   if ((echo_req->target_node_id == 0) ||
       (node_id() == echo_req->target_node_id)) {
     echo_req->target_node_id = node_id();
@@ -123,7 +123,7 @@ static BmErr bcmp_process_ping_request(BcmpProcessData data) {
   @return BmErr if failed
 */
 static BmErr bcmp_process_ping_reply(BcmpProcessData data) {
-  BmErr err = BmEINVAL;
+  BmErr err = BmENOTINTREC;
   BcmpEchoReply *echo_reply = (BcmpEchoReply *)data.payload;
 
   // TODO - once we have random numbers working we can then use a static number to check
@@ -138,9 +138,13 @@ static BmErr bcmp_process_ping_reply(BcmpProcessData data) {
 
     uint64_t diff = bm_ticks_to_ms(bm_get_tick_count()) - PING_REQUEST_TIMEOUT;
     bm_debug("🏓 %" PRIu16 " bytes from %016" PRIx64 " bcmp_seq=%" PRIu32
-             " time=%" PRIu64 " ms\n",
+             " time=%" PRIu64 " ms payload=",
              echo_reply->payload_len, echo_reply->node_id, echo_reply->seq_num,
              diff);
+    for (uint16_t i = 0; i < echo_reply->payload_len; i++) {
+      bm_debug("0x%X ", echo_reply->payload[i]);
+    }
+    bm_debug("\n");
     err = BmOK;
   }
 

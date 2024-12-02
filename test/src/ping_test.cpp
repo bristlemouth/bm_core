@@ -53,7 +53,7 @@ TEST_F(Ping, request_ping) {
 
   // Test request process with wrong node id
   node_id_fake.return_val = 0;
-  ASSERT_EQ(packet_process_invoke(BcmpEchoRequestMessage, data), BmOK);
+  ASSERT_EQ(packet_process_invoke(BcmpEchoRequestMessage, data), BmENOTINTREC);
   ASSERT_EQ(bcmp_tx_fake.call_count, 0);
   RESET_FAKE(node_id);
 

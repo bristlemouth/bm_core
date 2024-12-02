@@ -114,10 +114,11 @@ static void bm_dfu_host_req_update() {
   update_start_req_evt.info.addresses.src_node_id = host_ctx.self_node_id;
   update_start_req_evt.info.addresses.dst_node_id = host_ctx.client_node_id;
   update_start_req_evt.header.frame_type = BcmpDFUStartMessage;
-  if (bcmp_tx(&multicast_ll_addr,
-              (BcmpMessageType)(update_start_req_evt.header.frame_type),
-              (uint8_t *)(&update_start_req_evt), sizeof(update_start_req_evt),
-              0, NULL)) {
+  BmErr err = bcmp_tx(&multicast_global_addr,
+                      (BcmpMessageType)(update_start_req_evt.header.frame_type),
+                      (uint8_t *)(&update_start_req_evt),
+                      sizeof(update_start_req_evt), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", update_start_req_evt.header.frame_type);
   } else {
     bm_debug("Failed to send message %d\n",
@@ -151,15 +152,19 @@ static void bm_dfu_host_send_chunk(BmDfuEventChunkRequest *req) {
                           host_ctx.img_info.image_size -
                           host_ctx.bytes_remaining;
   do {
-    if (bm_dfu_host_get_chunk(flash_offset, payload_header->chunk.payload_buf,
-                              payload_len, flash_read_timeout_ms) != BmOK) {
+    BmErr err =
+        bm_dfu_host_get_chunk(flash_offset, payload_header->chunk.payload_buf,
+                              payload_len, flash_read_timeout_ms);
+    if (err != BmOK) {
       bm_debug("Failed to read chunk from flash.\n");
       bm_dfu_host_transition_to_error(BmDfuErrFlashAccess);
       break;
     }
-    if (bcmp_tx(&multicast_ll_addr,
-                (BcmpMessageType)(payload_header->header.frame_type), buf,
-                payload_len_plus_header, 0, NULL) == BmOK) {
+
+    err = bcmp_tx(&multicast_global_addr,
+                  (BcmpMessageType)(payload_header->header.frame_type), buf,
+                  payload_len_plus_header, 0, NULL);
+    if (err == BmOK) {
       host_ctx.bytes_remaining -= payload_len;
       bm_debug("Message %d sent, payload size: %" PRIX32 ", remaining: %" PRIX32
                "\n",
@@ -185,9 +190,10 @@ static void bm_dfu_host_send_reboot() {
   reboot_msg.addr.src_node_id = host_ctx.self_node_id;
   reboot_msg.addr.dst_node_id = host_ctx.client_node_id;
   reboot_msg.header.frame_type = BcmpDFURebootMessage;
-  if (bcmp_tx(&multicast_ll_addr,
-              (BcmpMessageType)(reboot_msg.header.frame_type),
-              (uint8_t *)(&reboot_msg), sizeof(BcmpDfuReboot), 0, NULL)) {
+  BmErr err = bcmp_tx(&multicast_global_addr,
+                      (BcmpMessageType)(reboot_msg.header.frame_type),
+                      (uint8_t *)(&reboot_msg), sizeof(BcmpDfuReboot), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", reboot_msg.header.frame_type);
   } else {
     bm_debug("Failed to send message %d\n", reboot_msg.header.frame_type);

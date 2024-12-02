@@ -420,8 +420,10 @@ void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code) {
   ack_msg.ack.addresses.src_node_id = dfu_ctx.self_node_id;
   ack_msg.header.frame_type = BcmpDFUAckMessage;
 
-  if (bcmp_tx(&multicast_ll_addr, (BcmpMessageType)(ack_msg.header.frame_type),
-              (uint8_t *)(&ack_msg), sizeof(ack_msg), 0, NULL)) {
+  BmErr err = bcmp_tx(&multicast_global_addr,
+                      (BcmpMessageType)(ack_msg.header.frame_type),
+                      (uint8_t *)(&ack_msg), sizeof(ack_msg), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", ack_msg.header.frame_type);
   } else {
     bm_debug("Failed to send message %d\n", ack_msg.header.frame_type);
@@ -445,9 +447,11 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num) {
   chunk_req_msg.chunk_req.addresses.dst_node_id = dst_node_id;
   chunk_req_msg.header.frame_type = BcmpDFUPayloadReqMessage;
 
-  if (bcmp_tx(&multicast_ll_addr,
+  BmErr err =
+      bcmp_tx(&multicast_global_addr,
               (BcmpMessageType)(chunk_req_msg.header.frame_type),
-              (uint8_t *)(&chunk_req_msg), sizeof(chunk_req_msg), 0, NULL)) {
+              (uint8_t *)(&chunk_req_msg), sizeof(chunk_req_msg), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", chunk_req_msg.header.frame_type);
   } else {
     bm_debug("Failed to send message %d\n", chunk_req_msg.header.frame_type);
@@ -474,9 +478,11 @@ void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success,
   update_end_msg.result.addresses.src_node_id = dfu_ctx.self_node_id;
   update_end_msg.header.frame_type = BcmpDFUEndMessage;
 
-  if (bcmp_tx(&multicast_ll_addr,
+  BmErr err =
+      bcmp_tx(&multicast_global_addr,
               (BcmpMessageType)(update_end_msg.header.frame_type),
-              (uint8_t *)(&update_end_msg), sizeof(update_end_msg), 0, NULL)) {
+              (uint8_t *)(&update_end_msg), sizeof(update_end_msg), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", update_end_msg.header.frame_type);
   } else {
     bm_debug("Failed to send message %d\n", update_end_msg.header.frame_type);
@@ -496,9 +502,11 @@ void bm_dfu_send_heartbeat(uint64_t dst_node_id) {
   heartbeat_msg.addr.src_node_id = dfu_ctx.self_node_id;
   heartbeat_msg.header.frame_type = BcmpDFUHeartbeatMessage;
 
-  if (bcmp_tx(&multicast_ll_addr,
+  BmErr err =
+      bcmp_tx(&multicast_global_addr,
               (BcmpMessageType)(heartbeat_msg.header.frame_type),
-              (uint8_t *)(&heartbeat_msg), sizeof(heartbeat_msg), 0, NULL)) {
+              (uint8_t *)(&heartbeat_msg), sizeof(heartbeat_msg), 0, NULL);
+  if (err == BmOK) {
     bm_debug("Message %d sent \n", heartbeat_msg.header.frame_type);
   } else {
     bm_debug("Failed to send message %d\n", heartbeat_msg.header.frame_type);
@@ -527,13 +535,20 @@ static void bm_dfu_event_thread(void *parameters) {
 //  \param pbuf[in] pbuf buffer
 //  \return none
 //*/
-static BmErr dfu_copy_and_process_message(BcmpProcessData data) {
-  BmErr err = BmEINVAL;
-  uint8_t *buf = (uint8_t *)(bm_malloc((data.size)));
-  if (buf) {
-    memcpy(buf, data.payload, (data.size));
-    bm_dfu_process_message(buf, (data.size));
-    err = BmOK;
+BmErr dfu_copy_and_process_message(BcmpProcessData data) {
+  BmErr err = BmENOTINTREC;
+  BmDfuFrame *frame = (BmDfuFrame *)data.payload;
+  BmDfuEventAddress *evt_addr = (BmDfuEventAddress *)frame->payload;
+  if (evt_addr->dst_node_id == node_id()) {
+    uint8_t *buf = (uint8_t *)(bm_malloc((data.size)));
+    if (buf) {
+      memcpy(buf, data.payload, (data.size));
+      bm_dfu_process_message(buf, (data.size));
+      err = BmOK;
+    }
+  } else if (is_link_local_multicast(data.dst)) {
+    err = bcmp_ll_forward(data.header, data.payload, data.size,
+                          data.ingress_port);
   }
   return err;
 }

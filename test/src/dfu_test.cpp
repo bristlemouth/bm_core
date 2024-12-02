@@ -1152,3 +1152,40 @@ TEST_F(BcmpDfu, client_confirm_skip)
     EXPECT_EQ(bm_dfu_client_confirm_enable_fake.call_count, 1);
     EXPECT_EQ(bm_dfu_client_confirm_enable_fake.arg0_val, true);
 }
+
+// Testing private function, not in header but not marked static
+extern "C" BmErr dfu_copy_and_process_message(BcmpProcessData data);
+
+TEST_F(BcmpDfu, forward_ll_msg_for_other) {
+  const uint64_t me = 0xdeadbeefbeeffeed;
+  const uint64_t other = 0x7777beeffeed2222;
+
+  // Forward link-local message not intended for this node
+  BcmpDfuStart *fwd_start_msg = (BcmpDfuStart *)malloc(sizeof(BcmpDfuStart));
+  fwd_start_msg->header.frame_type = BcmpDFUStartMessage;
+  fwd_start_msg->info.addresses.dst_node_id = other;
+  fwd_start_msg->info.addresses.src_node_id = 0xdeaddeaddeaddead;
+  BcmpProcessData data = {
+      .header = (BcmpHeader *)fwd_start_msg,
+      .payload = (uint8_t *)fwd_start_msg,
+      .size = sizeof(BcmpDfuStart),
+      .dst = (void *)&multicast_ll_addr,
+  };
+  dfu_copy_and_process_message(data);
+  EXPECT_EQ(bcmp_ll_forward_fake.call_count, 1);
+  RESET_FAKE(bcmp_ll_forward);
+
+  // Do not forward link-local message intended for this node
+  fwd_start_msg->info.addresses.dst_node_id = me;
+  dfu_copy_and_process_message(data);
+  EXPECT_EQ(bcmp_ll_forward_fake.call_count, 0);
+
+  // Do not forward global multicast message not intended for this node
+  // Already forwarded in L2 before being passed to BCMP
+  data.dst = (void *)&multicast_global_addr;
+  fwd_start_msg->info.addresses.dst_node_id = other;
+  dfu_copy_and_process_message(data);
+  EXPECT_EQ(bcmp_ll_forward_fake.call_count, 0);
+
+  free(fwd_start_msg);
+}
