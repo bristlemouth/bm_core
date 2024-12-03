@@ -1,3 +1,5 @@
+(configuration_api)=
+
 # Configuration
 
 Bristlemouth offers device configurations that can be accessed over the network,
@@ -351,8 +353,8 @@ Public API supported by the BCMP configuration module is as follows:
                    the uint8_t buffer should be cast to BmConfigValue * before
                    use, ex:
 
-                   BmErr my_cb_function(uint8_t *data) {
-                     BmConfigValue *msg = (BmConfigValue *)data;
+                   BmErr my_cb_function(uint8_t \*data) {
+                     BmConfigValue \*msg = (BmConfigValue \*)data;
 
                      // ... insert other logic here ...
                    }
