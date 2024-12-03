@@ -43,10 +43,7 @@ Gets the devices RTC time and date in microseconds.
 ## `bm_dfu_generic.h`
 
 The DFU module allows for the updating of the firmware on the device.
-<!-- TODO: Hmmm this is also pretty specific to MCUBoot, so maybe more of this should be abstracted away -->
 It is not required to be implemented, but if it is, the following functions will need to be implemented.
-<!-- Some functions are optional, depending on your device requirements and are marked with `(optional)`.
-These optional functions still need to be defined, but can just return `BmOK` if they are not required. -->
 
 ```{eval-rst}
 .. cpp:function:: BmErr bm_dfu_client_set_confirmed(void)
