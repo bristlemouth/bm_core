@@ -4,6 +4,7 @@
 #include "bm_config.h"
 #include "bm_dfu_generic.h"
 #include "bm_os.h"
+#include "configuration.h"
 #include "crc.h"
 #include "device.h"
 #include "dfu.h"
@@ -41,12 +42,15 @@ typedef struct DfuClientCtx {
 } DfuClientCtx;
 
 static DfuClientCtx CLIENT_CTX;
+#define dfu_confirm_config_key "dfu_confirm"
 
 static void bm_dfu_client_abort(BmDfuErr err);
 static void bm_dfu_client_send_reboot_request();
 static void bm_dfu_client_send_boot_complete(uint64_t host_node_id);
 static void bm_dfu_client_transition_to_error(BmDfuErr err);
 static void bm_dfu_client_fail_update_and_reboot(void);
+static bool bm_dfu_client_confirm_is_enabled(void);
+static void bm_dfu_client_confirm_enable(bool en);
 
 /**
  * @brief Send DFU Abort to Host
@@ -107,6 +111,20 @@ static void bm_dfu_client_send_boot_complete(uint64_t host_node_id) {
     bm_debug("Failed to send message %d, error %d\n",
              boot_compl.header.frame_type, err);
   }
+}
+
+static bool bm_dfu_client_confirm_is_enabled(void) {
+  uint32_t val = 1;
+  get_config_uint(BM_CFG_PARTITION_SYSTEM, dfu_confirm_config_key,
+                  strlen(dfu_confirm_config_key), &val);
+  return val == 1;
+}
+
+static void bm_dfu_client_confirm_enable(bool en) {
+  uint32_t val = en;
+  set_config_uint(BM_CFG_PARTITION_SYSTEM, dfu_confirm_config_key,
+                  strlen(dfu_confirm_config_key), val);
+  save_config(BM_CFG_PARTITION_SYSTEM, true);
 }
 
 /**
