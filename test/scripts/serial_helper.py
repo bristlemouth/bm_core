@@ -8,7 +8,9 @@ class SerialHelper:
     pyserial library.
     """
 
-    def __init__(self, port: str = None, baudrate: int = 115200, timeout_s: int = 5):
+    def __init__(
+        self, port: str = None, baudrate: int = 115200, timeout_s: float = 5.0
+    ):
         """SerialHelper constructor
 
         Will setup the SerialHelper class, does not need a port, but
