@@ -50,6 +50,11 @@ and baud is the desired baud rate.
 ## Contributing
 
 The code in all tests shall follow the [PEP 8](https://peps.python.org/pep-0008/) style guide for python.
+This is enforced with [black](https://github.com/psf/black) which is installed with the conda environment.
+Black can be ran after activating the conda environment and invoking:
+
+`black path/to/test/scripts`
+
 All function arguments shall be type hinted as in accordance to [PEP 484](https://peps.python.org/pep-0484/).
 Docstrings shall be in the following format:
 
