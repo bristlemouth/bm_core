@@ -9,6 +9,7 @@ extern "C" {
 #include "mock_bcmp.h"
 #include "mock_bm_os.h"
 #include "mock_bm_dfu_generic.h"
+#include "mock_configuration.h"
 }
 
 DEFINE_FFF_GLOBALS;
@@ -47,14 +48,15 @@ class BcmpDfu : public ::testing::Test {
         RESET_FAKE(bm_dfu_client_flash_area_write);
         RESET_FAKE(bm_dfu_client_flash_area_erase);
         RESET_FAKE(bm_dfu_client_flash_area_get_size);
-        RESET_FAKE(bm_dfu_client_confirm_is_enabled);
         RESET_FAKE(bm_dfu_client_set_confirmed);
-        RESET_FAKE(bm_dfu_client_confirm_enable);
         RESET_FAKE(bm_dfu_host_get_chunk);
         RESET_FAKE(bm_dfu_core_lpm_peripheral_active);
         RESET_FAKE(bm_dfu_core_lpm_peripheral_inactive);
         RESET_FAKE(firmware_version);
         RESET_FAKE(git_sha);
+        RESET_FAKE(get_config_uint);
+        RESET_FAKE(set_config_uint);
+        RESET_FAKE(save_config);
         fake_q = (BmQueue)malloc(sizeof(BmQueue));
         fake_timer = (BmTimer)malloc(sizeof(BmTimer));
         bm_queue_send_fake.return_val = BmOK;
@@ -67,7 +69,6 @@ class BcmpDfu : public ::testing::Test {
         bm_dfu_client_flash_area_write_fake.return_val = BmOK;
         bm_dfu_client_flash_area_close_fake.return_val = BmOK;
         bm_dfu_client_flash_area_open_fake.return_val = BmOK;
-        bm_dfu_client_confirm_is_enabled_fake.return_val = true;
         bm_dfu_host_get_chunk_fake.return_val = BmOK;
         node_id_fake.return_val = 0xdeadbeefbeeffeed;
         bcmp_tx_fake.return_val = BmOK;
@@ -1120,10 +1121,19 @@ TEST_F(BcmpDfu, reboot_done_fail)
     EXPECT_EQ(bm_dfu_client_fail_update_and_reset_fake.call_count, 1);
 }
 
+// Custom behavior to set the uint32_t pointer to 0
+bool get_config_uint_custom(BmConfigPartition partition, const char *key, size_t key_len, uint32_t *value) {
+    if (value) {
+        *value = 0;
+    }
+    return true;
+}
+
 TEST_F(BcmpDfu, client_confirm_skip)
 {
-    // The config should be 0 to enable the "skip" feature. So this needs to return false
-    bm_dfu_client_confirm_is_enabled_fake.return_val = false;
+    // The config should be 0 to enable the "skip" feature.
+    // So we need to have the get_config_uint function return 0.
+    get_config_uint_fake.custom_fake = get_config_uint_custom;
 
     // Set the reboot info.
     client_update_reboot_info.magic = DFU_REBOOT_MAGIC;
@@ -1150,8 +1160,9 @@ TEST_F(BcmpDfu, client_confirm_skip)
     EXPECT_EQ(client_update_reboot_info.minor, 0);
     EXPECT_EQ(client_update_reboot_info.gitSHA, 0);
     EXPECT_EQ(bm_dfu_client_set_confirmed_fake.call_count, 1);
-    EXPECT_EQ(bm_dfu_client_confirm_enable_fake.call_count, 1);
-    EXPECT_EQ(bm_dfu_client_confirm_enable_fake.arg0_val, true);
+    EXPECT_EQ(get_config_uint_fake.call_count, 1);
+    EXPECT_EQ(set_config_uint_fake.call_count, 1);
+    EXPECT_EQ(save_config_fake.call_count, 1);
 }
 
 // Testing private function, not in header but not marked static

@@ -258,6 +258,7 @@ set (DFU_SRCS
     ${STUB_DIR}/packet_stub.c
     ${STUB_DIR}/bcmp_stub.c
     ${STUB_DIR}/dfu_generic_stub.c
+    ${STUB_DIR}/configuration_stub.c
 )
 create_gtest("dfu" "${DFU_SRCS}")
 
