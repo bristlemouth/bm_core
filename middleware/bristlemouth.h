@@ -10,6 +10,7 @@ typedef void (*NetworkDevicePowerCallback)(bool);
 BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb,
                         DeviceCfg device);
 NetworkDevice bristlemouth_network_device(void);
+BmErr bristlemouth_handle_network_device_interrupt(void);
 
 #ifdef __cplusplus
 }
