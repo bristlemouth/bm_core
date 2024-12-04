@@ -1,4 +1,5 @@
 #include "configuration.h"
+#include "bm_config.h"
 #include "bm_configs_generic.h"
 #include "crc.h"
 #include <stdio.h>
@@ -123,12 +124,12 @@ void config_init(void) {
     ConfigPartition *config_partition =
         (ConfigPartition *)CONFIGS[i].ram_buffer;
     if (!load_and_verify_nvm_config(config_partition, (BmConfigPartition)i)) {
-      printf("Unable to load configs from flash.");
+      bm_debug("Unable to load configs from flash.");
       config_partition->header.numKeys = 0;
       config_partition->header.version = CONFIG_VERSION;
       // TODO: Once we have default configs, load these into flash.
     } else {
-      printf("Succesfully loaded configs from flash.");
+      bm_debug("Succesfully loaded configs from flash.");
     }
   }
 }

@@ -5,6 +5,7 @@ extern "C" {
 #endif
 
 #include "pubsub.h"
+#include "util.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -26,7 +27,7 @@ typedef bool (*BmServiceHandler)(size_t service_strlen, const char *service,
                                  size_t req_data_len, uint8_t *req_data,
                                  size_t *buffer_len, uint8_t *reply_data);
 
-void bm_service_init(void);
+BmErr bm_service_init(void);
 bool bm_service_register(size_t service_strlen, const char *service,
                          BmServiceHandler service_handler);
 bool bm_service_unregister(size_t service_strlen, const char *service);

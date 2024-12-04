@@ -8,13 +8,6 @@
 extern "C" {
 #endif
 
-// Something like this for the asserts? Although maybe this shouldn't live here
-// #ifdef DEV_MODE
-// #define ASSERT(x) configASSERT(x)
-// #else
-// #define ASSERT(x) ((void)0)
-// #endif
-
 #define BM_MAX_DELAY_UINT64 0xFFFFFFFFFFFFFFFF
 #define BM_MAX_DELAY_UINT32 0xFFFFFFFF
 #define BM_MAX_DELAY_UINT16 0xFFFF

@@ -38,7 +38,20 @@ protected:
   }
 };
 
-TEST_F(BmServiceRequest, init) { bm_service_request_init(); }
+TEST_F(BmServiceRequest, init) {
+  bm_semaphore_create_fake.return_val =
+      (void *)RND.rnd_int(UINT64_MAX, UINT32_MAX);
+  bm_timer_create_fake.return_val = (void *)RND.rnd_int(UINT64_MAX, UINT32_MAX);
+  ASSERT_EQ(bm_service_request_init(), BmOK);
+
+  bm_semaphore_create_fake.return_val = 0;
+  ASSERT_NE(bm_service_request_init(), BmOK);
+  bm_semaphore_create_fake.return_val =
+      (void *)RND.rnd_int(UINT64_MAX, UINT32_MAX);
+
+  bm_timer_create_fake.return_val = 0;
+  ASSERT_NE(bm_service_request_init(), BmOK);
+}
 
 TEST_F(BmServiceRequest, request) {
   size_t size = RND.rnd_int(UINT8_MAX, UINT8_MAX / 2);

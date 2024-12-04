@@ -4,6 +4,7 @@
 extern "C" {
 #endif
 
+#include "util.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -23,7 +24,7 @@ typedef bool (*BmServiceReplyCb)(bool ack, uint32_t msg_id,
                                  size_t service_strlen, const char *service,
                                  size_t reply_len, uint8_t *reply_data);
 
-void bm_service_request_init(void);
+BmErr bm_service_request_init(void);
 bool bm_service_request(size_t service_strlen, const char *service,
                         size_t data_len, const uint8_t *data,
                         BmServiceReplyCb reply_cb, uint32_t timeout_s);

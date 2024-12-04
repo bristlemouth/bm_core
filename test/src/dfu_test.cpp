@@ -48,6 +48,7 @@ class BcmpDfu : public ::testing::Test {
         RESET_FAKE(bm_dfu_client_flash_area_erase);
         RESET_FAKE(bm_dfu_client_flash_area_get_size);
         RESET_FAKE(bm_dfu_client_confirm_is_enabled);
+        RESET_FAKE(bm_dfu_client_set_confirmed);
         RESET_FAKE(bm_dfu_client_confirm_enable);
         RESET_FAKE(bm_dfu_host_get_chunk);
         RESET_FAKE(bm_dfu_core_lpm_peripheral_active);

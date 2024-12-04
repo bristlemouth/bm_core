@@ -36,12 +36,12 @@ static BmQueue dfu_event_queue;
 static void bm_dfu_send_nop_event(void);
 static const LibSmState *bm_dfu_check_transitions(uint8_t current_state);
 
-static void s_init_run(void);
-static void s_idle_entry(void);
-static void s_idle_exit(void);
-static void s_idle_run(void);
-static void s_error_run(void) {}
-static void s_error_entry(void);
+static BmErr s_init_run(void);
+static BmErr s_idle_entry(void);
+static BmErr s_idle_exit(void);
+static BmErr s_idle_run(void);
+static BmErr s_error_run(void) { return BmOK; }
+static BmErr s_error_entry(void);
 
 static const LibSmState dfu_states[BmNumDfuStates] = {
     {
@@ -132,7 +132,7 @@ static const LibSmState *bm_dfu_check_transitions(uint8_t current_state) {
   return &dfu_states[current_state];
 }
 
-static void s_init_run(void) {
+static BmErr s_init_run(void) {
   if (dfu_ctx.current_event.type == DfuEventInitSuccess) {
     if (client_update_reboot_info.magic == DFU_REBOOT_MAGIC) {
       bm_dfu_set_pending_state_change(BmDfuStateClientRebootDone);
@@ -140,14 +140,18 @@ static void s_init_run(void) {
       bm_dfu_set_pending_state_change(BmDfuStateIdle);
     }
   }
+
+  return BmOK;
 }
 
-static void s_idle_entry(void) {
+static BmErr s_idle_entry(void) {
   bm_dfu_core_lpm_peripheral_inactive();
   memset(&client_update_reboot_info, 0, sizeof(client_update_reboot_info));
+
+  return BmOK;
 }
 
-static void s_idle_run(void) {
+static BmErr s_idle_run(void) {
   if (dfu_ctx.current_event.type == DfuEventReceivedUpdateRequest) {
     /* Client */
     bm_dfu_client_process_update_request();
@@ -161,9 +165,14 @@ static void s_idle_run(void) {
                            start_event->timeoutMs);
     bm_dfu_set_pending_state_change(BmDfuStateHostReqUpdate);
   }
+
+  return BmOK;
 }
 
-static void s_idle_exit(void) { bm_dfu_core_lpm_peripheral_active(); }
+static BmErr s_idle_exit(void) {
+  bm_dfu_core_lpm_peripheral_active();
+  return BmOK;
+}
 
 /**
  * @brief Entry Function for the Error State
@@ -172,7 +181,7 @@ static void s_idle_exit(void) { bm_dfu_core_lpm_peripheral_active(); }
  *
  * @return none
  */
-static void s_error_entry(void) {
+static BmErr s_error_entry(void) {
   bm_dfu_core_lpm_peripheral_inactive();
   switch (dfu_ctx.error) {
   case BmDfuErrFlashAccess:
@@ -224,143 +233,146 @@ static void s_error_entry(void) {
   if (dfu_ctx.error < BmDfuErrFlashAccess) {
     bm_dfu_set_pending_state_change(BmDfuStateIdle);
   }
-  return;
+
+  return BmOK;
 }
 
 /* Consumes any incoming packets from the BCMP service. The payload types are translated
    into events that are placed into the subystem queue and are consumed by the DFU event thread. */
 void bm_dfu_process_message(uint8_t *buf, size_t len) {
-  // configASSERT(buf);
   BmDfuEvent evt;
   BmDfuFrame *frame = (BmDfuFrame *)(buf);
 
-  /* If this node is not the intended destination, then discard and continue to wait on queue */
-  if (dfu_ctx.self_node_id !=
-      ((BmDfuEventAddress *)(frame->payload))->dst_node_id) {
-    bm_free(buf);
-    return;
-  }
+  if (frame) {
+    /* If this node is not the intended destination, then discard and continue to wait on queue */
+    if (dfu_ctx.self_node_id !=
+        ((BmDfuEventAddress *)(frame->payload))->dst_node_id) {
+      bm_free(buf);
 
-  bool valid_packet = true;
-  switch (get_current_state_enum(&(dfu_ctx.sm_ctx))) {
-  case BmDfuStateInit:
-  case BmDfuStateIdle:
-  case BmDfuStateError: {
-    break;
-  }
-  case BmDfuStateClientReceiving:
-  case BmDfuStateClientValidating:
-  case BmDfuStateClientRebootReq:
-  case BmDfuStateClientRebootDone:
-  case BmDfuStateClientActivating: {
-    if (!bm_dfu_client_host_node_valid(
-            ((BmDfuEventAddress *)(frame->payload))->src_node_id)) {
-      valid_packet = false;
-      ; // DFU packet from the wrong host! Drop packet.
+      return;
     }
-    break;
-  }
-  case BmDfuStateHostReqUpdate:
-  case BmDfuStateHostUpdate: {
-    if (!bm_dfu_host_client_node_valid(
-            ((BmDfuEventAddress *)(frame->payload))->src_node_id)) {
-      valid_packet = false; // DFU packet from the wrong client! Drop packet.
-    }
-    break;
-  }
-  default:
-    // configASSERT(false);
-    break;
-  }
 
-  if (!valid_packet) {
-    bm_free(buf);
-    return;
-  }
+    bool valid_packet = true;
+    switch (get_current_state_enum(&(dfu_ctx.sm_ctx))) {
+    case BmDfuStateInit:
+    case BmDfuStateIdle:
+    case BmDfuStateError: {
+      break;
+    }
+    case BmDfuStateClientReceiving:
+    case BmDfuStateClientValidating:
+    case BmDfuStateClientRebootReq:
+    case BmDfuStateClientRebootDone:
+    case BmDfuStateClientActivating: {
+      if (!bm_dfu_client_host_node_valid(
+              ((BmDfuEventAddress *)(frame->payload))->src_node_id)) {
+        valid_packet = false;
+        ; // DFU packet from the wrong host! Drop packet.
+      }
+      break;
+    }
+    case BmDfuStateHostReqUpdate:
+    case BmDfuStateHostUpdate: {
+      if (!bm_dfu_host_client_node_valid(
+              ((BmDfuEventAddress *)(frame->payload))->src_node_id)) {
+        valid_packet = false; // DFU packet from the wrong client! Drop packet.
+      }
+      break;
+    }
+    default:
+      bm_debug("Invalid DFU state entered...\n");
+      break;
+    }
 
-  evt.buf = buf;
-  evt.len = len;
+    if (!valid_packet) {
+      bm_free(buf);
+      return;
+    }
 
-  switch (frame->header.frame_type) {
-  case BcmpDFUStartMessage:
-    evt.type = DfuEventReceivedUpdateRequest;
-    bm_debug("Received update request\n");
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
+    evt.buf = buf;
+    evt.len = len;
+
+    switch (frame->header.frame_type) {
+    case BcmpDFUStartMessage:
+      evt.type = DfuEventReceivedUpdateRequest;
+      bm_debug("Received update request\n");
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFUPayloadMessage:
+      evt.type = DfuEventImageChunk;
+      bm_debug("Received Payload\n");
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFUEndMessage:
+      evt.type = DfuEventUpdateEnd;
+      bm_debug("Received DFU End\n");
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFUAckMessage:
+      evt.type = DfuEventAckReceived;
+      bm_debug("Received ACK\n");
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFUAbortMessage:
+      evt.type = DfuEventAbort;
+      bm_debug("Received Abort\n");
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFUHeartbeatMessage:
+      evt.type = DfuEventHeartbeat;
+      bm_debug("Received DFU Heartbeat\n");
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFUPayloadReqMessage:
+      evt.type = DfuEventChunkRequest;
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFURebootReqMessage:
+      evt.type = DfuEventRebootRequest;
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFURebootMessage:
+      evt.type = DfuEventReboot;
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    case BcmpDFUBootCompleteMessage:
+      evt.type = DfuEventBootComplete;
+      if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
+        bm_free(buf);
+        bm_debug("Message could not be added to Queue\n");
+      }
+      break;
+    default:
+      bm_debug("Invalid DFU frame entered...\n");
+      break;
     }
-    break;
-  case BcmpDFUPayloadMessage:
-    evt.type = DfuEventImageChunk;
-    bm_debug("Received Payload\n");
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  case BcmpDFUEndMessage:
-    evt.type = DfuEventUpdateEnd;
-    bm_debug("Received DFU End\n");
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  case BcmpDFUAckMessage:
-    evt.type = DfuEventAckReceived;
-    bm_debug("Received ACK\n");
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  case BcmpDFUAbortMessage:
-    evt.type = DfuEventAbort;
-    bm_debug("Received Abort\n");
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  case BcmpDFUHeartbeatMessage:
-    evt.type = DfuEventHeartbeat;
-    bm_debug("Received DFU Heartbeat\n");
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  case BcmpDFUPayloadReqMessage:
-    evt.type = DfuEventChunkRequest;
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  case BcmpDFURebootReqMessage:
-    evt.type = DfuEventRebootRequest;
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  case BcmpDFURebootMessage:
-    evt.type = DfuEventReboot;
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  case BcmpDFUBootCompleteMessage:
-    evt.type = DfuEventBootComplete;
-    if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
-      bm_free(buf);
-      bm_debug("Message could not be added to Queue\n");
-    }
-    break;
-  default:
-    // configASSERT(false);
-    break;
   }
 }
 
@@ -567,10 +579,13 @@ BmErr bm_dfu_init(void) {
 
   /* Set initial state of DFU State Machine*/
   lib_sm_init(&(dfu_ctx.sm_ctx), &(dfu_states[BmDfuStateInit]),
-              bm_dfu_check_transitions);
+              bm_dfu_check_transitions, "dfu_sm");
 
   dfu_event_queue = bm_queue_create(5, sizeof(BmDfuEvent));
-  // configASSERT(dfu_event_queue);
+
+  if (!dfu_event_queue) {
+    bm_debug("Could not create dfu queue...\n");
+  }
 
   bm_dfu_client_init();
   bm_dfu_host_init();
@@ -585,7 +600,6 @@ BmErr bm_dfu_init(void) {
     // TODO - handle this better
     bm_debug("Failed to create DFU Event thread\n");
   }
-  // configASSERT(retval == BmOK);
 
   if (bm_queue_send(dfu_event_queue, &evt, 0) != BmOK) {
     bm_debug("Message could not be added to Queue\n");
@@ -633,7 +647,10 @@ bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
     size_t size = sizeof(DfuHostStartEvent);
     evt.type = DfuEventBeginHost;
     uint8_t *buf = (uint8_t *)(bm_malloc(size));
-    // configASSERT(buf);
+
+    if (!buf) {
+      return false;
+    }
 
     DfuHostStartEvent *start_event = (DfuHostStartEvent *)(buf);
     start_event->start.header.frame_type = BcmpDFUStartMessage;

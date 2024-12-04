@@ -33,7 +33,7 @@ typedef struct bm_service_request_context {
   BmTimer expiry_timer_handle;
 } BmServiceRequestContext;
 
-static BmServiceRequestContext _bm_service_request_context;
+static BmServiceRequestContext CTX;
 
 static bool _request_list_add_request(BmServiceRequestNode *node);
 static bool _request_list_remove_request(BmServiceRequestNode *node);
@@ -58,14 +58,18 @@ static void _service_request_timer_expiry_cb(void *arg);
  * @brief Initialize the service request module.
  * @note Must be called before any other functions in this module. Called by the bm_service module.
  */
-void bm_service_request_init(void) {
-  _bm_service_request_context.lock = bm_semaphore_create();
-  _bm_service_request_context.expiry_timer_handle = bm_timer_create(
+BmErr bm_service_request_init(void) {
+  BmErr err = BmENOMEM;
+
+  CTX.lock = bm_semaphore_create();
+  CTX.expiry_timer_handle = bm_timer_create(
       "Service request expiry timer", bm_ms_to_ticks(ExpiryTimerPeriodMs), true,
       NULL, _service_request_timer_callback);
-  // TODO - make this return an error when the timer doesn't start!
-  // configASSERT(bm_timer_start(_bm_service_request_context.expiry_timer_handle, 10) == BmOK);
-  bm_timer_start(_bm_service_request_context.expiry_timer_handle, 10);
+  if (CTX.expiry_timer_handle && CTX.lock) {
+    err = bm_timer_start(CTX.expiry_timer_handle, 10);
+  }
+
+  return err;
 }
 
 /*!
@@ -131,20 +135,18 @@ static bool _request_list_add_request(BmServiceRequestNode *node) {
   if (!node) {
     return rval;
   }
-  if (bm_semaphore_take(_bm_service_request_context.lock,
-                        DefaultServiceRequestTimeoutMs) == BmOK) {
-    if (_bm_service_request_context.service_request_list == NULL) {
-      _bm_service_request_context.service_request_list = node;
+  if (bm_semaphore_take(CTX.lock, DefaultServiceRequestTimeoutMs) == BmOK) {
+    if (CTX.service_request_list == NULL) {
+      CTX.service_request_list = node;
     } else {
-      BmServiceRequestNode *current =
-          _bm_service_request_context.service_request_list;
+      BmServiceRequestNode *current = CTX.service_request_list;
       while (current->next != NULL) {
         current = current->next;
       }
       current->next = node;
     }
     rval = true;
-    bm_semaphore_give(_bm_service_request_context.lock);
+    bm_semaphore_give(CTX.lock);
   }
   return rval;
 }
@@ -155,12 +157,11 @@ static bool _request_list_remove_request(BmServiceRequestNode *node) {
     return rval;
   }
   BmServiceRequestNode *node_to_delete = NULL;
-  if (_bm_service_request_context.service_request_list == node) {
-    node_to_delete = _bm_service_request_context.service_request_list;
-    _bm_service_request_context.service_request_list = node->next;
+  if (CTX.service_request_list == node) {
+    node_to_delete = CTX.service_request_list;
+    CTX.service_request_list = node->next;
   } else {
-    BmServiceRequestNode *current =
-        _bm_service_request_context.service_request_list;
+    BmServiceRequestNode *current = CTX.service_request_list;
     while (current && current->next != node) {
       current = current->next;
     }
@@ -197,7 +198,7 @@ static BmServiceRequestNode *_create_node(size_t service_strlen,
   node->service_strlen = service_strlen;
   node->reply_cb = reply_cb;
   node->timeout_ms = timeout_ms;
-  node->id = _bm_service_request_context.request_count++;
+  node->id = CTX.request_count++;
   node->next = NULL;
   node->request_start_ms = bm_ticks_to_ms(bm_get_tick_count());
   return node;
@@ -205,10 +206,8 @@ static BmServiceRequestNode *_create_node(size_t service_strlen,
 
 static void _service_request_timer_expiry_cb(void *arg) {
   (void)arg;
-  if (bm_semaphore_take(_bm_service_request_context.lock,
-                        DefaultServiceRequestTimeoutMs) == BmOK) {
-    BmServiceRequestNode *current =
-        _bm_service_request_context.service_request_list;
+  if (bm_semaphore_take(CTX.lock, DefaultServiceRequestTimeoutMs) == BmOK) {
+    BmServiceRequestNode *current = CTX.service_request_list;
     while (current) {
       if (!time_remaining_ms(current->request_start_ms, current->timeout_ms)) {
         bm_debug("Expiring request id: %" PRIu32 "\n", current->id);
@@ -217,12 +216,12 @@ static void _service_request_timer_expiry_cb(void *arg) {
                             current->service, 0, NULL);
         }
         _request_list_remove_request(current);
-        current = _bm_service_request_context.service_request_list;
+        current = CTX.service_request_list;
         continue;
       }
       current = current->next;
     }
-    bm_semaphore_give(_bm_service_request_context.lock);
+    bm_semaphore_give(CTX.lock);
   }
 }
 
@@ -294,8 +293,7 @@ static void _service_request_cb(uint64_t node, const char *topic,
   (void)node;
   BmServiceReplyDataHeader *header = (BmServiceReplyDataHeader *)data;
   if (header->target_node_id == node_id()) {
-    if (bm_semaphore_take(_bm_service_request_context.lock,
-                          DefaultServiceRequestTimeoutMs) == BmOK) {
+    if (bm_semaphore_take(CTX.lock, DefaultServiceRequestTimeoutMs) == BmOK) {
       BmServiceRequestNode *node =
           _service_request_list_get_node_by_id(header->id);
       if (node) {
@@ -305,15 +303,14 @@ static void _service_request_cb(uint64_t node, const char *topic,
         }
         _request_list_remove_request(node);
       }
-      bm_semaphore_give(_bm_service_request_context.lock);
+      bm_semaphore_give(CTX.lock);
     }
   }
 }
 
 static BmServiceRequestNode *_service_request_list_get_node_by_id(uint32_t id) {
   BmServiceRequestNode *node = NULL;
-  BmServiceRequestNode *current =
-      _bm_service_request_context.service_request_list;
+  BmServiceRequestNode *current = CTX.service_request_list;
   while (current) {
     if (current->id == id) {
       node = current;
