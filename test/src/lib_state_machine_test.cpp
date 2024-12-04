@@ -247,6 +247,5 @@ TEST_F(LibStateMachineTest, BadStateName) {
   };
   ASSERT_EQ(lib_sm_init(&ctx, &badNameState, checkTransitions, "bad_name"),
             BmOK);
-  EXPECT_DEATH(strcmp(lib_sm_get_current_state_name(&ctx), "I have no name :("),
-               "");
+  EXPECT_EQ(lib_sm_get_current_state_name(&ctx), nullptr);
 }
