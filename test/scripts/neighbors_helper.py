@@ -2,11 +2,13 @@ from serial_helper import SerialHelper
 import re
 from typing import Tuple
 
+
 class Neighbors:
     """Neighbors class
 
     Class utilized to obtain information about neighboring nodes
     """
+
     def __init__(self, ser: SerialHelper = None):
         """Neighbors constructor
 
@@ -31,16 +33,16 @@ class Neighbors:
         node_id = 0
         port = 0
         ret = list()
-        pattern = r'(\S{16}) \| *(\d) *\| *(\S*)'
+        pattern = r"(\S{16}) \| *(\d) *\| *(\S*)"
 
         # Transmit neighbors command to CLI and read until specific
         # string with endline termination...
-        self._ser.transmit_str('bm neighbors\n')
-        self._ser.read_until('Time since last heartbeat (s)\n')
+        self._ser.transmit_str("bm neighbors\n")
+        self._ser.read_until("Time since last heartbeat (s)\n")
         while True:
             line = self._ser.read_line()
             match = re.search(pattern, line)
-            if (match):
+            if match:
                 node_id = int(match.group(1), 16)
                 port = int(match.group(2))
                 ret.append((node_id, port))

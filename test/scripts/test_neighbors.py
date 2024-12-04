@@ -2,10 +2,12 @@ import pytest
 from serial_helper import SerialHelper
 from neighbors_helper import Neighbors
 
+
 class TestNeighbors:
     """Neighbors HIL test class"""
+
     def test_neighbors_get(self, ser: SerialHelper):
-        """ Test to see if neighbors exist
+        """Test to see if neighbors exist
 
         Attempts to obtain the neighbors to the node
         and asserts that they do exist.

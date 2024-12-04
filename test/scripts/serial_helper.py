@@ -1,13 +1,14 @@
 import serial
 
+
 class SerialHelper:
     """Serial module helper class
 
     This class is responsible for providing a simple interface over the
     pyserial library.
     """
-    def __init__(self, port: str = None,
-                 baudrate: int = 115200, timeout_s: int = 5):
+
+    def __init__(self, port: str = None, baudrate: int = 115200, timeout_s: int = 5):
         """SerialHelper constructor
 
         Will setup the SerialHelper class, does not need a port, but
@@ -23,7 +24,7 @@ class SerialHelper:
         self.port = port
         self.baud = baudrate
         self._inst = None
-        if (port != None):
+        if port != None:
             self.open(port, baudrate, timeout_s)
 
     def open(self, port: str, baudrate: int = 115200, timeout_s: float = 5.0):
@@ -42,12 +43,12 @@ class SerialHelper:
         self.port = port
         self.baud = baudrate
         try:
-            self._inst = serial.Serial(port=self.port,
-                                              timeout=timeout_s,
-                                              baudrate=self.baud)
+            self._inst = serial.Serial(
+                port=self.port, timeout=timeout_s, baudrate=self.baud
+            )
             self.flush()
         except serial.SerialException:
-            raise Exception('Failed to open serial port...')
+            raise Exception("Failed to open serial port...")
             self._inst = None
 
     def close(self):
@@ -67,7 +68,6 @@ class SerialHelper:
         self._inst.reset_input_buffer()
         self._inst.reset_output_buffer()
 
-
     def transmit_data(self, data: bytearray):
         """Transmit data
 
@@ -79,8 +79,10 @@ class SerialHelper:
         try:
             self._inst.write(data)
         except:
-            raise Exception('Could not write to serial port, \
-                            check if it is open...')
+            raise Exception(
+                "Could not write to serial port, \
+                            check if it is open..."
+            )
 
     def transmit_str(self, data: str):
         """Transmit string
@@ -90,9 +92,9 @@ class SerialHelper:
         Args:
             data (str): string to transmit to opened port.
         """
-        self.transmit_data(data.encode('utf-8'))
+        self.transmit_data(data.encode("utf-8"))
 
-    def read_until(self, seq: str = '\n') -> str:
+    def read_until(self, seq: str = "\n") -> str:
         """Read from serial port until sequence is found.
 
         Read lines until a certain sequence is found from the serial
@@ -107,10 +109,12 @@ class SerialHelper:
                  character.
         """
         try:
-            return self._inst.read_until(seq.encode('utf-8')).decode('utf-8')
+            return self._inst.read_until(seq.encode("utf-8")).decode("utf-8")
         except:
-            raise Exception('Could not read from serial port, \
-                            check if it is open...')
+            raise Exception(
+                "Could not read from serial port, \
+                            check if it is open..."
+            )
 
     def read_line(self) -> str:
         """Read line from serial port
