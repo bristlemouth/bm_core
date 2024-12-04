@@ -32,3 +32,7 @@ BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb,
 NetworkDevice bristlemouth_network_device(void) {
   return adin2111_network_device();
 }
+
+BmErr bristlemouth_handle_network_device_interrupt(void) {
+  return bm_l2_handle_device_interrupt();
+}
