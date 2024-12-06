@@ -10,3 +10,5 @@ dependencies:
       - pyserial
       - pytest
       - regex
+      - func_timeout
+      - pytest-order

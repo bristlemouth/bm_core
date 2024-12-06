@@ -4,6 +4,10 @@ SER = None
 
 
 def pytest_addoption(parser):
+    """Define command line arguments
+
+    Sets command line options for pytest.
+    """
     parser.addoption(
         "--port", action="store", default=None, help="Serial port to open for HIL test"
     )
