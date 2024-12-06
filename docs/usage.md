@@ -392,16 +392,46 @@ the code integration is very simple: a single call to `bristlemouth_init`.
 
 ```C
 #include "bristlemouth.h"
+#include "l2.h"
 
 void network_device_power_callback(bool on) {
     // Provide or cut off power to the network chip.
     // On the mote, we set pin PH1 high or low.
 }
 
+static void network_device_interrupt(void) {
+    // Necessary logic that occurs when an interrupt from the 10Base-T1L driver
+    // is called should be placed here (application specific), the below
+    // function call is a must in order to inform L2 that an event must be
+    // handled
+    bm_l2_handle_device_interrupt();
+}
+
 int main(void) {
+    // User specific interrupt register code
+    register_device_interrupt(network_device_interrupt);
+
+    // Information about the device must be configured
+    DeviceCfg device = {
+        .node_id = 0, // ID of the node being integrated
+        .git_sha = 0, // Commit hash of the build
+        .device_name = "dev_name", // Name of node
+        .version_string = "v0.0.0", // Firmware version in string format
+        .vendor_id = 0, // Vendor ID of the node
+        .product_id = 0, // Product ID of the node
+        .hw_ver = 0, // Hardware revision number
+        .ver_major = 0, // Major semantic versioning of the build for the node
+        .ver_minor = 0, // Minor semantic versioning of the build for the node
+        .ver_patch = 0, // Patch semantic versioning of the build for the node
+        .sn = {'0', '1', '2', '3',
+               '4', '5', '6', '7',
+               '8', '9', 'a', 'b',
+               'c', 'd', 'e', 'f'}, // Serial number assigned to node
+    };
+
     // ... your other setup code...
 
-    BmErr err = bristlemouth_init(network_device_power_callback);
+    BmErr err = bristlemouth_init(network_device_power_callback, device);
     if (err != BmOK) {
         // handle error appropriately for your system
     }
