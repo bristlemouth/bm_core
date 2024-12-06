@@ -1,14 +1,13 @@
+import pytest
 from serial_helper import SerialHelper
 from neighbors_helper import Neighbors
-import pytest
+from util import RunOrder
 
 
 class TestNeighbors:
     """Neighbors HIL test class"""
 
-    NEIGHBORS_TEST_RUN_ORDER = 1
-
-    @pytest.mark.order(NEIGHBORS_TEST_RUN_ORDER)
+    @pytest.mark.order(RunOrder.NEIGHBORS_TEST_RUN_ORDER)
     def test_neighbors_get(self, ser: SerialHelper):
         """Test to see if neighbors exist
 
