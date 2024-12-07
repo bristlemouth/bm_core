@@ -18,7 +18,8 @@ class Topology:
             ser (SerialHelper): Serial helper instance to perform read/
                                 write commands on the node
         """
-        self._ser = ser
+        self.__ser = ser
+        self.__root = None
 
     def get(self) -> list[int]:
         """Get topology report
@@ -32,13 +33,31 @@ class Topology:
         ret = list()
         s = ""
         pattern = r"[0-9a-fA-F]{16}"
+        root_pattern = r"(\(root\))([0-9a-fA-F]{16})"
 
         # Send bm topo command and wait until the device responds with
         # a regex match
-        self._ser.transmit_str("bm topo\n")
-        s = self._ser.read_until_regex(r"[0-9a-fA-F]{16}.*\n")
+        self.__ser.transmit_str("bm topo\n")
+        s = self.__ser.read_until_regex(r"[0-9a-fA-F]{16}.*\n")
         ret = re.findall(pattern, s)
+        if ret is not None:
+            # Find the root node
+            self.__root = int(re.search(root_pattern, s).group(2), 16)
         for i in range(len(ret)):
             ret[i] = int(ret[i], 16)
 
         return ret
+
+    def root(self) -> int:
+        """Get root node ID
+
+        Gets the root node ID of the topology report. If the topology
+        report has not been ran, it will run the report and obtain the
+        root node ID.
+
+        Returns:
+            int: The node ID of the root node
+        """
+        if self.__root is None:
+            self.get()
+        return self.__root
