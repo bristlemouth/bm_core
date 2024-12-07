@@ -1,0 +1,12 @@
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.12
+  - black=24.10.0
+  - pip
+  - pip:
+      - pyserial
+      - pytest
+      - regex
