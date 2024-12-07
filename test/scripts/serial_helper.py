@@ -27,7 +27,7 @@ class SerialHelper:
         """
         self.port = port
         self.baud = baudrate
-        self._timeout_s = timeout_s
+        self.timeout_s = timeout_s
         self._inst = None
         if port is not None:
             self.open(port, baudrate, timeout_s)
@@ -47,10 +47,10 @@ class SerialHelper:
         """
         self.port = port
         self.baud = baudrate
-        self._timeout_s = timeout_s
+        self.timeout_s = timeout_s
         try:
             self._inst = serial.Serial(
-                port=self.port, timeout=self._timeout_s, baudrate=self.baud
+                port=self.port, timeout=self.timeout_s, baudrate=self.baud
             )
             self.flush()
         except serial.SerialException:
@@ -138,12 +138,14 @@ class SerialHelper:
         try:
             buf = ""
             while True:
-                data = self._inst.read(1).decode("utf-8")
-                buf += data
+                data = self._inst.read(1)
+                if data:
+                    data = data.decode("utf-8", "ignore")
+                    buf += data
 
-                match = re.search(pattern, buf)
-                if match:
-                    return buf
+                    match = re.search(pattern, buf)
+                    if match:
+                        return buf
         except serial.SerialException:
             raise Exception(
                 "Could not read from serial port, \
@@ -165,7 +167,7 @@ class SerialHelper:
         self._regex_ret = None
         try:
             return func_timeout(
-                self._timeout_s, self.__read_until_regex, args=(pattern,)
+                self.timeout_s, self.__read_until_regex, args=(pattern,)
             )
         except FunctionTimedOut:
             print(

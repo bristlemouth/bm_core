@@ -1,4 +1,5 @@
 from serial_helper import SerialHelper
+import pytest
 
 SER = None
 
@@ -19,16 +20,36 @@ def pytest_addoption(parser):
     )
 
 
+@pytest.fixture(scope="function", autouse=True)
+def setup_teardown():
+    """Setup and teardown before every function
+
+    Called at the beginning of every test function, is responsible for
+    opening the serial port upon starting the test and closing the port
+    at the end of the test.
+    """
+    global SER
+    SER.open(SER.port, SER.baud, SER.timeout_s)
+    yield
+    SER.close()
+
+
 def pytest_generate_tests(metafunc):
     """Begin session functionality
 
-    Called at the beginning of the test suit, is responsible for
+    Called at the beginning of the test suite, is responsible for
     opening the serial port and passing its instance to all tests.
+    This function runs once for every test being ran.
     """
+    global SER
     port = metafunc.config.option.port
     baud = metafunc.config.option.baud
     if "ser" in metafunc.fixturenames and port is not None:
-        SER = SerialHelper(port, baud, 0.5)
+        # This function should always pass only one instance of SER
+        # as it runs for every test being ran, we only want to create
+        # SER one time
+        if SER is None:
+            SER = SerialHelper(port, baud, 0.5)
         metafunc.parametrize("ser", [SER])
 
 
@@ -39,5 +60,5 @@ def pytest_sessionfinish(session, exitstatus):
     exit status to the system. This is responsible for closing the
     serial port opened.
     """
-    if SER is not None:
-        SER.close()
+    global SER
+    SER.close()

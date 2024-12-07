@@ -6,7 +6,7 @@ class RunOrder(Enum):
     TOPOLOGY_TEST_RUN_ORDER = 2
 
 
-def format_node_id_to_hex_str(self, node: int) -> str:
+def format_node_id_to_hex_str(node: int) -> str:
     """Topology format node to hex string
 
     This returns a formatted string that can be used to pass into
