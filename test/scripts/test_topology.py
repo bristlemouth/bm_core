@@ -8,7 +8,7 @@ from util import RunOrder
 class TestTopology:
     """Topology HIL test class"""
 
-    @pytest.mark.order(RunOrder.TOPOLOGY_TEST_RUN_ORDER)
+    @pytest.mark.order(RunOrder.TOPOLOGY_TEST_RUN_ORDER.value)
     def test_topology_get(self, ser: SerialHelper):
         """Test to see if the topology report is correct
 

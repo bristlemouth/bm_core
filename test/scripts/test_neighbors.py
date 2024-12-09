@@ -7,7 +7,7 @@ from util import RunOrder
 class TestNeighbors:
     """Neighbors HIL test class"""
 
-    @pytest.mark.order(RunOrder.NEIGHBORS_TEST_RUN_ORDER)
+    @pytest.mark.order(RunOrder.NEIGHBORS_TEST_RUN_ORDER.value)
     def test_neighbors_get(self, ser: SerialHelper):
         """Test to see if neighbors exist
 
