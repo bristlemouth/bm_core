@@ -16,7 +16,7 @@ class TestTopology:
         from the command line argument, bm topo. The topology helper
         ensures that the string is formatted in a specific format
         reported from the console. With this reported string, the
-        tests then checks to see if there are more nodes on the bus
+        tests then checks to see if there are more nodes on the network
         than the number of neighbors. If there are we succeed.
 
         Args:

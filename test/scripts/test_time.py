@@ -15,7 +15,7 @@ class TestTime:
         This obtains the response from the a time get/set message.
 
         Args:
-            ser (SerialHelper): Serial helper instance passed.
+            ser (SerialHelper): Serial helper instance.
             node (int): Node ID to process read message.
             now (int): Optional argument, the current time that was
                        set from a set message. This is utc time in

@@ -9,6 +9,15 @@ class TestPing:
     TEST_STRING = "test_string"
 
     def test_ping(self, ser: SerialHelper):
+        """Test to see if ping command works as expected
+
+        This test runs the ping command and ensures that a proper response
+        is received from every other node on the bus.
+
+        Args:
+            ser (SerialHelper): Serial helper instance passed in from
+                                starting the pytests (see: conftest.py).
+        """
         pattern = r"\d+ bytes from [0-9a-fA-F]{16} bcmp_seq=\d+ time=\d+ ms payload="
         topology = Topology(ser)
         nodes = topology.get()
