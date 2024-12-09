@@ -3,7 +3,7 @@ import re
 
 
 class Topology:
-    """Topology classs
+    """Topology class
 
     Class utilized to obtain information about the topology as seen by
     the node.

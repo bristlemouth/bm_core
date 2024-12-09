@@ -27,7 +27,6 @@ class TestTopology:
         nodes = Topology(ser).get()
 
         # Ensure the number of nodes seen are greater than the
-        # number of neighbors, we know that there are neighbors
-        #
+        # number of neighbors plus the current node
         min_nodes = len(neighbors) + 1
         assert len(nodes) >= min_nodes
