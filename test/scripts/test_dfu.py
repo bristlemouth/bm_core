@@ -6,6 +6,7 @@ from typing import Dict, Any
 import crcmod
 from pathlib import Path
 from func_timeout import func_timeout, FunctionTimedOut
+import sys
 
 
 class TestDFU:
@@ -74,17 +75,22 @@ class TestDFU:
             ser.transmit_str(tx)
             assert "Received ACK\n" in ser.read_until("Received ACK\n")
             count = 0
-            print(size)
-            print(len(data))
-            print(crc)
+            print("\n")
             for byte in data:
                 ser.flush()
                 ser.transmit_str("bm dfu byte " + str(byte) + "\n")
                 read = ser.read_until("DFU Byte Added\n")
-                if "update failed" in read:
+                if "Update failed" in read:
                     break
+
+                # Add a pretty progress bar
                 count += 1
-                print("\r" + str((count / size) * 100) + "%", "")
+                progress = int((count / size) * 100.0)
+                sys.stdout.write(
+                    f"\rDFU Update Progress: [{'#' * progress}{' ' * (100 - progress)}]"
+                    f"{progress}%"
+                )
+                sys.stdout.flush()
             ser.transmit_str("bm dfu finish\n")
             read = ser.read_until("DFU Finish\n")
             try:
