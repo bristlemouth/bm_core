@@ -78,7 +78,6 @@ class SerialHelper:
         """Transmit data
 
         Transmits data to open serial port in bytearray.
-
         Args:
             data (bytearray): data to transmit to opened port.
         """

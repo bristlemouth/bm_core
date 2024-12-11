@@ -18,6 +18,12 @@ def pytest_addoption(parser):
         default=115200,
         help="Serial port baud rate for HIL test",
     )
+    parser.addoption(
+        "--file",
+        action="store",
+        default=None,
+        help="DFU binary application file for loading over bristlemouth",
+    )
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -44,6 +50,7 @@ def pytest_generate_tests(metafunc):
     global SER
     port = metafunc.config.option.port
     baud = metafunc.config.option.baud
+    file = metafunc.config.option.file
     if "ser" in metafunc.fixturenames and port is not None:
         # This function should always pass only one instance of SER
         # as it runs for every test being ran, we only want to create
@@ -51,6 +58,8 @@ def pytest_generate_tests(metafunc):
         if SER is None:
             SER = SerialHelper(port, baud, 0.5)
         metafunc.parametrize("ser", [SER])
+    if "file" in metafunc.fixturenames:
+        metafunc.parametrize("file", [file])
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -61,4 +70,5 @@ def pytest_sessionfinish(session, exitstatus):
     serial port opened.
     """
     global SER
-    SER.close()
+    if SER is not None:
+        SER.close()
