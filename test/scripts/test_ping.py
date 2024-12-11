@@ -34,3 +34,12 @@ class TestPing:
                     vals[i] = int(vals[i], 16)
                 vals = bytes(vals).decode("utf-8")
                 assert self.TEST_STRING == vals
+
+        # Send ping request to all nodes and ensure that all respond
+        # this would be the ping request with 0 as the node ID
+        count = 0
+        ser.transmit_str("bm ping 0 " + self.TEST_STRING + "\n")
+        for node in nodes:
+            ser.read_until_regex(pattern)
+            count += 1
+        assert count == len(nodes)

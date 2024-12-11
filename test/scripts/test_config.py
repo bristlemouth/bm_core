@@ -28,6 +28,9 @@ class TestConfig:
 
     COMMIT_SLEEP_TIME_S = 10.0
 
+    TOPOLOGY = None
+    NODES = None
+
     def __process_value_message_handler(self, ser: SerialHelper, read: str, value: Any):
         """Process received value messages
 
@@ -66,7 +69,7 @@ class TestConfig:
 
         This function will transmit the message to be tested then
         evaluate the console output to ensure that the message is
-        is sent properly and will utilize a regex pattern to ensure
+        sent properly and will utilize a regex pattern to ensure
         the response message is handled properly and the console
         message matches that regex pattern.
 
@@ -140,11 +143,12 @@ class TestConfig:
             delay_s (float): Will be set if a delay is necessary between
                              sending messages on the network.
         """
-        topology = Topology(ser)
-        nodes = topology.get()
+        if self.TOPOLOGY is None and self.NODES is None:
+            self.TOPOLOGY = Topology(ser)
+            self.NODES = self.TOPOLOGY.get()
 
-        for node in nodes:
-            if node != topology.root():
+        for node in self.NODES:
+            if node != self.TOPOLOGY.root():
                 if itr:
                     for _type, value in self.TYPE_VALUE.items():
                         self.__handle_read_message(
@@ -254,7 +258,7 @@ class TestConfig:
 
         self.test_config_get(ser)
 
-    def test_config_status(self, ser: SerialHelper):
+    def test_config_status(self, ser: SerialHelper, delete: bool = False):
         """Send status message to all nodes
 
         This tests the status message on all other nodes besides the
@@ -284,8 +288,8 @@ class TestConfig:
         def compare(ser: SerialHelper, read: str, value: Any):
             """Compares status message keys to known set keys
 
-            Checks all keys on the node and determines if the keys
-            exist on the
+            Checks all keys set on the target nodes and determines if
+            the keys exist on the target node
             """
             count = int(re.search(pattern, read).group(1))
             found = 0
@@ -295,9 +299,13 @@ class TestConfig:
                     key = value[1]
                     if key in read_key:
                         found += 1
-            assert len(self.TYPE_VALUE) == found
+            if delete is False:
+                assert len(self.TYPE_VALUE) == found
+            else:
+                assert found == 0
 
-        self.test_config_set(ser)
+        if delete is False:
+            self.test_config_set(ser)
         self.__send_config_message(ser, message, wait_msg, pattern, False, compare)
 
     def test_config_delete(self, ser: SerialHelper):
@@ -316,8 +324,5 @@ class TestConfig:
         def message(x, y, z, a):
             return "bm cfg del " + x + " s " + a + "\n"
 
-        # Currently there is no way to check if a node deleted a key
-        # other than calling bm cfg get <node_id> <partition> <key>
-        # and ensuring there is no response from the node in
-        # question, which is a manual process
         self.__send_config_message(ser, message, wait_msg, pattern, True)
+        self.test_config_status(ser, True)

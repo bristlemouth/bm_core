@@ -16,7 +16,7 @@ class SerialHelper:
         """SerialHelper constructor
 
         Will setup the SerialHelper class, does not need a port, but
-        will open a up to a port if one is provided.
+        will open up a port if one is provided.
 
         Args:
             port (str): String name of path to serial port to open
@@ -126,14 +126,14 @@ class SerialHelper:
         """Read until a regex private method
 
         Read public method for explanation of this function.
-        This function is only ran for the the configured timeout when
+        This function is only run for the the configured timeout when
         opening the port.
 
         Args:
-            pattern (str): String pattern to match when regex is found
+            pattern (str): Regex pattern to search for
 
         Returns:
-            str: The string read from the port until regex is matched
+            str: The full input string that mached the given regex pattern
         """
         try:
             buf = ""
@@ -155,14 +155,14 @@ class SerialHelper:
     def read_until_regex(self, pattern: str) -> str:
         """Read until a regex pattern match
 
-        Reads from serial line until regex pattern is matched. Runs a
+        Reads from serial line until regex pattern is matched. Runs
         this until the port times out, or the pattern is found.
 
         Args:
-            pattern (str): String pattern to match when regex is found
+            pattern (str): Regex pattern to search for
 
         Returns:
-            str: The string read from the port until regex is matched
+            str: The full input string that mached the given regex pattern
         """
         self._regex_ret = None
         try:
