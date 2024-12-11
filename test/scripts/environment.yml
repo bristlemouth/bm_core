@@ -12,3 +12,4 @@ dependencies:
       - regex
       - func_timeout
       - pytest-order
+      - crcmod
