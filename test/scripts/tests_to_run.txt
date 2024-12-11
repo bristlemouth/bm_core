@@ -1,1 +1,11 @@
 test_neighbors.py::TestNeighbors::test_neighbors_get
+test_topology.py::TestTopology::test_topology_get
+test_config.py::TestConfig::test_config_set
+test_config.py::TestConfig::test_config_get
+test_config.py::TestConfig::test_config_commit
+test_config.py::TestConfig::test_config_status
+test_config.py::TestConfig::test_config_delete
+test_time.py::TestTime::test_time_set
+test_time.py::TestTime::test_time_get
+test_ping.py::TestPing::test_ping
+test_info.py::TestInfo::test_info

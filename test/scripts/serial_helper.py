@@ -1,4 +1,6 @@
 import serial
+import re
+from func_timeout import func_timeout, FunctionTimedOut
 
 
 class SerialHelper:
@@ -14,7 +16,7 @@ class SerialHelper:
         """SerialHelper constructor
 
         Will setup the SerialHelper class, does not need a port, but
-        will not open a up to a port if one is not provided.
+        will open up a port if one is provided.
 
         Args:
             port (str): String name of path to serial port to open
@@ -25,8 +27,9 @@ class SerialHelper:
         """
         self.port = port
         self.baud = baudrate
+        self.timeout_s = timeout_s
         self._inst = None
-        if port != None:
+        if port is not None:
             self.open(port, baudrate, timeout_s)
 
     def open(self, port: str, baudrate: int = 115200, timeout_s: float = 5.0):
@@ -44,9 +47,10 @@ class SerialHelper:
         """
         self.port = port
         self.baud = baudrate
+        self.timeout_s = timeout_s
         try:
             self._inst = serial.Serial(
-                port=self.port, timeout=timeout_s, baudrate=self.baud
+                port=self.port, timeout=self.timeout_s, baudrate=self.baud
             )
             self.flush()
         except serial.SerialException:
@@ -80,7 +84,7 @@ class SerialHelper:
         """
         try:
             self._inst.write(data)
-        except:
+        except serial.SerialException:
             raise Exception(
                 "Could not write to serial port, \
                             check if it is open..."
@@ -112,11 +116,65 @@ class SerialHelper:
         """
         try:
             return self._inst.read_until(seq.encode("utf-8")).decode("utf-8")
-        except:
+        except serial.SerialException:
             raise Exception(
                 "Could not read from serial port, \
                             check if it is open..."
             )
+
+    def __read_until_regex(self, pattern: str) -> str:
+        """Read until a regex private method
+
+        Read public method for explanation of this function.
+        This function is only run for the the configured timeout when
+        opening the port.
+
+        Args:
+            pattern (str): Regex pattern to search for
+
+        Returns:
+            str: The full input string that mached the given regex pattern
+        """
+        try:
+            buf = ""
+            while True:
+                data = self._inst.read(1)
+                if data:
+                    data = data.decode("utf-8", "ignore")
+                    buf += data
+
+                    match = re.search(pattern, buf)
+                    if match:
+                        return buf
+        except serial.SerialException:
+            raise Exception(
+                "Could not read from serial port, \
+                            check if it is open..."
+            )
+
+    def read_until_regex(self, pattern: str) -> str:
+        """Read until a regex pattern match
+
+        Reads from serial line until regex pattern is matched. Runs
+        this until the port times out, or the pattern is found.
+
+        Args:
+            pattern (str): Regex pattern to search for
+
+        Returns:
+            str: The full input string that mached the given regex pattern
+        """
+        self._regex_ret = None
+        try:
+            return func_timeout(
+                self.timeout_s, self.__read_until_regex, args=(pattern,)
+            )
+        except FunctionTimedOut:
+            print(
+                "Read regex timed out, could not find matching pattern"
+                ": " + pattern + "..."
+            )
+            return None
 
     def read_line(self) -> str:
         """Read line from serial port
