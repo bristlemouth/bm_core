@@ -20,6 +20,7 @@ typedef struct dfu_core_ctx_t {
   uint64_t self_node_id;
   uint64_t client_node_id;
   UpdateFinishCb update_finish_callback;
+  bool internal;
 } dfu_core_ctx_t;
 
 #ifndef ENABLE_TESTING
@@ -111,7 +112,7 @@ static const LibSmState dfu_states[BmNumDfuStates] = {
         .state_enum = BmDfuStateHostUpdate,
         .state_name = "Host Update",
         .run = s_host_update_run,
-        .on_state_exit = NULL,
+        .on_state_exit = s_host_update_exit,
         .on_state_entry = s_host_update_entry,
     },
 };
@@ -629,7 +630,7 @@ BmErr bm_dfu_init(void) {
 
 bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
                             UpdateFinishCb update_finish_callback,
-                            uint32_t timeoutMs) {
+                            uint32_t timeoutMs, bool internal) {
   bool ret = false;
   do {
     if (info.chunk_size > bm_dfu_max_chunk_size) {
@@ -669,10 +670,13 @@ bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
       bm_debug("Message could not be added to Queue\n");
       break;
     }
+    dfu_ctx.internal = internal;
     ret = true;
   } while (0);
   return ret;
 }
+
+bool bm_dfu_internal(void) { return dfu_ctx.internal; }
 
 BmDfuErr bm_dfu_get_error(void) { return dfu_ctx.error; }
 

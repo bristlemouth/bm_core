@@ -213,7 +213,7 @@ TEST_F(BcmpDfu, dfu_api_test) {
   info.major_ver = 0;
   info.minor_ver = 1;
   info.gitSHA = 0xd00dd00d;
-  EXPECT_EQ(bm_dfu_initiate_update(info, 0xdeadbeefbeeffeed, NULL, 1000),
+  EXPECT_EQ(bm_dfu_initiate_update(info, 0xdeadbeefbeeffeed, NULL, 1000, true),
             false);
 }
 

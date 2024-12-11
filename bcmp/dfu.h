@@ -116,7 +116,8 @@ BmErr bm_dfu_init(void);
 void bm_dfu_process_message(uint8_t *buf, size_t len);
 bool bm_dfu_initiate_update(BmDfuImgInfo info, uint64_t dest_node_id,
                             UpdateFinishCb update_finish_callback,
-                            uint32_t timeoutMs);
+                            uint32_t timeoutMs, bool internal);
+bool bm_dfu_internal(void);
 
 /*!
  * UNIT TEST FUNCTIONS BELOW HERE
