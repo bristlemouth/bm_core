@@ -24,6 +24,12 @@ def pytest_addoption(parser):
         default=None,
         help="DFU binary application file for loading over bristlemouth",
     )
+    parser.addoption(
+        "--node_id",
+        action="store",
+        default=None,
+        help="Node ID of device to receive DFU, if passed in hex, prefix with 0x",
+    )
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -51,6 +57,7 @@ def pytest_generate_tests(metafunc):
     port = metafunc.config.option.port
     baud = metafunc.config.option.baud
     file = metafunc.config.option.file
+    node_id = metafunc.config.option.node_id
     if "ser" in metafunc.fixturenames and port is not None:
         # This function should always pass only one instance of SER
         # as it runs for every test being ran, we only want to create
@@ -60,6 +67,8 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("ser", [SER])
     if "file" in metafunc.fixturenames:
         metafunc.parametrize("file", [file])
+    if "node_id" in metafunc.fixturenames:
+        metafunc.parametrize("node_id", [node_id])
 
 
 def pytest_sessionfinish(session, exitstatus):
