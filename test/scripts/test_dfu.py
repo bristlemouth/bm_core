@@ -7,6 +7,7 @@ import crcmod
 from pathlib import Path
 from func_timeout import func_timeout, FunctionTimedOut
 from util import print_progress_bar
+import pytest
 
 
 class TestDFU:
@@ -72,7 +73,7 @@ class TestDFU:
                 break
         return ret
 
-    def test_dfu_perform(self, ser: SerialHelper, file: str, node_id: str):
+    def test_dfu(self, ser: SerialHelper, file: str, node_id: str):
         """Test DFU functionality
 
         Runs through a DFU update over the serial console. Will send
@@ -172,5 +173,8 @@ class TestDFU:
                 assert 0
 
         else:
-            print("\nSkipping DFU test as file was not passed in...")
+            pytest.skip(
+                "\nSkipping DFU test as file and node ID was not passed"
+                "in to command line..."
+            )
         pass
