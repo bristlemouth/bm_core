@@ -30,6 +30,9 @@ $ conda activate bm_hil
 
 ## Running HIL Tests
 
+It is recommended to run the HIL tests with 3 or more nodes on a network.
+This will ensure proper functionality across multiple nodes.
+
 HIL tests require a serial communication to the device being tested.
 The requirements for this serial interface are as so:
 
@@ -40,12 +43,26 @@ The requirements for this serial interface are as so:
 
 A specified baud rate is not a requirement.
 
-In order to run the tests the following command must be invoked:
+In order to run the base tests the following command must be invoked:
 
 `pytest -s @tests_to_run.txt --port '{port}' --baud {baud}`
 
 Where port is the serial port you are attempting to talk to the Bristlemouth node on,
 and baud is the desired baud rate.
+
+If you want to include testing the DFU functionality (this is skipped by default in the above command),
+the following command can be run:
+
+`pytest -s @tests_to_run.txt --port '{port}' --baud {baud} --file {relative/path/to/file} --node_id {node_id}`
+
+Two additionally added arguments are provided to the previous command:
+
+- file, which is the relative path to the binary file to be loaded
+- node_id, which is the node ID of the node to be updated,
+this cannot be the node ID of the node this is being tested on,
+if the node is to be passed in as a hex value,
+it must be prepended with `0x`,
+as an example - `0xdeadbeef12345678`
 
 ## Contributing
 
