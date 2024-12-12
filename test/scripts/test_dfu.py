@@ -174,7 +174,6 @@ class TestDFU:
 
         else:
             pytest.skip(
-                "\nSkipping DFU test as file and node ID was not passed"
-                "in to command line..."
+                "\nSkipping DFU test as file and node ID were not passed"
+                " in to command line..."
             )
-        pass
