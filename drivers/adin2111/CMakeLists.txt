@@ -15,6 +15,8 @@ set(SOURCES
 
 add_library(bmadin2111 ${SOURCES})
 
+target_link_libraries(bmadin2111 bmcommon)
+
 if(ENABLE_TESTING)
     add_compile_definitions(ENABLE_TESTING)
 endif()
