@@ -4,11 +4,6 @@
 #include "bm_os.h"
 #include "util.h"
 
-/* We store the egress port for the RX device and the ingress port of the TX device
-   in bytes 5 (index 4) and 6 (index 5) of the SRC IPv6 address. */
-#define egress_port_idx 4
-#define ingress_port_idx 5
-
 // Ethernet Header Sizes
 #define ethernet_destination_size_bytes 6
 #define ethernet_src_size_bytes 6
@@ -51,6 +46,7 @@
   (ipv6_hop_limit_offset + ipv6_hop_limit_size_bytes)
 #define ipv6_destination_address_offset                                        \
   (ipv6_source_address_offset + ipv6_source_address_size_bytes)
+#define ipv6_ingress_egress_ports_offset (ipv6_source_address_offset + 2)
 
 // IPV6 Getters
 #define ipv6_get_version_traffic_class_flow_label(buf)                         \
@@ -69,9 +65,10 @@
 
 // Network Helper Macros
 #define add_egress_port(addr, port)                                            \
-  (addr[ipv6_source_address_offset + egress_port_idx] = port)
+  (addr[ipv6_ingress_egress_ports_offset] |= port)
 #define add_ingress_port(addr, port)                                           \
-  (addr[ipv6_source_address_offset + ingress_port_idx] = port)
+  (addr[ipv6_ingress_egress_ports_offset] |= (port << 4))
+#define clear_ports(addr) (addr[ipv6_ingress_egress_ports_offset] = 0)
 
 #define evt_queue_len (32)
 
@@ -196,21 +193,38 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port) {
   @param *tx_evt tx event with buffer, port, and other information
 */
 static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
-  if (tx_evt) {
-    uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
-    for (uint8_t port = 0; port < CTX.num_ports; port++) {
-      if (tx_evt->port_mask & (0x01 << port)) {
-        uint8_t bm_egress_port = 0x01 << port;
-        network_add_egress_port(payload, bm_egress_port);
+  if (tx_evt == NULL) {
+    return;
+  }
+
+  uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
+  uint8_t *dest_addr = &payload[ipv6_destination_address_offset];
+  if (is_global_multicast(dest_addr)) {
+    const uint8_t all_ports = 0;
+    BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
+                                               tx_evt->length, all_ports);
+    if (err != BmOK) {
+      bm_debug("Failed to send global multicast packet to network. err=%d\n",
+               err);
+    }
+  } else if (is_link_local_multicast(dest_addr)) {
+    for (uint8_t port_idx = 0; port_idx < CTX.num_ports; port_idx++) {
+      if (tx_evt->port_mask & (0x01 << port_idx)) {
+        uint8_t port_num = port_idx + 1;
+        network_add_egress_port(payload, port_num);
         BmErr err = CTX.network_device.trait->send(
-            CTX.network_device.self, payload, tx_evt->length, port);
+            CTX.network_device.self, payload, tx_evt->length, port_num);
         if (err != BmOK) {
-          bm_debug("Failed to send TX buffer to network\n");
+          bm_debug(
+              "Failed to send link-local packet to network. err=%d, port=%d\n",
+              err, port_num);
         }
+        clear_ports(payload);
       }
     }
-    bm_l2_free(tx_evt->buf);
   }
+
+  bm_l2_free(tx_evt->buf);
 }
 
 /*!
@@ -227,6 +241,7 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
     uint8_t *payload = (uint8_t *)bm_l2_get_payload(rx_evt->buf);
 
     // We need to code the RX Port into the IPV6 address passed up the stack
+    // FIXME: It's not a mask. It's an integer 1-15.
     add_ingress_port(payload, rx_evt->port_mask);
 
     if (is_global_multicast(&payload[ipv6_destination_address_offset])) {
