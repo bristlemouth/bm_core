@@ -177,6 +177,17 @@ static void tx_complete(void *device_param, uint32_t event,
   free_tx_buffer(buffer_description);
 }
 
+static inline adin2111_TxPort_e driver_tx_port(uint8_t port) {
+  switch (port) {
+  case 1:
+    return ADIN2111_TX_PORT_1;
+  case 2:
+    return ADIN2111_TX_PORT_2;
+  default:
+    return ADIN2111_TX_PORT_FLOOD;
+  }
+}
+
 // Allocate buffers for sending, copy the given data, and submit to the driver
 static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
                                      uint8_t port) {
@@ -197,8 +208,10 @@ static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
   memcpy(buffer_description->pBuf, data, length);
   buffer_description->trxSize = length;
   buffer_description->cbFunc = tx_complete;
-  if (adin2111_SubmitTxBuffer(&DEVICE_STRUCT, port, buffer_description) !=
-      ADI_ETH_SUCCESS) {
+  adin2111_TxPort_e tx_port = driver_tx_port(port);
+  adi_eth_Result_e result =
+      adin2111_SubmitTxBuffer(&DEVICE_STRUCT, tx_port, buffer_description);
+  if (result != ADI_ETH_SUCCESS) {
     free_tx_buffer(buffer_description);
     goto end;
   }

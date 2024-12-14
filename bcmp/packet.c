@@ -434,7 +434,7 @@ BmErr process_received_message(void *payload, uint32_t size) {
     data.dst = PACKET.cb.dst_ip(payload);
     data.size = size;
     // TODO: make me endian agnostic look up the spec
-    data.ingress_port = (((uint32_t *)(data.src))[1] >> 8) & 0xFF;
+    data.ingress_port = (((uint8_t *)data.src)[2] >> 4) & 0xF;
     check_endianness(data.header, BcmpHeaderMessage);
 
     // Process parsed message type
