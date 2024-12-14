@@ -23,6 +23,7 @@ DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpProcessData);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpProcessData);
 
 static rnd_gen RND;
+static bool fail_checksum;
 
 class Packet : public ::testing::Test {
 public:
@@ -50,36 +51,21 @@ protected:
     return (void *)ret->dst_addr;
   }
   static uint16_t calc_checksum(void *payload, uint32_t size) {
-    uint32_t sum = 0;
-    uint8_t *data = (uint8_t *)get_data(payload);
-
-    for (size_t i = 0; i < size; i += 2) {
-      uint16_t word = data[i] | (data[i + 1] << 8);
-      sum += word;
-      if (sum > 0xFFFF) {
-        sum = (sum & 0xFFFF) + (sum >> 16);
-      }
+    if (fail_checksum) {
+      return 100;
+    } else {
+      return 0;
     }
-
-    // If the length is odd, add the remaining byte as a 16-bit word
-    if (size % 2 != 0) {
-      uint16_t word = data[size - 1];
-      sum += word;
-      if (sum > 0xFFFF) {
-        sum = (sum & 0xFFFF) + (sum >> 16);
-      }
-    }
-
-    // Return the one's complement of the sum
-    return (uint16_t)~sum;
   }
   void SetUp() override {
+    fail_checksum = false;
     test_payload_size = RND.rnd_int(max_payload_size, min_payload_size);
     test_payload = (uint8_t *)calloc(test_payload_size, sizeof(uint8_t));
 
     RESET_FAKE(bm_semaphore_create);
     RESET_FAKE(bm_timer_create);
     RESET_FAKE(bm_timer_start);
+    RESET_FAKE(bcmp_process_heartbeat);
     bm_semaphore_create_fake.return_val =
         (BmSemaphore)RND.rnd_int(UINT32_MAX, UINT16_MAX);
     bm_timer_create_fake.return_val =
@@ -113,8 +99,8 @@ protected:
   BcmpHeader payload_stuffer(uint8_t *payload, void *data, uint32_t size,
                              BcmpMessageType type, uint32_t seq_req) {
     BcmpHeader header = {
-        gen_rnd_u16, gen_rnd_u16, gen_rnd_u8, gen_rnd_u8,
-        gen_rnd_u32, gen_rnd_u8,  gen_rnd_u8, gen_rnd_u8,
+        gen_rnd_u16, 0,          gen_rnd_u8, gen_rnd_u8,
+        gen_rnd_u32, gen_rnd_u8, gen_rnd_u8, gen_rnd_u8,
     };
     header.type = type;
     header.seq_num = seq_req;
@@ -172,7 +158,6 @@ TEST_F(Packet, process) {
   RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
 
   // Test a normal message
-  RESET_FAKE(bcmp_process_heartbeat);
   BcmpHeartbeat hb = {
       gen_rnd_u64,
       gen_rnd_u32,
@@ -325,5 +310,27 @@ TEST_F(Packet, null_payload) {
   RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
   RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
   // Test a completely null payload
-  ASSERT_EQ(process_received_message((void *)&data, sizeof(BcmpHeartbeat)), BmEINVAL);
-  }
+  ASSERT_EQ(process_received_message((void *)&data, sizeof(BcmpHeartbeat)),
+            BmEINVAL);
+}
+
+TEST_F(Packet, fail_process_checksum) {
+  PacketTestData data;
+  BcmpHeader header;
+  fail_checksum = true;
+  data.payload = test_payload;
+  RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
+  RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
+
+  // Test a normal message
+  BcmpHeartbeat hb = {
+      gen_rnd_u64,
+      gen_rnd_u32,
+  };
+
+  header = payload_stuffer(data.payload, (void *)&hb, sizeof(hb),
+                           BcmpHeartbeatMessage, 0);
+  bcmp_process_heartbeat_fake.return_val = BmOK;
+  ASSERT_EQ(process_received_message((void *)&data, sizeof(hb)), BmEBADMSG);
+  ASSERT_EQ(bcmp_process_heartbeat_fake.call_count, 0);
+}

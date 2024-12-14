@@ -125,27 +125,26 @@ static uint8_t ip_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
     if (pbuf_remove_header(pbuf, PBUF_IP_HLEN) != 0) {
       //  Restore original packet
       pbuf_add_header(pbuf, PBUF_IP_HLEN);
-    } else {
-
-      // Make a copy of the IP address since we'll be modifying it later when we
-      // remove the src/dest ports (and since it might not be in the pbuf so someone
-      // else is managing that memory)
-      ip_addr_t *src_ref = (ip_addr_t *)bm_malloc(sizeof(ip_addr_t));
-      ip_addr_t *dst_ref = (ip_addr_t *)bm_malloc(sizeof(ip_addr_t));
-      LwipLayout *layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
-      memcpy(dst_ref, ip6_hdr->dest.addr, sizeof(ip_addr_t));
-      memcpy(src_ref, src, sizeof(ip_addr_t));
-      *layout = (LwipLayout){pbuf, src_ref, dst_ref};
-
-      BcmpQueueItem item = {BcmpEventRx, (void *)layout, layout->pbuf->len};
-      if (bm_queue_send(queue, &item, 0) != BmOK) {
-        bm_debug("Error sending to Queue\n");
-        pbuf_free(pbuf);
-      }
-
-      // Eat the packet
-      rval = 1;
     }
+
+    // Make a copy of the IP address since we'll be modifying it later when we
+    // remove the src/dest ports (and since it might not be in the pbuf so someone
+    // else is managing that memory)
+    ip_addr_t *src_ref = (ip_addr_t *)bm_malloc(sizeof(ip_addr_t));
+    ip_addr_t *dst_ref = (ip_addr_t *)bm_malloc(sizeof(ip_addr_t));
+    LwipLayout *layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
+    memcpy(dst_ref, ip6_hdr->dest.addr, sizeof(ip_addr_t));
+    memcpy(src_ref, src, sizeof(ip_addr_t));
+    *layout = (LwipLayout){pbuf, src_ref, dst_ref};
+
+    BcmpQueueItem item = {BcmpEventRx, (void *)layout, layout->pbuf->len};
+    if (bm_queue_send(queue, &item, 0) != BmOK) {
+      bm_debug("Error sending to Queue\n");
+      pbuf_free(pbuf);
+    }
+
+    // Eat the packet
+    rval = 1;
   }
 
   return rval;
