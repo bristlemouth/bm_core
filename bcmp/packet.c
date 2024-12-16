@@ -446,7 +446,7 @@ BmErr process_received_message(void *payload, uint32_t size) {
     checksum_read = data.header->checksum;
     data.header->checksum = 0;
     checksum_calc = PACKET.cb.checksum(payload, size + sizeof(BcmpHeader));
-    if (checksum_calc - checksum_read != 0) {
+    if (checksum_calc != checksum_read) {
       bm_debug("Packet checksum mismatch!\n");
       err = BmEBADMSG;
       return err;
