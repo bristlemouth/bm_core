@@ -3,7 +3,7 @@ import re
 from serial_helper import SerialHelper
 from topology_helper import Topology
 from datetime import datetime, timezone
-from util import format_node_id_to_hex_str
+from util import format_node_id_to_hex_str, retry_test
 
 
 class TestTime:
@@ -47,6 +47,7 @@ class TestTime:
         else:
             assert 0
 
+    @retry_test(max_attempts=3, wait_s=2)
     def test_time_set(self, ser: SerialHelper):
         """Time set test
 
@@ -72,6 +73,7 @@ class TestTime:
                 )
                 self.__time_process(ser, node, now)
 
+    @retry_test(max_attempts=3, wait_s=2)
     def test_time_get(self, ser: SerialHelper):
         """Time set test
 

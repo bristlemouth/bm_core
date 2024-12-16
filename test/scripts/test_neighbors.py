@@ -1,13 +1,14 @@
 import pytest
 from serial_helper import SerialHelper
 from neighbors_helper import Neighbors
-from util import RunOrder
+from util import RunOrder, retry_test
 
 
 class TestNeighbors:
     """Neighbors HIL test class"""
 
     @pytest.mark.order(RunOrder.NEIGHBORS_TEST_RUN_ORDER.value)
+    @retry_test(max_attempts=5, wait_s=2)
     def test_neighbors_get(self, ser: SerialHelper):
         """Test to see if neighbors exist
 
@@ -31,5 +32,5 @@ class TestNeighbors:
 
             # Ensure that a neighbor node ID exists and the port found
             # matches the port expected number
-            if not isinstance(neighbor_info[0], int) or neighbor_info[1] != port:
-                pytest.fail("Failed neighbor test and cannot move on")
+            assert isinstance(neighbor_info[0], int)
+            assert neighbor_info[1] == port

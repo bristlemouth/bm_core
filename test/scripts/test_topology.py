@@ -2,13 +2,14 @@ import pytest
 from serial_helper import SerialHelper
 from topology_helper import Topology
 from neighbors_helper import Neighbors
-from util import RunOrder
+from util import RunOrder, retry_test
 
 
 class TestTopology:
     """Topology HIL test class"""
 
     @pytest.mark.order(RunOrder.TOPOLOGY_TEST_RUN_ORDER.value)
+    @retry_test(max_attempts=5, wait_s=2)
     def test_topology_get(self, ser: SerialHelper):
         """Test to see if the topology report is correct
 

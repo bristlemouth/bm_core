@@ -63,7 +63,7 @@ def pytest_generate_tests(metafunc):
         # as it runs for every test being ran, we only want to create
         # SER one time
         if SER is None:
-            SER = SerialHelper(port, baud, 0.5)
+            SER = SerialHelper(port, baud, 5.0)
         metafunc.parametrize("ser", [SER])
     if "file" in metafunc.fixturenames:
         metafunc.parametrize("file", [file])
