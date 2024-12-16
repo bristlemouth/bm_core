@@ -1,5 +1,6 @@
 from serial_helper import SerialHelper
 import re
+import sys
 
 
 class Topology:
@@ -61,3 +62,58 @@ class Topology:
         if self.__root is None:
             self.get()
         return self.__root
+
+
+if __name__ == "__main__":
+    """Command line option is this script is invoked directly
+
+    CLI Options that will print topology information is this script
+    is invoked directly
+    """
+    help = False
+    root = False
+    port = None
+    port_arg = False
+    baud = None
+    baud_arg = False
+
+    for arg in sys.argv:
+        if arg == "--help" or arg == "-h":
+            help = True
+            break
+        elif arg == "--root" or arg == "-r":
+            root = True
+        elif arg == "--port" or arg == "-p":
+            port_arg = True
+        elif port_arg is True:
+            port = arg
+            port_arg = False
+        elif arg == "--baud" or arg == "-b":
+            baud_arg = True
+        elif baud_arg is True:
+            baud = int(arg)
+            baud_arg = False
+
+    if help is True:
+        print(
+            "usage: topology_helper.py [-h] [-r] -p {port}\n\n"
+            "prints a list of the topology or "
+            "root node to the console\n\n"
+            "required arguments:\n"
+            "-p, --port {port} serial port to access node\n"
+            "-b, --baud {baud} baud rate of serial connection\n"
+            "\n"
+            "optional arguments:\n"
+            "-h, --help show this help message and exit\n"
+            "-r, --root print the root to the console"
+        )
+    else:
+        ser = SerialHelper(port, baud)
+        topology = Topology(ser)
+        if root is True:
+            print(hex(topology.root()))
+        else:
+            values = topology.get()
+            for i in range(len(values)):
+                values[i] = hex(values[i])
+            print(values)

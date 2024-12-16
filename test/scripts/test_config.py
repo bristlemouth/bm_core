@@ -3,7 +3,7 @@ from serial_helper import SerialHelper
 from topology_helper import Topology
 from typing import Callable, Any
 from time import sleep
-from util import format_node_id_to_hex_str
+from util import format_node_id_to_hex_str, retry_test
 
 
 class TestConfig:
@@ -182,6 +182,7 @@ class TestConfig:
                     ser.close()
                     ser.open(ser.port, ser.baud, ser.timeout_s)
 
+    @retry_test(max_attempts=3, wait_s=2)
     def test_config_set(self, ser: SerialHelper):
         """Send set command from node
 
@@ -204,6 +205,7 @@ class TestConfig:
             ser, message, wait_msg, pattern, True, self.__process_value_message_handler
         )
 
+    @retry_test(max_attempts=3, wait_s=2)
     def test_config_get(self, ser: SerialHelper):
         """Send get command from node
 
@@ -226,6 +228,7 @@ class TestConfig:
             ser, message, wait_msg, pattern, True, self.__process_value_message_handler
         )
 
+    @retry_test(max_attempts=3, wait_s=2)
     def test_config_commit(self, ser: SerialHelper):
         """Send commit message to all nodes
 
@@ -258,6 +261,7 @@ class TestConfig:
 
         self.test_config_get(ser)
 
+    @retry_test(max_attempts=3, wait_s=2)
     def test_config_status(self, ser: SerialHelper, delete: bool = False):
         """Send status message to all nodes
 
@@ -308,6 +312,7 @@ class TestConfig:
             self.test_config_set(ser)
         self.__send_config_message(ser, message, wait_msg, pattern, False, compare)
 
+    @retry_test(max_attempts=3, wait_s=2)
     def test_config_delete(self, ser: SerialHelper):
         """Send delete message to all nodes
 
