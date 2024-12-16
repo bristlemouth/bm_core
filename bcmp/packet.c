@@ -9,6 +9,9 @@
 
 #define default_message_timeout_ms 24
 #define message_timer_expiry_period_ms 12
+/* Ingress and Egress ports are mapped to the 5th and 6th byte of the IPv6 src address as per
+    the bristlemouth protocol spec */
+#define clear_ports(x) (x[1] &= (~(0xFFFFU)))
 
 typedef struct BcmpRequestElement {
   uint16_t type;
@@ -421,6 +424,8 @@ BmErr process_received_message(void *payload, uint32_t size) {
   BcmpRequestElement *request_message = NULL;
   BcmpPacketCfg *cfg = NULL;
   void *buf = NULL;
+  uint16_t checksum_read = 0;
+  uint16_t checksum_calc = 0;
 
   if (payload && PACKET.initialized) {
     buf = PACKET.cb.data(payload);
@@ -428,6 +433,7 @@ BmErr process_received_message(void *payload, uint32_t size) {
       bm_debug("Recieved BCMP message with no contents!\n");
       return err;
     }
+
     data.header = (BcmpHeader *)buf;
     data.payload = (uint8_t *)(buf + sizeof(BcmpHeader));
     data.src = PACKET.cb.src_ip(payload);
@@ -435,6 +441,18 @@ BmErr process_received_message(void *payload, uint32_t size) {
     data.size = size;
     // TODO: make me endian agnostic look up the spec
     data.ingress_port = (((uint32_t *)(data.src))[1] >> 8) & 0xFF;
+    clear_ports(((uint32_t *)data.src));
+
+    checksum_read = data.header->checksum;
+    data.header->checksum = 0;
+    checksum_calc = PACKET.cb.checksum(payload, size + sizeof(BcmpHeader));
+    if (checksum_calc != checksum_read) {
+      bm_debug("Packet checksum mismatch!\n");
+      err = BmEBADMSG;
+      return err;
+    }
+    data.header->checksum = checksum_read;
+
     check_endianness(data.header, BcmpHeaderMessage);
 
     // Process parsed message type

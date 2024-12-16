@@ -202,12 +202,14 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
     // so calculate the checksum on the link-local multicast address.
     forward = bm_ip_tx_new(&multicast_ll_addr, size + sizeof(BcmpHeader));
     if (forward) {
-      header->checksum = 0;
-      header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
 
       // Copy data to be forwarded
+      header->checksum = 0;
       bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
       bm_ip_tx_copy(forward, payload, size, sizeof(BcmpHeader));
+
+      header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
+      bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
 
       err = bm_ip_tx_perform(forward, &port_specific_dst);
       if (err != BmOK) {
