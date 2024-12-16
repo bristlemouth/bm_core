@@ -49,6 +49,9 @@ set(BM_CORE_FREERTOS_INCLUDES
     path/to/includes/here
 )
 
+# Add directory path to bm_config.h here
+include_directories(/path/to/config/directory)
+
 # Include bm_core.cmake to add functions necessary to choose platform items
 include(path/to/bm_core/cmake/bm_core.cmake)
 setup_bm_ip_stack(LWIP "${BM_CORE_LWIP_INCLUDES}")
@@ -56,9 +59,6 @@ setup_bm_os(FREERTOS "${BM_CORE_FREERTOS_INCLUDES}")
 
 # Add bm_core to the build
 add_subdirectory(path/to/bm_core bmcore)
-
-# Add directory path to bm_config.h here
-target_include_directories(bmcore PRIVATE /path/to/config/directory)
 
 # Link bm_core to the executable
 target_link_libraries(${EXECUTABLE_NAME} bmcore)
