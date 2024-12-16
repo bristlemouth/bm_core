@@ -9,3 +9,4 @@ test_time.py::TestTime::test_time_set
 test_time.py::TestTime::test_time_get
 test_ping.py::TestPing::test_ping
 test_info.py::TestInfo::test_info
+test_dfu.py::TestDFU::test_dfu
