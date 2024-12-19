@@ -120,7 +120,6 @@ static BmErr bm_l2_tx(void *buf, uint32_t length, uint8_t port_mask) {
   L2QueueElement tx_evt = {port_mask & CTX.enabled_ports_mask, buf, L2Tx,
                            length};
 
-  bm_l2_tx_prep(buf, length);
   if (bm_queue_send(CTX.evt_queue, &tx_evt, 10) != BmOK) {
     bm_l2_free(buf);
     err = BmENOMEM;
@@ -244,7 +243,9 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
 
     // Submit packet to ip stack.
     // Upper level RX Callback is responsible for freeing the packet
-    bm_l2_submit(rx_evt->buf, rx_evt->length);
+    if (bm_l2_submit(rx_evt->buf, rx_evt->length) != BmOK) {
+      bm_l2_free(rx_evt->buf);
+    }
   }
 }
 
@@ -413,6 +414,8 @@ BmErr bm_l2_link_output(void *buf, uint32_t length) {
 
   // clear the egress port set by the application
   eth_frame[egress_idx] = 0;
+
+  bm_l2_tx_prep(buf, length);
 
   return bm_l2_tx(buf, length, port_mask);
 }
