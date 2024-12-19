@@ -141,6 +141,9 @@ static uint8_t ip_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
     if (bm_queue_send(queue, &item, 0) != BmOK) {
       bm_debug("Error sending to Queue\n");
       pbuf_free(pbuf);
+      bm_free(src_ref);
+      bm_free(dst_ref);
+      bm_free(layout);
     }
 
     // Eat the packet
