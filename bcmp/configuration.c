@@ -9,10 +9,12 @@
 #ifndef CBOR_PARSER_MAX_RECURSIONS
 #error "CBOR_PARSER_MAX_RECURSIONS must be defined!"
 #endif // CBOR_PARSER_MAX_RECURSIONS
-#define RAM_CONFIG_BUFFER_SIZE (10 * 1024)
+#ifndef bm_configuration_size_bytes
+#define bm_configuration_size_bytes (10 * 1024)
+#endif
 
 struct ConfigInfo {
-  uint8_t ram_buffer[RAM_CONFIG_BUFFER_SIZE];
+  uint8_t ram_buffer[bm_configuration_size_bytes];
   bool needs_commit;
 };
 
