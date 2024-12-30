@@ -17,6 +17,7 @@ typedef void *BmQueue;
 typedef void *BmSemaphore;
 typedef void *BmTimer;
 typedef void *BmTaskHandle;
+typedef void *BmBuffer;
 
 typedef void (*BmTimerCallback)(BmTimer timer);
 typedef void (*BmTask)(void *arg);
@@ -31,6 +32,14 @@ void bm_queue_delete(BmQueue queue);
 BmErr bm_queue_receive(BmQueue queue, void *item, uint32_t timeout_ms);
 BmErr bm_queue_send(BmQueue queue, const void *item, uint32_t timeout_ms);
 BmErr bm_queue_send_to_front_from_isr(BmQueue queue, const void *item);
+
+// Stream buffer functions
+BmBuffer bm_stream_buffer_create(uint32_t max_size);
+void bm_stream_buffer_delete(BmBuffer buf);
+BmErr bm_stream_buffer_send(BmBuffer buf, uint8_t *data, uint32_t size,
+                            uint32_t timeout_ms);
+BmErr bm_stream_buffer_receive(BmBuffer buf, uint8_t *data, uint32_t *size,
+                               uint32_t timeout_ms);
 
 // Semaphore functions
 BmSemaphore bm_semaphore_create(void);

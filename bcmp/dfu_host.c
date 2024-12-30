@@ -29,7 +29,7 @@ typedef struct dfu_host_ctx_t {
   UpdateFinishCb update_complete_callback;
   BmTimer update_timer;
   uint32_t host_timeout_ms;
-  BmQueue data_queue;
+  BmBuffer data_queue;
 } dfu_host_ctx_t;
 
 #define flash_read_timeout_ms 5 * 1000
@@ -166,15 +166,9 @@ static BmErr bm_dfu_host_send_chunk(BmDfuEventChunkRequest *req) {
                                     payload_header->chunk.payload_buf,
                                     payload_len, flash_read_timeout_ms);
       } else if (host_ctx.data_queue) {
-        uint8_t *data_buf = (uint8_t *)bm_malloc(host_ctx.img_info.chunk_size);
-        if (data_buf) {
-          err = bm_queue_receive(host_ctx.data_queue, data_buf,
-                                 host_ctx.host_timeout_ms);
-          memcpy(payload_header->chunk.payload_buf, data_buf, payload_len);
-          bm_free(data_buf);
-        } else {
-          err = BmENOMEM;
-        }
+        err = bm_stream_buffer_receive(host_ctx.data_queue,
+                                       payload_header->chunk.payload_buf,
+                                       &payload_len, host_ctx.host_timeout_ms);
       }
       if (err != BmOK) {
         bm_debug("Failed to read chunk from flash.\n");
@@ -254,7 +248,7 @@ BmErr s_host_req_update_entry(void) {
 
   if (!bm_dfu_internal()) {
     host_ctx.data_queue =
-        bm_queue_create(data_queue_size, img_info_evt->img_info.chunk_size);
+        bm_stream_buffer_create(img_info_evt->img_info.chunk_size);
   }
 
   /* Kickoff ACK timeout */
@@ -400,7 +394,7 @@ BmErr s_host_update_run(void) {
 
 BmErr s_host_update_exit(void) {
   if (host_ctx.data_queue) {
-    bm_queue_delete(host_ctx.data_queue);
+    bm_stream_buffer_delete(host_ctx.data_queue);
     host_ctx.data_queue = NULL;
   }
 
@@ -479,8 +473,9 @@ bool bm_dfu_host_client_node_valid(uint64_t client_node_id) {
 BmErr bm_dfu_host_queue_data(uint8_t *data, uint32_t size) {
   BmErr err = BmEINVAL;
 
-  if (data && host_ctx.data_queue && size == host_ctx.img_info.chunk_size) {
-    err = bm_queue_send(host_ctx.data_queue, data, 0);
+  if (data && host_ctx.data_queue) {
+    err = bm_stream_buffer_send(host_ctx.data_queue, data, size,
+                                host_ctx.host_timeout_ms);
   }
 
   return err;
