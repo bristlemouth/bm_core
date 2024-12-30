@@ -166,12 +166,15 @@ static BmErr bm_dfu_host_send_chunk(BmDfuEventChunkRequest *req) {
                                     payload_header->chunk.payload_buf,
                                     payload_len, flash_read_timeout_ms);
       } else if (host_ctx.data_queue) {
-        //TODO: handle gracefully if cannot malloc
         uint8_t *data_buf = (uint8_t *)bm_malloc(host_ctx.img_info.chunk_size);
-        err = bm_queue_receive(host_ctx.data_queue, data_buf,
-                               host_ctx.host_timeout_ms);
-        memcpy(payload_header->chunk.payload_buf, data_buf, payload_len);
-        bm_free(data_buf);
+        if (data_buf) {
+          err = bm_queue_receive(host_ctx.data_queue, data_buf,
+                                 host_ctx.host_timeout_ms);
+          memcpy(payload_header->chunk.payload_buf, data_buf, payload_len);
+          bm_free(data_buf);
+        } else {
+          err = BmENOMEM;
+        }
       }
       if (err != BmOK) {
         bm_debug("Failed to read chunk from flash.\n");
