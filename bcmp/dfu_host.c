@@ -252,7 +252,6 @@ BmErr s_host_req_update_entry(void) {
   /* Request Client Firmware Update */
   bm_dfu_host_req_update();
 
-  //TODO: place restrictions on how big the chunksize can be here?
   if (!bm_dfu_internal()) {
     host_ctx.data_queue =
         bm_queue_create(data_queue_size, img_info_evt->img_info.chunk_size);
