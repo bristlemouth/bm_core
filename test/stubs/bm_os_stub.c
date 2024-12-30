@@ -44,6 +44,12 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, bm_queue_receive, BmQueue, void *, uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bm_queue_send, BmQueue, const void *, uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bm_queue_send_to_front_from_isr, BmQueue,
                        const void *);
+DEFINE_FAKE_VALUE_FUNC(BmBuffer, bm_stream_buffer_create, uint32_t);
+DEFINE_FAKE_VOID_FUNC(bm_stream_buffer_delete, BmBuffer);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bm_stream_buffer_send, BmBuffer, uint8_t *,
+                       uint32_t, uint32_t);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bm_stream_buffer_receive, BmBuffer, uint8_t *,
+                       uint32_t *, uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bm_task_create, BmTaskCb, const char *, uint32_t,
                        void *, uint32_t, BmTaskHandle);
 DEFINE_FAKE_VOID_FUNC(bm_task_delete, BmTaskHandle);
