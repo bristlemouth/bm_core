@@ -67,23 +67,13 @@ def retry_test(max_attempts: int = 5, wait_s: float = 5.0):
                 try:
                     return test_fun(*args, **kwargs)
 
-                except AssertionError as assert_error:
-                    assert_message = assert_error.__str__().split("\n")[0]
+                except (AssertionError, serial.SerialException) as err:
+                    assert_message = err.__str__().split("\n")[0]
                     print(
                         f'Retry error: "{test_fun.__name__}" '
                         f"--> {assert_message}."
                         f"[{retry_count}/{max_attempts - 1}]"
                         f"Retrying new execution in {wait_s} second(s)"
-                    )
-                    time.sleep(wait_s)
-                    retry_count += 1
-                except serial.SerialException as serial_error:
-                    serial_message = serial_error.__str__().split("\n")[0]
-                    print(
-                        f'Retry error: "{test_fun.__name__}" '
-                        f"--> {serial_message}."
-                        f"[{retry_count}/{max_attempts - 1}]"
-                        f" Retrying new execition in {wait_s} second(s)"
                     )
                     time.sleep(wait_s)
                     retry_count += 1

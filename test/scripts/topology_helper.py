@@ -1,6 +1,7 @@
 from serial_helper import SerialHelper
 import re
 import sys
+import argparse
 
 
 class Topology:
@@ -70,50 +71,26 @@ if __name__ == "__main__":
     CLI Options that will print topology information if this script
     is invoked directly
     """
-    help = False
-    root = False
-    port = None
-    port_arg = False
-    baud = None
-    baud_arg = False
-
-    for arg in sys.argv:
-        if arg == "--help" or arg == "-h":
-            help = True
-            break
-        elif arg == "--root" or arg == "-r":
-            root = True
-        elif arg == "--port" or arg == "-p":
-            port_arg = True
-        elif port_arg is True:
-            port = arg
-            port_arg = False
-        elif arg == "--baud" or arg == "-b":
-            baud_arg = True
-        elif baud_arg is True:
-            baud = int(arg)
-            baud_arg = False
-
-    if help is True:
-        print(
-            "usage: topology_helper.py [-h] [-r] -p {port}\n\n"
-            "prints a list of the topology or "
-            "root node to the console\n\n"
-            "required arguments:\n"
-            "-p, --port {port} serial port to access node\n"
-            "-b, --baud {baud} baud rate of serial connection\n"
-            "\n"
-            "optional arguments:\n"
-            "-h, --help show this help message and exit\n"
-            "-r, --root print the root to the console"
-        )
+    parser = argparse.ArgumentParser(
+        description="Prints a list of the Bristlemouth topology or root"
+        "node to the console",
+    )
+    parser.add_argument(
+        "-r", "--root", action="store_true", help="print the root to the console"
+    )
+    parser.add_argument(
+        "-p", "--port", help="serial port to access node", required=True
+    )
+    parser.add_argument(
+        "-b", "--baud", help="baud rate of serial connection", required=True
+    )
+    args = parser.parse_args()
+    ser = SerialHelper(args.port, args.baud)
+    topology = Topology(ser)
+    if args.root is True:
+        print(hex(topology.root()))
     else:
-        ser = SerialHelper(port, baud)
-        topology = Topology(ser)
-        if root is True:
-            print(hex(topology.root()))
-        else:
-            values = topology.get()
-            for i in range(len(values)):
-                values[i] = hex(values[i])
-            print(values)
+        values = topology.get()
+        for i in range(len(values)):
+            values[i] = hex(values[i])
+        print(values)
