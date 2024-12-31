@@ -189,6 +189,14 @@ TEST_F(BcmpDfu, dfu_api_test) {
   EXPECT_EQ(bm_queue_create_fake.call_count, 1);
   EXPECT_EQ(bm_timer_create_fake.call_count, 4);
   EXPECT_EQ(node_id_fake.call_count, 3);
+  LibSmContext *ctx = bm_dfu_test_get_sm_ctx();
+  BmDfuEvent evt = {
+      .type = DfuEventInitSuccess,
+      .buf = NULL,
+      .len = 0,
+  };
+  bm_dfu_test_set_dfu_event_and_run_sm(evt);
+  EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
 
   bm_dfu_send_ack(0xdeadbeefbeeffeed, 1, BmDfuErrNone);
   EXPECT_EQ(bcmp_tx_fake.call_count, 1);
@@ -213,8 +221,8 @@ TEST_F(BcmpDfu, dfu_api_test) {
   info.major_ver = 0;
   info.minor_ver = 1;
   info.gitSHA = 0xd00dd00d;
-  EXPECT_EQ(bm_dfu_initiate_update(info, 0xdeadbeefbeeffeed, NULL, 1000),
-            false);
+  EXPECT_EQ(bm_dfu_initiate_update(info, 0xdeadbeefbeeffeed, NULL, 1000, true),
+            true);
 }
 
 TEST_F(BcmpDfu, client_golden) {
@@ -460,6 +468,16 @@ TEST_F(BcmpDfu, host_golden) {
   };
   bm_dfu_test_set_dfu_event_and_run_sm(evt);
   EXPECT_EQ(get_current_state_enum(ctx), BmDfuStateIdle);
+
+  BmDfuImgInfo info;
+  info.chunk_size = bm_dfu_max_chunk_size;
+  info.crc16 = 0xbaad;
+  info.image_size = 2 * 1000 * 1024;
+  info.major_ver = 0;
+  info.minor_ver = 1;
+  info.gitSHA = 0xd00dd00d;
+  EXPECT_EQ(bm_dfu_initiate_update(info, 0xdeadbeefbeeffeed, NULL, 1000, true),
+            true);
 
   // HOST REQUEST
   evt.type = DfuEventBeginHost;

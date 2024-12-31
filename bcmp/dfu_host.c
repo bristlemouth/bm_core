@@ -15,6 +15,7 @@
     bm_dfu_host_transition_to_error(BmDfuErrAborted);                          \
     return err;                                                                \
   }
+#define data_queue_size (3)
 
 typedef struct dfu_host_ctx_t {
   BmQueue dfu_event_queue;
@@ -28,6 +29,7 @@ typedef struct dfu_host_ctx_t {
   UpdateFinishCb update_complete_callback;
   BmTimer update_timer;
   uint32_t host_timeout_ms;
+  BmBuffer data_queue;
 } dfu_host_ctx_t;
 
 #define flash_read_timeout_ms 5 * 1000
@@ -159,9 +161,15 @@ static BmErr bm_dfu_host_send_chunk(BmDfuEventChunkRequest *req) {
                             host_ctx.img_info.image_size -
                             host_ctx.bytes_remaining;
     do {
-      err =
-          bm_dfu_host_get_chunk(flash_offset, payload_header->chunk.payload_buf,
-                                payload_len, flash_read_timeout_ms);
+      if (bm_dfu_internal()) {
+        err = bm_dfu_host_get_chunk(flash_offset,
+                                    payload_header->chunk.payload_buf,
+                                    payload_len, flash_read_timeout_ms);
+      } else if (host_ctx.data_queue) {
+        err = bm_stream_buffer_receive(host_ctx.data_queue,
+                                       payload_header->chunk.payload_buf,
+                                       &payload_len, host_ctx.host_timeout_ms);
+      }
       if (err != BmOK) {
         bm_debug("Failed to read chunk from flash.\n");
         bm_dfu_host_transition_to_error(BmDfuErrFlashAccess);
@@ -237,6 +245,11 @@ BmErr s_host_req_update_entry(void) {
   host_ctx.ack_retry_num = 0;
   /* Request Client Firmware Update */
   bm_dfu_host_req_update();
+
+  if (!bm_dfu_internal()) {
+    host_ctx.data_queue =
+        bm_stream_buffer_create(img_info_evt->img_info.chunk_size);
+  }
 
   /* Kickoff ACK timeout */
   return bm_timer_start(host_ctx.ack_timer, 10);
@@ -379,14 +392,24 @@ BmErr s_host_update_run(void) {
   return err;
 }
 
+BmErr s_host_update_exit(void) {
+  if (host_ctx.data_queue) {
+    bm_stream_buffer_delete(host_ctx.data_queue);
+    host_ctx.data_queue = NULL;
+  }
+
+  return BmOK;
+}
+
 void bm_dfu_host_init(void) {
   int tmr_id = 0;
 
   /* Store relevant variables */
   host_ctx.self_node_id = node_id();
 
-  /* Get DFU Subsystem Queue */
+  /* Get DFU Subsystem Queue And Nullify Data Queue */
   host_ctx.dfu_event_queue = bm_dfu_get_event_queue();
+  host_ctx.data_queue = NULL;
 
   /* Initialize ACK and Heartbeat Timer */
   host_ctx.ack_timer = bm_timer_create(
@@ -445,4 +468,15 @@ static void bm_dfu_host_transition_to_error(BmDfuErr dfu_err) {
 
 bool bm_dfu_host_client_node_valid(uint64_t client_node_id) {
   return host_ctx.client_node_id == client_node_id;
+}
+
+BmErr bm_dfu_host_queue_data(uint8_t *data, uint32_t size) {
+  BmErr err = BmEINVAL;
+
+  if (data && host_ctx.data_queue) {
+    err = bm_stream_buffer_send(host_ctx.data_queue, data, size,
+                                host_ctx.host_timeout_ms);
+  }
+
+  return err;
 }

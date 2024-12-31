@@ -195,7 +195,7 @@ class TestConfig:
                                 starting the pytests (see: conftest.py).
         """
         pattern = r"Node Id: [0-9a-fA-F]{16} Value:"
-        wait_msg = "Succesfully sent config set msg\n"
+        wait_msg = "Successfully sent config set msg\n"
 
         def message(x, y, z, a):
             return "bm cfg set " + x + " s " + y + " " + a + " " + str(z) + "\n"
@@ -217,7 +217,7 @@ class TestConfig:
                                 starting the pytests (see: conftest.py).
         """
         pattern = r"Node Id: [0-9a-fA-F]{16} Value:"
-        wait_msg = "Succesfully sent config get msg\n"
+        wait_msg = "Successfully sent config get msg\n"
 
         def message(x, y, z, a):
             return "bm cfg get " + x + " s " + a + "\n"
@@ -245,7 +245,7 @@ class TestConfig:
                                 starting the pytests (see: conftest.py).
         """
         pattern = None
-        wait_msg = "Succesfully config commit send\n"
+        wait_msg = "Successfully sent config commit msg\n"
 
         def message(x, y, z, a):
             return "bm cfg commit " + x + " s\n"
@@ -280,7 +280,7 @@ class TestConfig:
                                 starting the pytests (see: conftest.py).
         """
         pattern = r"Response msg -- Node Id: [0-9a-fA-F]{16}, Partition: \d+, Commit Status: \d+\nNum Keys: (\d+)\n"
-        wait_msg = "Successful status request send\n"
+        wait_msg = "Successfully sent status request msg\n"
 
         def message(x, y, z, a):
             return "bm cfg status " + x + " s\n"
@@ -319,7 +319,7 @@ class TestConfig:
                                 starting the pytests (see: conftest.py).
         """
         pattern = None
-        wait_msg = "Successfully sent del key request\n"
+        wait_msg = "Successfully sent del key request msg\n"
 
         def message(x, y, z, a):
             return "bm cfg del " + x + " s " + a + "\n"
