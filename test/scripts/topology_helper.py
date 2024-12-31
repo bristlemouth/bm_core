@@ -65,9 +65,9 @@ class Topology:
 
 
 if __name__ == "__main__":
-    """Command line option is this script is invoked directly
+    """Command line option if this script is invoked directly
 
-    CLI Options that will print topology information is this script
+    CLI Options that will print topology information if this script
     is invoked directly
     """
     help = False
