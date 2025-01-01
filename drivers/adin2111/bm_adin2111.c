@@ -241,8 +241,9 @@ static void receive_callback(void *device, uint32_t event,
       (adi_eth_BufDesc_t *)buffer_description_param;
 
   if (NETWORK_DEVICE.callbacks->receive) {
-    uint8_t port_mask = 1 << buffer_description->port;
-    NETWORK_DEVICE.callbacks->receive(port_mask, buffer_description->pBuf,
+    // Driver gives us zero or one. Bristlemouth spec ingress port is 1-15.
+    uint8_t port_num = buffer_description->port + 1;
+    NETWORK_DEVICE.callbacks->receive(port_num, buffer_description->pBuf,
                                       buffer_description->trxSize);
   }
 
