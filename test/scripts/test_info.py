@@ -1,11 +1,12 @@
 from topology_helper import Topology
 from serial_helper import SerialHelper
-from util import format_node_id_to_hex_str
+from util import format_node_id_to_hex_str, retry_test
 
 
 class TestInfo:
     """Info test class"""
 
+    @retry_test(max_attempts=3, wait_s=2)
     def test_info(self, ser: SerialHelper):
         """Test the BCMP info message
 
