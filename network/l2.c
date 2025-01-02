@@ -230,7 +230,7 @@ static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
 
   @details Receive message from L2 queue and:
              1. re-transmit over other ports if the message is global multicast
-             2. send up to lwip for processing via net_if->input()
+             2. submit up to IP stack for processing via bm_l2_submit
 
   @param *rx_evt - rx event with buffer, port, and other information
 */
@@ -261,7 +261,7 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
   // TODO: When we implement Resource-Based Routing (RBR)
   // described in section 5.4.4.3 of the Bristlemouth specification
   // this is where routing and filtering functions would happen
-  // to prevent passing the packet to net_if->input() if unnecessary,
+  // to prevent submitting the packet to upper layers if unnecessary,
   // as well as forwarding routed multicast data to interested neighbors.
 
   // Submit packet to IP stack.
