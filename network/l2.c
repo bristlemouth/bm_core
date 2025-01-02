@@ -182,6 +182,34 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port_num) {
   }
 }
 
+static void send_to_port(uint8_t port_num, uint8_t *payload, size_t length) {
+  BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
+                                             length, port_num);
+  if (err != BmOK) {
+    bm_debug("Failed to send packet to port %d. err=%d\n", port_num, err);
+  }
+}
+
+static void send_global_multicast_packet(uint8_t *payload, size_t length,
+                                         uint16_t port_mask) {
+  if (port_mask == CTX.all_ports_mask) {
+    const uint8_t all_ports = 0;
+    BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
+                                               length, all_ports);
+    if (err != BmOK) {
+      bm_debug("Failed to send global multicast packet to all ports. err=%d\n",
+               err);
+    }
+  } else {
+    for (uint8_t port_idx = 0; port_idx < CTX.num_ports; port_idx++) {
+      if (port_mask & (1U << port_idx)) {
+        uint8_t port_num = port_idx + 1;
+        send_to_port(port_num, payload, length);
+      }
+    }
+  }
+}
+
 /*!
   @brief Process TX Event
 
@@ -198,25 +226,13 @@ static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
   uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
   const uint8_t *dst_ip = &payload[ipv6_destination_address_offset];
   if (is_global_multicast(dst_ip)) {
-    const uint8_t all_ports = 0;
-    BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
-                                               tx_evt->length, all_ports);
-    if (err != BmOK) {
-      bm_debug("Failed to send global multicast packet to network. err=%d\n",
-               err);
-    }
+    send_global_multicast_packet(payload, tx_evt->length, tx_evt->port_mask);
   } else if (is_link_local_multicast(dst_ip)) {
     for (uint8_t port_idx = 0; port_idx < CTX.num_ports; port_idx++) {
       if (tx_evt->port_mask & (1U << port_idx)) {
         uint8_t port_num = port_idx + 1;
         network_add_egress_port(payload, port_num);
-        BmErr err = CTX.network_device.trait->send(
-            CTX.network_device.self, payload, tx_evt->length, port_num);
-        if (err != BmOK) {
-          bm_debug(
-              "Failed to send link-local packet to network. err=%d, port=%d\n",
-              err, port_num);
-        }
+        send_to_port(port_num, payload, tx_evt->length);
         clear_ports(payload);
       }
     }
@@ -425,9 +441,9 @@ BmErr bm_l2_link_output(void *buf, uint32_t length) {
   uint16_t port_mask = CTX.all_ports_mask;
 
   // if the application set an egress port, send only to that port
-  static const size_t bcmp_egress_port_offset_in_dest_addr = 13;
+  static const size_t egress_port_offset_in_dest_addr = 13;
   const size_t egress_idx =
-      ipv6_destination_address_offset + bcmp_egress_port_offset_in_dest_addr;
+      ipv6_destination_address_offset + egress_port_offset_in_dest_addr;
   uint8_t *eth_frame = (uint8_t *)bm_l2_get_payload(buf);
   uint8_t egress_port = eth_frame[egress_idx];
 
