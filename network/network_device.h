@@ -6,11 +6,14 @@
 typedef struct {
   void (*power)(bool on);
   void (*link_change)(uint8_t port_index, bool is_up);
-  void (*receive)(uint8_t port_mask, uint8_t *data, size_t length);
+
+  // Bristlemouth spec ingress port_num is an integer 1-15
+  void (*receive)(uint8_t port_num, uint8_t *data, size_t length);
   void (*debug_packet_dump)(const uint8_t *data, size_t length);
 } NetworkDeviceCallbacks;
 
 typedef struct {
+  // If port=0, send on all ports. Otherwise select a single egress port 1-15.
   BmErr (*const send)(void *self, uint8_t *data, size_t length, uint8_t port);
   BmErr (*const enable)(void *self);
   BmErr (*const disable)(void *self);

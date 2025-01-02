@@ -101,8 +101,8 @@ typedef struct {
 extern const bm_ip_addr multicast_global_addr;
 extern const bm_ip_addr multicast_ll_addr;
 
-bool is_global_multicast(void *dst_ip);
-bool is_link_local_multicast(void *dst_ip);
+bool is_global_multicast(const uint8_t *dst_ip);
+bool is_link_local_multicast(const uint8_t *dst_ip);
 bool is_little_endian(void);
 void swap_16bit(void *x);
 void swap_32bit(void *x);
