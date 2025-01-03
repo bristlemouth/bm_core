@@ -1,16 +1,19 @@
 # Bristlemouth Core
 
-Under construction as of September 2024!
+<h1 align="center">
+  <img src="docs/logo.png" />
+</h1>
 
-If you're not sure whether you're in the right place, check out
-https://github.com/bristlemouth/bm_protocol
+<div align="center">
+  <p>
+    <strong>Bristlemouth Network Stack</strong><br/>
+    <small><a href="https://bristlemouth.github.io/bm_core/index.html">Integration, Usage and API Documentation</a></small><br/>
+  </p>
+  <img src="https://img.shields.io/github/v/tag/bristlemouth/bm_core?style=for-the-badge&label=release" />
+  <img src="https://img.shields.io/github/actions/workflow/status/bristlemouth/bm_core/unit_tests.yml?style=for-the-badge&label=unit%20tests" />
 
-The Bristlemouth core development team is working to increase the
-accessibility of Bristlemouth firmware, especially for potential
-integrators of hardware that would enhance the ecosystem.
+</div>
 
-Bristlemouth integration usage and API documentation is available at:
-https://bristlemouth.github.io/bm_core/index.html
 
 ## Constraints
 
