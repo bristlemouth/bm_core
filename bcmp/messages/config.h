@@ -11,7 +11,7 @@ extern "C" {
 BmErr bcmp_config_init(void);
 BmErr bcmp_config_decode_value(ConfigDataTypes type, uint8_t *data,
                                uint32_t data_length, void *buf,
-                               uint32_t *buf_length);
+                               size_t *buf_length);
 bool bcmp_config_get(uint64_t target_node_id, BmConfigPartition partition,
                      size_t key_len, const char *key, BmErr *err,
                      BmErr (*reply_cb)(uint8_t *));

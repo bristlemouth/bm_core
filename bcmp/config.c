@@ -27,7 +27,7 @@
  */
 BmErr bcmp_config_decode_value(ConfigDataTypes type, uint8_t *data,
                                uint32_t data_length, void *buf,
-                               uint32_t *buf_length) {
+                               size_t *buf_length) {
   BmErr err = BmEINVAL;
   CborValue it;
   CborParser parser;
@@ -75,7 +75,7 @@ BmErr bcmp_config_decode_value(ConfigDataTypes type, uint8_t *data,
       case STR: {
         char *p = (char *)buf;
         uint32_t init_length = *buf_length;
-        if (cbor_value_copy_text_string(&it, p, (size_t *)buf_length, NULL) ==
+        if (cbor_value_copy_text_string(&it, p, buf_length, NULL) ==
             CborNoError) {
           if (*buf_length > init_length) {
             break;
@@ -85,8 +85,9 @@ BmErr bcmp_config_decode_value(ConfigDataTypes type, uint8_t *data,
         }
       } break;
       case BYTES: {
-        if (cbor_value_copy_byte_string(&it, buf, (size_t *)buf_length, NULL) ==
-            CborNoError) {
+        if (cbor_value_copy_byte_string(&it, (uint8_t *)buf,
+                                        (size_t *)buf_length,
+                                        NULL) == CborNoError) {
           err = BmOK;
         }
       } break;

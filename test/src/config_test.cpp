@@ -6,9 +6,9 @@
 DEFINE_FFF_GLOBALS;
 
 extern "C" {
+#include "bm_os.h"
 #include "cbor.h"
 #include "messages/config.h"
-#include "bm_os.h"
 }
 
 #define ENCODE_BUFFER_SIZE 512
@@ -91,7 +91,7 @@ TEST_F(Config, decode) {
     uint8_t *set;
   } bytes;
 
-  uint32_t size = 0;
+  size_t size = 0;
 
   // Test uint32
   u32.fail = 0;
@@ -157,10 +157,11 @@ TEST_F(Config, decode) {
   EXPECT_NE(size, sizeof(f.set));
 
   // Test string
+  str.large_get = (char *)bm_malloc(ENCODE_BUFFER_SIZE);
   str.get = (char *)bm_malloc(DECODE_BUFFER_SIZE);
   str.set = (char *)bm_malloc(DECODE_BUFFER_SIZE);
-  str.large_get = (char *)bm_malloc(ENCODE_BUFFER_SIZE);
   memset(str.get, 0, DECODE_BUFFER_SIZE);
+  memset(str.large_get, 0, ENCODE_BUFFER_SIZE);
   RND.rnd_str(str.set, DECODE_BUFFER_SIZE);
   cbor_encoder_init(&encoder, cbor_buf, sizeof(cbor_buf), 0);
   cbor_encode_text_string(&encoder, str.set, DECODE_BUFFER_SIZE);
@@ -183,10 +184,11 @@ TEST_F(Config, decode) {
   bm_free(str.large_get);
 
   // Test byte buffer
+  bytes.large_get = (uint8_t *)bm_malloc(ENCODE_BUFFER_SIZE);
   bytes.get = (uint8_t *)bm_malloc(DECODE_BUFFER_SIZE);
   bytes.set = (uint8_t *)bm_malloc(DECODE_BUFFER_SIZE);
-  bytes.large_get = (uint8_t *)bm_malloc(ENCODE_BUFFER_SIZE);
   memset(bytes.get, 0, DECODE_BUFFER_SIZE);
+  memset(bytes.large_get, 0, ENCODE_BUFFER_SIZE);
   RND.rnd_array(bytes.set, DECODE_BUFFER_SIZE);
   cbor_encoder_init(&encoder, cbor_buf, sizeof(cbor_buf), 0);
   cbor_encode_byte_string(&encoder, bytes.set, DECODE_BUFFER_SIZE);
