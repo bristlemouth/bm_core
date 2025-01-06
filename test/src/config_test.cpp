@@ -8,6 +8,7 @@ DEFINE_FFF_GLOBALS;
 extern "C" {
 #include "cbor.h"
 #include "messages/config.h"
+#include "bm_os.h"
 }
 
 #define ENCODE_BUFFER_SIZE 512
@@ -80,14 +81,14 @@ TEST_F(Config, decode) {
     float set;
   } f;
   struct {
-    char large_get[ENCODE_BUFFER_SIZE];
-    char get[DECODE_BUFFER_SIZE];
-    char set[DECODE_BUFFER_SIZE];
+    char *large_get;
+    char *get;
+    char *set;
   } str;
   struct {
-    uint8_t large_get[ENCODE_BUFFER_SIZE];
-    uint8_t get[DECODE_BUFFER_SIZE];
-    uint8_t set[DECODE_BUFFER_SIZE];
+    uint8_t *large_get;
+    uint8_t *get;
+    uint8_t *set;
   } bytes;
 
   uint32_t size = 0;
@@ -156,42 +157,54 @@ TEST_F(Config, decode) {
   EXPECT_NE(size, sizeof(f.set));
 
   // Test string
-  memset(str.get, 0, sizeof(str.get));
-  RND.rnd_str(str.set, sizeof(str.set));
+  str.get = (char *)bm_malloc(DECODE_BUFFER_SIZE);
+  str.set = (char *)bm_malloc(DECODE_BUFFER_SIZE);
+  str.large_get = (char *)bm_malloc(ENCODE_BUFFER_SIZE);
+  memset(str.get, 0, DECODE_BUFFER_SIZE);
+  RND.rnd_str(str.set, DECODE_BUFFER_SIZE);
   cbor_encoder_init(&encoder, cbor_buf, sizeof(cbor_buf), 0);
-  cbor_encode_text_string(&encoder, str.set, sizeof(str.set));
+  cbor_encode_text_string(&encoder, str.set, DECODE_BUFFER_SIZE);
 
-  size = sizeof(str.get);
+  size = DECODE_BUFFER_SIZE;
   EXPECT_EQ(bcmp_config_decode_value(STR, cbor_buf, sizeof(cbor_buf),
                                      (void *)str.get, &size),
             BmOK);
-  ASSERT_EQ(size, sizeof(str.set));
+  ASSERT_EQ(size, DECODE_BUFFER_SIZE);
   EXPECT_EQ(memcmp(str.get, str.set, size), 0);
 
-  size = sizeof(str.large_get);
+  size = ENCODE_BUFFER_SIZE;
   EXPECT_EQ(bcmp_config_decode_value(STR, cbor_buf, sizeof(cbor_buf),
                                      (void *)str.large_get, &size),
             BmOK);
-  ASSERT_EQ(size, sizeof(str.set));
+  ASSERT_EQ(size, DECODE_BUFFER_SIZE);
   EXPECT_EQ(memcmp(str.large_get, str.set, size), 0);
+  bm_free(str.get);
+  bm_free(str.set);
+  bm_free(str.large_get);
 
   // Test byte buffer
-  memset(bytes.get, 0, sizeof(bytes.get));
-  RND.rnd_array(bytes.set, sizeof(bytes.set));
+  bytes.get = (uint8_t *)bm_malloc(DECODE_BUFFER_SIZE);
+  bytes.set = (uint8_t *)bm_malloc(DECODE_BUFFER_SIZE);
+  bytes.large_get = (uint8_t *)bm_malloc(ENCODE_BUFFER_SIZE);
+  memset(bytes.get, 0, DECODE_BUFFER_SIZE);
+  RND.rnd_array(bytes.set, DECODE_BUFFER_SIZE);
   cbor_encoder_init(&encoder, cbor_buf, sizeof(cbor_buf), 0);
-  cbor_encode_byte_string(&encoder, bytes.set, sizeof(bytes.set));
+  cbor_encode_byte_string(&encoder, bytes.set, DECODE_BUFFER_SIZE);
 
-  size = sizeof(bytes.get);
+  size = DECODE_BUFFER_SIZE;
   EXPECT_EQ(bcmp_config_decode_value(BYTES, cbor_buf, sizeof(cbor_buf),
                                      (void *)bytes.get, &size),
             BmOK);
-  ASSERT_EQ(size, sizeof(bytes.set));
+  ASSERT_EQ(size, DECODE_BUFFER_SIZE);
   EXPECT_EQ(memcmp(bytes.get, bytes.set, size), 0);
 
-  size = sizeof(bytes.large_get);
+  size = ENCODE_BUFFER_SIZE;
   EXPECT_EQ(bcmp_config_decode_value(BYTES, cbor_buf, sizeof(cbor_buf),
                                      (void *)bytes.large_get, &size),
             BmOK);
-  ASSERT_EQ(size, sizeof(bytes.set));
+  ASSERT_EQ(size, DECODE_BUFFER_SIZE);
   EXPECT_EQ(memcmp(bytes.large_get, bytes.set, size), 0);
+  bm_free(bytes.get);
+  bm_free(bytes.set);
+  bm_free(bytes.large_get);
 }
