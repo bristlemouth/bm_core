@@ -11,6 +11,96 @@
 #include <string.h>
 
 /*!
+ @brief Decode Incoming Value Message
+
+ @details Incoming BcmpConfigValueMessage messages can be decoded utilizing
+          this API. The incoming data type must be known prior to receiving the
+          data and invoking this function.
+
+ @param type Configuration data type
+ @param data Data to decode
+ @param data_length Length of data
+ @param buf Buffer to hold the decoded data
+ @param buf_length Length of buffer
+
+ @return 
+ */
+BmErr bcmp_config_decode_value(ConfigDataTypes type, uint8_t *data,
+                               uint32_t data_length, void *buf,
+                               uint32_t *buf_length) {
+  BmErr err = BmEINVAL;
+  CborValue it;
+  CborParser parser;
+  ConfigDataTypes type_cmp;
+
+  // Check that variables exist
+  if (!data || !data_length || !buf || !buf_length || !*buf_length) {
+    return err;
+  }
+
+  err = BmEBADMSG;
+
+  if (cbor_parser_init(data, data_length, 0, &parser, &it) == CborNoError &&
+      cbor_value_is_valid(&it) && cbor_type_to_config(&it, &type_cmp)) {
+    // Ensure that the type expected is what is actually being obtained
+    if (type_cmp != type) {
+      err = BmEIO;
+    } else {
+      switch (type) {
+      case UINT32: {
+        uint64_t temp = 0;
+        uint32_t *p = (uint32_t *)buf;
+        if (*buf_length >= sizeof(uint32_t) &&
+            cbor_value_get_uint64(&it, &temp) == CborNoError) {
+          *p = (uint32_t)temp;
+          err = BmOK;
+        }
+      } break;
+      case INT32: {
+        int64_t temp = 0;
+        int32_t *p = (int32_t *)buf;
+        if (*buf_length >= sizeof(int32_t) &&
+            cbor_value_get_int64(&it, &temp) == CborNoError) {
+          *p = (int32_t)temp;
+          err = BmOK;
+        }
+      } break;
+      case FLOAT: {
+        float *p = (float *)buf;
+        if (*buf_length >= sizeof(float) &&
+            cbor_value_get_float(&it, p) == CborNoError) {
+          err = BmOK;
+        }
+      } break;
+      case STR: {
+        char *p = (char *)buf;
+        uint32_t init_length = *buf_length;
+        if (cbor_value_copy_text_string(&it, p, (size_t *)buf_length, NULL) ==
+            CborNoError) {
+          if (*buf_length > init_length) {
+            break;
+          }
+          p[*buf_length - 1] = '\0';
+          err = BmOK;
+        }
+      } break;
+      case BYTES: {
+        if (cbor_value_copy_byte_string(&it, buf, (size_t *)buf_length, NULL) ==
+            CborNoError) {
+          err = BmOK;
+        }
+      } break;
+      case ARRAY: {
+        err = BmOK;
+      } break;
+      }
+    }
+  }
+
+  return err;
+}
+
+/*!
  @brief Get a configuration value
 
  @details Get a configuration value from a target node, in a selected partition
@@ -360,7 +450,7 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
         break;
       }
       bm_debug("Node Id: %016" PRIx64 " Value:%" PRIu32 "\n",
-               msg->header.source_node_id, temp);
+               msg->header.source_node_id, (uint32_t)temp);
       break;
     }
     case INT32: {
@@ -368,8 +458,8 @@ static void bcmp_process_value_message(BmConfigValue *msg) {
       if (cbor_value_get_int64(&it, &temp) != CborNoError) {
         break;
       }
-      bm_debug("Node Id: %016" PRIx64 " Value:%" PRId64 "\n",
-               msg->header.source_node_id, temp);
+      bm_debug("Node Id: %016" PRIx64 " Value:%" PRId32 "\n",
+               msg->header.source_node_id, (int32_t)temp);
       break;
     }
     case FLOAT: {

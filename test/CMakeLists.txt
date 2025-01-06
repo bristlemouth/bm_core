@@ -262,6 +262,30 @@ set (DFU_SRCS
 )
 create_gtest("dfu" "${DFU_SRCS}")
 
+# BCMP CONFIG TESTS
+set (BCMP_CONFIG_SRCS
+    # Files we're testing
+    ${BCMP_DIR}/config.c
+
+    # Support files
+    ${BCMP_DIR}/configuration.c
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
+    ${THIRD_PARTY_DIR}/crc/crc32.c
+
+    # Stubs
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/device_stub.c
+    ${STUB_DIR}/packet_stub.c
+)
+create_gtest("config" "${BCMP_CONFIG_SRCS}")
+
 
 # L2 Tests
 set (L2_SRCS
