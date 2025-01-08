@@ -1,5 +1,7 @@
 from serial_helper import SerialHelper
 import re
+import sys
+import argparse
 
 
 class Topology:
@@ -61,3 +63,34 @@ class Topology:
         if self.__root is None:
             self.get()
         return self.__root
+
+
+if __name__ == "__main__":
+    """Command line option if this script is invoked directly
+
+    CLI Options that will print topology information if this script
+    is invoked directly
+    """
+    parser = argparse.ArgumentParser(
+        description="Prints a list of the Bristlemouth topology or root"
+        "node to the console",
+    )
+    parser.add_argument(
+        "-r", "--root", action="store_true", help="print the root to the console"
+    )
+    parser.add_argument(
+        "-p", "--port", help="serial port to access node", required=True
+    )
+    parser.add_argument(
+        "-b", "--baud", help="baud rate of serial connection", required=True
+    )
+    args = parser.parse_args()
+    ser = SerialHelper(args.port, args.baud)
+    topology = Topology(ser)
+    if args.root is True:
+        print(hex(topology.root()))
+    else:
+        values = topology.get()
+        for i in range(len(values)):
+            values[i] = hex(values[i])
+        print(values)
