@@ -40,9 +40,13 @@ set(CMAKE_C_EXTENSIONS NO)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Update all submodules recursively
+# Update all submodules recursively on configure and build phases
 execute_process(
-    COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+    COMMAND git submodule update --init --recursive
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)
+add_custom_target(update_submodules
+    COMMAND git submodule update --init --recursive
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
 )
 
@@ -73,6 +77,7 @@ if(ENABLE_TESTING)
 
     enable_testing()
     add_subdirectory("test")
+    add_dependencies(gtest update_submodules)
 else()
     set(BM_SOURCES "")
 
@@ -123,4 +128,5 @@ else()
         bmthirdparty
         bmintegrations
     )
+    add_dependencies(bmcore update_submodules)
 endif()
