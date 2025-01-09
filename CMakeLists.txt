@@ -77,6 +77,7 @@ if(ENABLE_TESTING)
 
     enable_testing()
     add_subdirectory("test")
+    add_dependencies(gtest update_submodules)
 else()
     set(BM_SOURCES "")
 
