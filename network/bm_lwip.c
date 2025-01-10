@@ -322,10 +322,9 @@ void *bm_l2_get_payload(void *buf) {
 }
 
 /*!
-  @brief Prepare For A Transmite
+  @brief Prepare to Transmit
 
-  @details This allows for some logic to occur before preparing for a
-           transmission
+  @details This allows for some logic to occur before a transmission
 
   @param buf buffer created with bm_l2_new
   @param size size of buffer to transmit up the stack in bytes

@@ -4,11 +4,6 @@
 #include "bm_os.h"
 #include "util.h"
 
-/* We store the egress port for the RX device and the ingress port of the TX device
-   in bytes 5 (index 4) and 6 (index 5) of the SRC IPv6 address. */
-#define egress_port_idx 4
-#define ingress_port_idx 5
-
 // Ethernet Header Sizes
 #define ethernet_destination_size_bytes 6
 #define ethernet_src_size_bytes 6
@@ -51,6 +46,7 @@
   (ipv6_hop_limit_offset + ipv6_hop_limit_size_bytes)
 #define ipv6_destination_address_offset                                        \
   (ipv6_source_address_offset + ipv6_source_address_size_bytes)
+#define ipv6_ingress_egress_ports_offset (ipv6_source_address_offset + 2)
 
 // IPV6 Getters
 #define ipv6_get_version_traffic_class_flow_label(buf)                         \
@@ -69,9 +65,10 @@
 
 // Network Helper Macros
 #define add_egress_port(addr, port)                                            \
-  (addr[ipv6_source_address_offset + egress_port_idx] = port)
+  (addr[ipv6_ingress_egress_ports_offset] |= port)
 #define add_ingress_port(addr, port)                                           \
-  (addr[ipv6_source_address_offset + ingress_port_idx] = port)
+  (addr[ipv6_ingress_egress_ports_offset] |= (port << 4))
+#define clear_ports(addr) (addr[ipv6_ingress_egress_ports_offset] = 0)
 
 #define evt_queue_len (32)
 
@@ -82,17 +79,17 @@ typedef enum {
 } BmL2QueueType;
 
 typedef struct {
-  uint8_t port_mask;
-  void *buf;
   BmL2QueueType type;
   uint32_t length;
+  void *buf;
+  uint16_t port_mask;
 } L2QueueElement;
 
 typedef struct {
   NetworkDevice network_device;
   uint8_t num_ports;
-  uint8_t all_ports_mask;
-  uint8_t enabled_ports_mask;
+  uint16_t all_ports_mask;
+  uint16_t enabled_ports_mask;
   BmQueue evt_queue;
   BmTaskHandle task_handle;
   L2LinkChangeCb link_change_cb;
@@ -112,13 +109,14 @@ static BmL2Ctx CTX = {0};
   @return BmOK if successful
   @return BmErr if unsuccessful
 */
-static BmErr bm_l2_tx(void *buf, uint32_t length, uint8_t port_mask) {
+static BmErr bm_l2_tx(void *buf, uint32_t length, uint16_t port_mask) {
   BmErr err = BmOK;
 
-  // device_handle not needed for tx
   // Don't send to ports that are offline
-  L2QueueElement tx_evt = {port_mask & CTX.enabled_ports_mask, buf, L2Tx,
-                           length};
+  L2QueueElement tx_evt = {.port_mask = port_mask & CTX.enabled_ports_mask,
+                           .type = L2Tx,
+                           .length = length,
+                           .buf = buf};
 
   if (bm_queue_send(CTX.evt_queue, &tx_evt, 10) != BmOK) {
     bm_l2_free(buf);
@@ -131,12 +129,14 @@ static BmErr bm_l2_tx(void *buf, uint32_t length, uint8_t port_mask) {
 /*!
   @brief L2 RX Function - called by low level driver when new data is available
 
-  @param port_index which port was this received over
+  @param port_num ingress port number 1-15
   @param data buffer with received data
   @param length buffer length in bytes
 */
-static void bm_l2_rx(uint8_t port_mask, uint8_t *data, size_t length) {
-  L2QueueElement rx_evt = {port_mask, NULL, L2Rx, length};
+static void bm_l2_rx(uint8_t port_num, uint8_t *data, size_t length) {
+  const uint16_t port_mask = 1U << (port_num - 1);
+  L2QueueElement rx_evt = {
+      .type = L2Rx, .length = length, .buf = NULL, .port_mask = port_mask};
 
   if (data) {
     rx_evt.buf = bm_l2_new(length);
@@ -144,8 +144,7 @@ static void bm_l2_rx(uint8_t port_mask, uint8_t *data, size_t length) {
       bm_debug("No mem for buf in RX pathway\n");
     } else {
       memcpy(bm_l2_get_payload(rx_evt.buf), data, length);
-
-      if (bm_queue_send(CTX.evt_queue, (void *)&rx_evt, 0) != BmOK) {
+      if (bm_queue_send(CTX.evt_queue, &rx_evt, 0) != BmOK) {
         bm_l2_free(rx_evt.buf);
       }
     }
@@ -153,23 +152,19 @@ static void bm_l2_rx(uint8_t port_mask, uint8_t *data, size_t length) {
 }
 
 /*!
-  @brief Add egress port to IP address and update UDP checksum
+  @brief Add egress port to source IP address and update UDP checksum
 
-  @details Updates the payload with the egress port necessary to send packets
-           along to the network driver
-
+  @details Updates the payload with the egress port according to the Bristlemouth spec.
+           After modifying the source IP address, the UDP checksum must be updated.
 
   @param payload buffer with frame
-  @param port port in which frame is going out of
-  @return none
+  @param port_num egress port (1-15) that the frame will be sent out
 */
-static inline void network_add_egress_port(uint8_t *payload, uint8_t port) {
+static inline void network_add_egress_port(uint8_t *payload, uint8_t port_num) {
   // Modify egress port byte in IP address
-  add_egress_port(payload, port);
+  add_egress_port(payload, port_num);
 
-  //
-  // Correct checksum to account for change in ip address
-  //
+  // Update the UDP checksum to account for the change in source IP address
   if (ethernet_get_type(payload) == ethernet_type_ipv6) {
     if (ipv6_get_next_header(payload) == ip_proto_udp) {
       // Undo 1's complement
@@ -177,12 +172,40 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port) {
 
       // Add port to checksum (we can only do this because the value was previously 0)
       // Since udp checksum is sum of uint16_t bytes
-      payload[udp_checksum_offset] += port;
+      payload[udp_checksum_offset] += port_num;
 
       // Do 1's complement again
       payload[udp_checksum_offset] ^= 0xFFFF;
     } else if (ipv6_get_next_header(payload) == ip_proto_bcmp) {
       // fix checksum for BCMP
+    }
+  }
+}
+
+static void send_to_port(uint8_t port_num, uint8_t *payload, size_t length) {
+  BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
+                                             length, port_num);
+  if (err != BmOK) {
+    bm_debug("Failed to send packet to port %d. err=%d\n", port_num, err);
+  }
+}
+
+static void send_global_multicast_packet(uint8_t *payload, size_t length,
+                                         uint16_t port_mask) {
+  if (port_mask == CTX.all_ports_mask) {
+    const uint8_t all_ports = 0;
+    BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
+                                               length, all_ports);
+    if (err != BmOK) {
+      bm_debug("Failed to send global multicast packet to all ports. err=%d\n",
+               err);
+    }
+  } else {
+    for (uint8_t port_idx = 0; port_idx < CTX.num_ports; port_idx++) {
+      if (port_mask & (1U << port_idx)) {
+        uint8_t port_num = port_idx + 1;
+        send_to_port(port_num, payload, length);
+      }
     }
   }
 }
@@ -196,56 +219,71 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port) {
   @param *tx_evt tx event with buffer, port, and other information
 */
 static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
-  if (tx_evt) {
-    uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
-    for (uint8_t port = 0; port < CTX.num_ports; port++) {
-      if (tx_evt->port_mask & (0x01 << port)) {
-        uint8_t bm_egress_port = 0x01 << port;
-        network_add_egress_port(payload, bm_egress_port);
-        BmErr err = CTX.network_device.trait->send(
-            CTX.network_device.self, payload, tx_evt->length, port);
-        if (err != BmOK) {
-          bm_debug("Failed to send TX buffer to network\n");
-        }
+  if (tx_evt == NULL) {
+    return;
+  }
+
+  uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
+  const uint8_t *dst_ip = &payload[ipv6_destination_address_offset];
+  if (is_global_multicast(dst_ip)) {
+    send_global_multicast_packet(payload, tx_evt->length, tx_evt->port_mask);
+  } else if (is_link_local_multicast(dst_ip)) {
+    for (uint8_t port_idx = 0; port_idx < CTX.num_ports; port_idx++) {
+      if (tx_evt->port_mask & (1U << port_idx)) {
+        uint8_t port_num = port_idx + 1;
+        network_add_egress_port(payload, port_num);
+        send_to_port(port_num, payload, tx_evt->length);
+        clear_ports(payload);
       }
     }
-    bm_l2_free(tx_evt->buf);
   }
+
+  bm_l2_free(tx_evt->buf);
 }
 
 /*!
   @brief Process RX event
 
   @details Receive message from L2 queue and:
-             1. re-transmit over other port if the message is multicast
-             2. send up to lwip for processing via net_if->input()
+             1. re-transmit over other ports if the message is global multicast
+             2. submit up to IP stack for processing via bm_l2_submit
 
   @param *rx_evt - rx event with buffer, port, and other information
 */
 static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
-  if (rx_evt) {
-    uint8_t *payload = (uint8_t *)bm_l2_get_payload(rx_evt->buf);
+  if (rx_evt == NULL) {
+    return;
+  }
 
-    // We need to code the RX Port into the IPV6 address passed up the stack
-    add_ingress_port(payload, rx_evt->port_mask);
+  uint8_t *payload = (uint8_t *)bm_l2_get_payload(rx_evt->buf);
+  if (payload == NULL) {
+    return;
+  }
 
-    if (is_global_multicast(&payload[ipv6_destination_address_offset])) {
-      uint8_t new_port_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
-      void *buf = bm_l2_new(rx_evt->length);
-      memcpy(bm_l2_get_payload(buf), bm_l2_get_payload(rx_evt->buf),
-             rx_evt->length);
-      bm_l2_tx(buf, rx_evt->length, new_port_mask);
-    }
+  const uint8_t *dst_ip = &payload[ipv6_destination_address_offset];
+  if (is_global_multicast(dst_ip)) {
+    clear_ports(payload);
+    const uint16_t new_ports_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
+    void *buf = bm_l2_new(rx_evt->length);
+    memcpy(bm_l2_get_payload(buf), payload, rx_evt->length);
+    bm_l2_tx(buf, rx_evt->length, new_ports_mask);
+  }
 
-    /* TODO: This is the place where routing and filtering functions would happen, to prevent passing the
-       packet to net_if->input() if unnecessary, as well as forwarding routed multicast data to interested
-       neighbors and user devices. */
+  // Encode the ingress port (1-15) into the IPV6 source address passed up the stack
+  // FFS means "Find First Set" bit
+  const uint8_t port_num = __builtin_ffs(rx_evt->port_mask);
+  add_ingress_port(payload, port_num);
 
-    // Submit packet to ip stack.
-    // Upper level RX Callback is responsible for freeing the packet
-    if (bm_l2_submit(rx_evt->buf, rx_evt->length) != BmOK) {
-      bm_l2_free(rx_evt->buf);
-    }
+  // TODO: When we implement Resource-Based Routing (RBR)
+  // described in section 5.4.4.3 of the Bristlemouth specification
+  // this is where routing and filtering functions would happen
+  // to prevent submitting the packet to upper layers if unnecessary,
+  // as well as forwarding routed multicast data to interested neighbors.
+
+  // Submit packet to IP stack.
+  // Upper level RX Callback is responsible for freeing the packet
+  if (bm_l2_submit(rx_evt->buf, rx_evt->length) != BmOK) {
+    bm_l2_free(rx_evt->buf);
   }
 }
 
@@ -318,7 +356,8 @@ static void link_change(uint8_t port_idx, bool is_up) {
  */
 BmErr bm_l2_handle_device_interrupt(void) {
 
-  L2QueueElement int_evt = {0, NULL, L2Irq, 0};
+  L2QueueElement int_evt = {
+      .type = L2Irq, .length = 0, .buf = NULL, .port_mask = 0};
 
   if (CTX.evt_queue) {
     return bm_queue_send_to_front_from_isr(CTX.evt_queue, &int_evt);
@@ -356,7 +395,7 @@ BmErr bm_l2_init(NetworkDevice network_device) {
   network_device.callbacks->link_change = link_change;
   CTX.network_device = network_device;
   CTX.num_ports = network_device.trait->num_ports();
-  CTX.all_ports_mask = (1 << CTX.num_ports) - 1;
+  CTX.all_ports_mask = (1U << CTX.num_ports) - 1;
   CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
   if (CTX.evt_queue) {
     err = bm_task_create(bm_l2_thread, "L2 TX Thread", 2048, NULL,
@@ -399,17 +438,17 @@ BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb) {
 */
 BmErr bm_l2_link_output(void *buf, uint32_t length) {
   // by default, send to all ports
-  uint8_t port_mask = CTX.all_ports_mask;
+  uint16_t port_mask = CTX.all_ports_mask;
 
   // if the application set an egress port, send only to that port
-  static const size_t bcmp_egress_port_offset_in_dest_addr = 13;
+  static const size_t egress_port_offset_in_dest_addr = 13;
   const size_t egress_idx =
-      ipv6_destination_address_offset + bcmp_egress_port_offset_in_dest_addr;
+      ipv6_destination_address_offset + egress_port_offset_in_dest_addr;
   uint8_t *eth_frame = (uint8_t *)bm_l2_get_payload(buf);
   uint8_t egress_port = eth_frame[egress_idx];
 
   if (egress_port > 0 && egress_port <= CTX.num_ports) {
-    port_mask = 1 << (egress_port - 1);
+    port_mask = 1U << (egress_port - 1);
   }
 
   // clear the egress port set by the application
