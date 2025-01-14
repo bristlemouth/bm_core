@@ -11,8 +11,8 @@
 #define message_timer_expiry_period_ms 12
 
 /* This is to maintain backwards compatibility with older versions of
- * bm_core < v14, TODO: remove once resource based routing is
- * available */
+ * bm_core < v0.13.0, TODO: remove once resource based routing is
+ * implemented */
 #define clear_ports_legacy(x) (x[1] &= (~(0xFFFFU)))
 
 /* Ingress port is mapped to the first four bits of 3rd byte of the of the
