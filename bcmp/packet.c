@@ -9,9 +9,16 @@
 
 #define default_message_timeout_ms 24
 #define message_timer_expiry_period_ms 12
-/* Ingress and Egress ports are mapped to the 5th and 6th byte of the IPv6 src address as per
-    the bristlemouth protocol spec */
-#define clear_ports(x) (x[1] &= (~(0xFFFFU)))
+
+/* This is to maintain backwards compatibility with older versions of
+ * bm_core < v0.13.0, TODO: remove once resource based routing is
+ * implemented */
+#define clear_ports_legacy(x) (x[1] &= (~(0xFFFFU)))
+
+/* Ingress port is mapped to the first four bits of 3rd byte of the of the
+ * global all-node source address as per the bristlemouth protocol spec
+ * v5.4.4.1/2, use this marcro to clear the ingress port */
+#define clear_ingress_port(x) (((uint8_t *)x)[2] &= 0xF)
 
 typedef struct BcmpRequestElement {
   uint16_t type;
@@ -440,7 +447,8 @@ BmErr process_received_message(void *payload, uint32_t size) {
     data.dst = PACKET.cb.dst_ip(payload);
     data.size = size;
     data.ingress_port = (((uint8_t *)data.src)[2] >> 4) & 0xF;
-    clear_ports(((uint32_t *)data.src));
+    clear_ports_legacy(((uint32_t *)data.src));
+    clear_ingress_port(data.src);
 
     checksum_read = data.header->checksum;
     data.header->checksum = 0;
