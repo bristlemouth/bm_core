@@ -1,4 +1,5 @@
 #include "l2.h"
+#include "bcmp.h"
 #include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
@@ -63,12 +64,17 @@
 #define udp_length_offset (udp_destination_offset + udp_destination_size_bytes)
 #define udp_checksum_offset (udp_length_offset + udp_length_size_bytes)
 
+// BCMP Offsets
+#define bcmp_packet_offset                                                     \
+  (ipv6_destination_address_offset + ipv6_destination_address_size_bytes)
+
 // Network Helper Macros
 #define add_egress_port(addr, port)                                            \
   (addr[ipv6_ingress_egress_ports_offset] |= port)
 #define add_ingress_port(addr, port)                                           \
   (addr[ipv6_ingress_egress_ports_offset] |= (port << 4))
 #define clear_ports(addr) (addr[ipv6_ingress_egress_ports_offset] = 0)
+#define clear_ingress_port(addr) (addr[ipv6_ingress_egress_ports_offset] &= 0xF)
 
 #define evt_queue_len (32)
 
@@ -164,7 +170,7 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port_num) {
   // Modify egress port byte in IP address
   add_egress_port(payload, port_num);
 
-  // Update the UDP checksum to account for the change in source IP address
+  // Update the checksum to account for the change in source IP address
   if (ethernet_get_type(payload) == ethernet_type_ipv6) {
     if (ipv6_get_next_header(payload) == ip_proto_udp) {
       // Undo 1's complement
@@ -177,7 +183,10 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port_num) {
       // Do 1's complement again
       payload[udp_checksum_offset] ^= 0xFFFF;
     } else if (ipv6_get_next_header(payload) == ip_proto_bcmp) {
-      // fix checksum for BCMP
+      BcmpHeader *header = (BcmpHeader *)&payload[bcmp_packet_offset];
+      header->checksum ^= 0xFFFF;
+      header->checksum += port_num;
+      header->checksum ^= 0xFFFF;
     }
   }
 }
@@ -262,7 +271,7 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
 
   const uint8_t *dst_ip = &payload[ipv6_destination_address_offset];
   if (is_global_multicast(dst_ip)) {
-    clear_ports(payload);
+    clear_ingress_port(payload);
     const uint16_t new_ports_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
     void *buf = bm_l2_new(rx_evt->length);
     memcpy(bm_l2_get_payload(buf), payload, rx_evt->length);

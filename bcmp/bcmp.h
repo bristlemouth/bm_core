@@ -6,9 +6,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Ingress and Egress ports are mapped to the 5th and 6th byte of the IPv6 src address as per
-    the bristlemouth protocol spec */
-#define clear_ports(x) (x[1] &= (~(0xFFFFU)))
 // FIXME: Remove when we can split payloads.
 #define bcmp_max_payload_size_bytes (1500)
 #define ipv6_header_length (40)
