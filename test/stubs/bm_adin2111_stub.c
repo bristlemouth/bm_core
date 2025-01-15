@@ -7,8 +7,8 @@ DEFINE_FAKE_VOID_FUNC(received_data_on_port, uint8_t, uint8_t *, size_t);
 
 DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_send, void *, uint8_t *, size_t,
                        uint8_t);
-DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_enable, void *);
-DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_disable, void *);
+DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_enable, void *, uint8_t);
+DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_disable, void *, uint8_t);
 DEFINE_FAKE_VALUE_FUNC(uint8_t, netdevice_num_ports);
 DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_port_stats, void *, uint8_t, void *);
 

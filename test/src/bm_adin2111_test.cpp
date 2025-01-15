@@ -39,7 +39,7 @@ TEST(Adin2111, send) {
 
 TEST(Adin2111, enable) {
   NetworkDevice device = setup();
-  BmErr err = device.trait->enable(device.self);
+  BmErr err = device.trait->enable(device.self, 0);
   // We're exercising the embedded driver code,
   // but there's no real SPI device on the bus.
   EXPECT_EQ(err, BmENODEV);
@@ -48,7 +48,7 @@ TEST(Adin2111, enable) {
 TEST(Adin2111, disable) {
   NetworkDevice device = setup();
   // SEGFAULT because PHY is NULL, because no real SPI transactions
-  EXPECT_DEATH(device.trait->disable(device.self), "");
+  EXPECT_DEATH(device.trait->disable(device.self, 0), "");
 }
 
 TEST(Adin2111, num_ports) {

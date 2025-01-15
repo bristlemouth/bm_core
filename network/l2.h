@@ -20,7 +20,9 @@ void bm_l2_deinit(void);
 BmErr bm_l2_init(NetworkDevice network_device);
 BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb);
 bool bm_l2_get_port_state(uint8_t port);
+uint8_t bm_l2_get_port_count(void);
 BmErr bm_l2_netif_set_power(bool on);
+BmErr bm_l2_netif_enable_disable_port(uint8_t port_num, bool enable);
 
 #ifdef __cplusplus
 }

@@ -3,6 +3,7 @@
 #include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
+#include "ll.h"
 #include "util.h"
 
 // Ethernet Header Sizes
@@ -77,6 +78,7 @@
 #define clear_ingress_port(addr) (addr[ipv6_ingress_egress_ports_offset] &= 0xF)
 
 #define evt_queue_len (32)
+#define device_all_ports (0)
 
 typedef enum {
   L2Tx,
@@ -98,8 +100,13 @@ typedef struct {
   uint16_t enabled_ports_mask;
   BmQueue evt_queue;
   BmTaskHandle task_handle;
-  L2LinkChangeCb link_change_cb;
+  LL link_change_cb;
 } BmL2Ctx;
+
+typedef struct {
+  uint8_t port;
+  bool state;
+} L2LinkChangeData;
 
 static BmL2Ctx CTX = {0};
 
@@ -227,9 +234,8 @@ static void send_to_port(uint8_t port_num, uint8_t *payload, size_t length) {
 static void send_global_multicast_packet(uint8_t *payload, size_t length,
                                          uint16_t port_mask) {
   if (port_mask == CTX.all_ports_mask) {
-    const uint8_t all_ports = 0;
     BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
-                                               length, all_ports);
+                                               length, device_all_ports);
     if (err != BmOK) {
       bm_debug("Failed to send global multicast packet to all ports. err=%d\n",
                err);
@@ -354,6 +360,28 @@ static void bm_l2_thread(void *parameters) {
 }
 
 /*!
+  @brief Invoke Registered Link Change Callbacks
+
+  @details This is to be used with a ll_traverse API call
+
+  @param data callback stored in linked list
+  @param arg information about the port number and state of that port
+
+  @return BmOK
+ */
+static BmErr link_change_cbs(void *data, void *arg) {
+  (void)arg;
+  L2LinkChangeCb cb = *(L2LinkChangeCb *)data;
+  L2LinkChangeData *link_change = (L2LinkChangeData *)arg;
+
+  if (cb) {
+    cb(link_change->port, link_change->state);
+  }
+
+  return BmOK;
+}
+
+/*!
   @brief Link Change Callback For Network Device
 
   @details This API is called when there is a link change event on the network
@@ -365,18 +393,16 @@ static void bm_l2_thread(void *parameters) {
   @return none
  */
 static void link_change(uint8_t port_idx, bool is_up) {
-  uint8_t port_mask = 1 << (port_idx);
+  uint16_t port_mask = 1 << (port_idx);
+  L2LinkChangeData data = {port_idx + 1, is_up};
   if (is_up) {
     CTX.enabled_ports_mask |= port_mask;
   } else {
     CTX.enabled_ports_mask &= ~port_mask;
   }
 
-  if (CTX.link_change_cb) {
-    CTX.link_change_cb(port_idx, is_up);
-  } else {
-    bm_debug("port%u %s\n", port_idx, is_up ? "up" : "down");
-  }
+  bm_debug("Network Device Port %u: %s\n", data.port, is_up ? "up" : "down");
+  ll_traverse(&CTX.link_change_cb, link_change_cbs, &data);
 }
 
 /*!
@@ -438,7 +464,8 @@ BmErr bm_l2_init(NetworkDevice network_device) {
   } else {
     err = BmENOMEM;
   }
-  bm_err_check(err, CTX.network_device.trait->enable(CTX.network_device.self));
+  bm_err_check(err, CTX.network_device.trait->enable(CTX.network_device.self,
+                                                     device_all_ports));
   return err;
 }
 
@@ -455,10 +482,15 @@ BmErr bm_l2_init(NetworkDevice network_device) {
  */
 BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb) {
   BmErr err = BmEINVAL;
+  LLItem *item = NULL;
+  static uint32_t cb_count = 0;
+
   if (cb) {
-    err = BmOK;
-    CTX.link_change_cb = cb;
+    item = ll_create_item(item, &cb, sizeof(&cb), cb_count);
+    err = item != NULL ? BmOK : BmENOMEM;
+    bm_err_check(err, ll_item_add(&CTX.link_change_cb, item));
   }
+
   return err;
 }
 
@@ -507,18 +539,53 @@ bool bm_l2_get_port_state(uint8_t port) {
 }
 
 /*!
+  @brief Obtains The Number Of Ports The Network Device Contains
+
+  @return number of ports on network device
+ */
+uint8_t bm_l2_get_port_count(void) { return CTX.num_ports; }
+
+/*!
   @brief Public api to set the network interface on/off
+
   @param on - true to turn the interface on, false to turn the interface off.
+
+  @return BmOK if successful
+  @return BMErr if unsuccessful
 */
 BmErr bm_l2_netif_set_power(bool on) {
   BmErr err = BmOK;
   NetworkDevice device = CTX.network_device;
   if (on) {
-    bm_err_check(err, device.trait->enable(device.self));
+    bm_err_check(err, device.trait->enable(device.self, device_all_ports));
     bm_err_check(err, bm_l2_set_netif(true));
   } else {
     bm_err_check(err, bm_l2_set_netif(false));
-    bm_err_check(err, device.trait->disable(device.self));
+    bm_err_check(err, device.trait->disable(device.self, device_all_ports));
+  }
+  return err;
+}
+
+/*!
+  @brief Enables Or Disables A Port On The Network Device
+
+  @param port_num port to enable or disable, must be less thant CTX.num_ports
+  @param enable if true will enable port, if false will disable port
+
+  @return BmOK if successful
+  @return BMErr if unsuccessful
+ */
+BmErr bm_l2_netif_enable_disable_port(uint8_t port_num, bool enable) {
+  BmErr err = BmEINVAL;
+  NetworkDevice device = CTX.network_device;
+  if (port_num <= CTX.num_ports && port_num > device_all_ports) {
+    err = BmOK;
+    if (enable) {
+      bm_err_check(err, device.trait->enable(device.self, port_num));
+    } else {
+      bm_err_check(err, device.trait->disable(device.self, port_num));
+    }
+    link_change(port_num - 1, enable);
   }
   return err;
 }

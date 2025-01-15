@@ -127,35 +127,80 @@ end:
   return err;
 }
 
+static inline adin2111_Port_e adin2111_port_convert(uint8_t port) {
+  switch (port) {
+  case 1:
+    return ADIN2111_PORT_1;
+  case 2:
+    return ADIN2111_PORT_2;
+  default:
+    return ADIN2111_PORT_NUM;
+  }
+}
+
 // Trait wrapper function to convert self from void* to Adin2111*
-inline static BmErr adin2111_netdevice_enable_(void *self) {
+inline static BmErr adin2111_netdevice_enable_(void *self, uint8_t port) {
   (void)self;
-  return adin2111_netdevice_enable();
+  BmErr err = BmEINVAL;
+  adin2111_Port_e enable_port = adin2111_port_convert(port);
+
+  switch (enable_port) {
+  case ADIN2111_PORT_1:
+  case ADIN2111_PORT_2: {
+    if (adin2111_EnablePort(&DEVICE_STRUCT, enable_port) != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+    } else {
+      err = BmOK;
+    }
+  } break;
+  default: {
+    err = adin2111_netdevice_enable();
+  } break;
+  }
+
+  return err;
 }
 
 // Shut down and disable the ADIN2111 hardware
-static BmErr adin2111_netdevice_disable(void) {
-  BmErr err = BmOK;
+static BmErr adin2111_netdevice_disable(uint8_t port) {
+  BmErr err = BmEINVAL;
+  adi_eth_Result_e result = ADI_ETH_SUCCESS;
+  adin2111_Port_e disable_port = adin2111_port_convert(port);
 
-  for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
-    adi_eth_Result_e result = adin2111_DisablePort(&DEVICE_STRUCT, i);
+  switch (disable_port) {
+  case ADIN2111_PORT_1:
+  case ADIN2111_PORT_2: {
+    result = adin2111_DisablePort(&DEVICE_STRUCT, disable_port);
     if (result != ADI_ETH_SUCCESS) {
       err = BmENODEV;
-      break;
+    } else {
+      err = BmOK;
     }
-  }
+  } break;
+  default: {
+    for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
+      result = adin2111_DisablePort(&DEVICE_STRUCT, i);
+      if (result != ADI_ETH_SUCCESS) {
+        err = BmENODEV;
+        break;
+      } else {
+        err = BmOK;
+      }
+    }
 
-  if (NETWORK_DEVICE.callbacks->power) {
-    NETWORK_DEVICE.callbacks->power(false);
+    if (err == BmOK && NETWORK_DEVICE.callbacks->power) {
+      NETWORK_DEVICE.callbacks->power(false);
+    }
+  } break;
   }
 
   return err;
 }
 
 // Trait wrapper function to convert self from void* to Adin2111*
-inline static BmErr adin2111_netdevice_disable_(void *self) {
+inline static BmErr adin2111_netdevice_disable_(void *self, uint8_t port) {
   (void)self;
-  return adin2111_netdevice_disable();
+  return adin2111_netdevice_disable(port);
 }
 
 // After a TX buffer is sent, it gets freed here
