@@ -75,7 +75,6 @@
   (addr[ipv6_ingress_egress_ports_offset] |= (port << 4))
 #define clear_ports(addr) (addr[ipv6_ingress_egress_ports_offset] = 0)
 #define clear_ingress_port(addr) (addr[ipv6_ingress_egress_ports_offset] &= 0xF)
-#define clear_egress_port(addr) (addr[ipv6_ingress_egress_ports_offset] &= 0xF0)
 
 #define evt_queue_len (32)
 
