@@ -158,6 +158,31 @@ static void bm_l2_rx(uint8_t port_num, uint8_t *data, size_t length) {
 }
 
 /*!
+  @brief Revert The Checksum From The Payload
+
+  @details This must be called whenever there is a message being
+           transmitted on multiple ports. This ensures the checksum
+           is clean before the next port is utilized.
+
+  @param payload payload that was just sent over a port
+  @param port_num port which the payload was sent
+ */
+static inline void network_revert_checksum(uint8_t *payload, uint8_t port_num) {
+  if (ethernet_get_type(payload) == ethernet_type_ipv6) {
+    if (ipv6_get_next_header(payload) == ip_proto_udp) {
+      payload[udp_checksum_offset] ^= 0xFFFF;
+      payload[udp_checksum_offset] -= port_num;
+      payload[udp_checksum_offset] ^= 0xFFFF;
+    } else if (ipv6_get_next_header(payload) == ip_proto_bcmp) {
+      BcmpHeader *header = (BcmpHeader *)&payload[bcmp_packet_offset];
+      header->checksum ^= 0xFFFF;
+      header->checksum -= port_num;
+      header->checksum ^= 0xFFFF;
+    }
+  }
+}
+
+/*!
   @brief Add egress port to source IP address and update UDP checksum
 
   @details Updates the payload with the egress port according to the Bristlemouth spec.
@@ -243,6 +268,7 @@ static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
         network_add_egress_port(payload, port_num);
         send_to_port(port_num, payload, tx_evt->length);
         clear_ports(payload);
+        network_revert_checksum(payload, port_num);
       }
     }
   }
