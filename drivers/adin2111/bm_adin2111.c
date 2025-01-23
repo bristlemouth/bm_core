@@ -168,7 +168,11 @@ static BmErr adin2111_netdevice_disable(uint8_t port) {
   adin2111_Port_e disable_port = adin2111_port_convert(port);
 
   switch (disable_port) {
-  case ADIN2111_PORT_1:
+  case ADIN2111_PORT_1: {
+    bm_debug("Disabling port 1 on Adin will disable both ports,"
+             " if that is the desired behavior, call the network device trait"
+             " disable with 0 as the port number\n");
+  } break;
   case ADIN2111_PORT_2: {
     result = adin2111_DisablePort(&DEVICE_STRUCT, disable_port);
     if (result != ADI_ETH_SUCCESS) {
