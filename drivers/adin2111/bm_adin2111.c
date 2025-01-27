@@ -70,6 +70,102 @@ static void link_change_callback_(void *device_handle, uint32_t event,
   }
 }
 
+/*!
+ @brief Obtain the ADIN2111 driver's transmission port
+
+ @details Convert the port number to the driver's port enumeration
+
+ @param port_num Port number, 1/2/x, x will flood all ports
+
+ @return Port to transmit data on
+ */
+static inline adin2111_TxPort_e driver_tx_port(uint8_t port_num) {
+  switch (port_num) {
+  case 1:
+    return ADIN2111_TX_PORT_1;
+  case 2:
+    return ADIN2111_TX_PORT_2;
+  default:
+    return ADIN2111_TX_PORT_FLOOD;
+  }
+}
+
+/*!
+ @brief Obtain the ADIN2111 driver's generic port
+
+ @details Convert the port number to the driver's port enumeration
+
+ @param port_num Port number, 1 or 2
+
+ @return Port for ADIN2111 driver API functions
+ */
+static inline adin2111_Port_e driver_port(uint8_t port_num) {
+  switch (port_num) {
+  case 1:
+    return ADIN2111_PORT_1;
+  case 2:
+    return ADIN2111_PORT_2;
+  default:
+    return ADIN2111_PORT_NUM;
+  }
+}
+
+inline static BmErr adin2111_netdevice_enable_port(uint8_t port_num) {
+  BmErr err = BmEINVAL;
+  adin2111_Port_e enable_port = driver_port(port_num);
+
+  switch (enable_port) {
+  case ADIN2111_PORT_1:
+  case ADIN2111_PORT_2: {
+    if (adin2111_EnablePort(&DEVICE_STRUCT, enable_port) != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+    } else {
+      err = BmOK;
+    }
+  } break;
+  default: {
+  } break;
+  }
+
+  return err;
+}
+
+inline static BmErr adin2111_netdevice_enable_port_(void *self,
+                                                    uint8_t port_num) {
+  (void)self;
+  return adin2111_netdevice_enable_port(port_num);
+}
+
+inline static BmErr adin2111_netdevice_disable_port(uint8_t port_num) {
+  BmErr err = BmEINVAL;
+  adi_eth_Result_e result = ADI_ETH_SUCCESS;
+  adin2111_Port_e disable_port = driver_port(port_num);
+
+  switch (disable_port) {
+  // WARNING: If port 1 is disabled, port 2 will also be disabled as per page
+  // 25 of the Rev B ADIN2111 datasheet:
+  // https://www.analog.com/media/en/technical-documentation/data-sheets/adin2111.pdf
+  case ADIN2111_PORT_1:
+  case ADIN2111_PORT_2: {
+    result = adin2111_DisablePort(&DEVICE_STRUCT, disable_port);
+    if (result != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+    } else {
+      err = BmOK;
+    }
+  } break;
+  default: {
+  } break;
+  }
+
+  return err;
+}
+
+static BmErr adin2111_netdevice_disable_port_(void *self, uint8_t port_num) {
+  (void)self;
+  return adin2111_netdevice_disable_port(port_num);
+}
+
 // Start up and enable the ADIN2111 hardware
 static BmErr adin2111_netdevice_enable(void) {
   BmErr err = BmOK;
@@ -111,10 +207,9 @@ static BmErr adin2111_netdevice_enable(void) {
     goto end;
   }
 
-  for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
-    result = adin2111_EnablePort(&DEVICE_STRUCT, i);
-    if (result != ADI_ETH_SUCCESS) {
-      err = BmENODEV;
+  for (int i = 1; i <= ADIN2111_PORT_NUM; i++) {
+    err = adin2111_netdevice_enable_port(i);
+    if (err != BmOK) {
       break;
     }
   }
@@ -127,84 +222,34 @@ end:
   return err;
 }
 
-static inline adin2111_Port_e adin2111_port_convert(uint8_t port) {
-  switch (port) {
-  case 1:
-    return ADIN2111_PORT_1;
-  case 2:
-    return ADIN2111_PORT_2;
-  default:
-    return ADIN2111_PORT_NUM;
-  }
-}
-
 // Trait wrapper function to convert self from void* to Adin2111*
-inline static BmErr adin2111_netdevice_enable_(void *self, uint8_t port) {
+inline static BmErr adin2111_netdevice_enable_(void *self) {
   (void)self;
-  BmErr err = BmEINVAL;
-  adin2111_Port_e enable_port = adin2111_port_convert(port);
-
-  switch (enable_port) {
-  case ADIN2111_PORT_1:
-  case ADIN2111_PORT_2: {
-    if (adin2111_EnablePort(&DEVICE_STRUCT, enable_port) != ADI_ETH_SUCCESS) {
-      err = BmENODEV;
-    } else {
-      err = BmOK;
-    }
-  } break;
-  default: {
-    err = adin2111_netdevice_enable();
-  } break;
-  }
-
-  return err;
+  return adin2111_netdevice_enable();
 }
 
 // Shut down and disable the ADIN2111 hardware
-static BmErr adin2111_netdevice_disable(uint8_t port) {
+static BmErr adin2111_netdevice_disable(void) {
   BmErr err = BmEINVAL;
-  adi_eth_Result_e result = ADI_ETH_SUCCESS;
-  adin2111_Port_e disable_port = adin2111_port_convert(port);
 
-  switch (disable_port) {
-  case ADIN2111_PORT_1: {
-    bm_debug("Disabling port 1 on Adin will disable both ports,"
-             " if that is the desired behavior, call the network device trait"
-             " disable with 0 as the port number\n");
-  } break;
-  case ADIN2111_PORT_2: {
-    result = adin2111_DisablePort(&DEVICE_STRUCT, disable_port);
-    if (result != ADI_ETH_SUCCESS) {
-      err = BmENODEV;
-    } else {
-      err = BmOK;
+  for (int i = 1; i <= ADIN2111_PORT_NUM; i++) {
+    err = adin2111_netdevice_disable_port(i);
+    if (err != BmOK) {
+      break;
     }
-  } break;
-  default: {
-    for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
-      result = adin2111_DisablePort(&DEVICE_STRUCT, i);
-      if (result != ADI_ETH_SUCCESS) {
-        err = BmENODEV;
-        break;
-      } else {
-        err = BmOK;
-      }
-    }
+  }
 
-    if (err == BmOK && NETWORK_DEVICE.callbacks->power) {
-      NETWORK_DEVICE.callbacks->power(false);
-    }
-  } break;
+  if (err == BmOK && NETWORK_DEVICE.callbacks->power) {
+    NETWORK_DEVICE.callbacks->power(false);
   }
 
   return err;
 }
 
 // Trait wrapper function to convert self from void* to Adin2111*
-inline static BmErr adin2111_netdevice_disable_(void *self, uint8_t port) {
+inline static BmErr adin2111_netdevice_disable_(void *self) {
   (void)self;
-  return adin2111_netdevice_disable(port);
+  return adin2111_netdevice_disable();
 }
 
 // After a TX buffer is sent, it gets freed here
@@ -224,17 +269,6 @@ static void tx_complete(void *device_param, uint32_t event,
   (void)event;
 
   free_tx_buffer(buffer_description);
-}
-
-static inline adin2111_TxPort_e driver_tx_port(uint8_t port) {
-  switch (port) {
-  case 1:
-    return ADIN2111_TX_PORT_1;
-  case 2:
-    return ADIN2111_TX_PORT_2;
-  default:
-    return ADIN2111_TX_PORT_FLOOD;
-  }
 }
 
 // Allocate buffers for sending, copy the given data, and submit to the driver
@@ -380,6 +414,8 @@ static void create_network_device(void) {
       .send = adin2111_netdevice_send_,
       .enable = adin2111_netdevice_enable_,
       .disable = adin2111_netdevice_disable_,
+      .enable_port = adin2111_netdevice_enable_port_,
+      .disable_port = adin2111_netdevice_disable_port_,
       .num_ports = adin2111_num_ports,
       .port_stats = adin2111_port_stats_,
       .handle_interrupt = adin2111_handle_interrupt};

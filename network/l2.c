@@ -100,11 +100,11 @@ typedef struct {
   uint16_t enabled_ports_mask;
   BmQueue evt_queue;
   BmTaskHandle task_handle;
-  LL link_change_cb;
+  LL link_change_callback_list;
 } BmL2Ctx;
 
 typedef struct {
-  uint8_t port;
+  uint8_t port_num;
   bool state;
 } L2LinkChangeData;
 
@@ -367,16 +367,18 @@ static void bm_l2_thread(void *parameters) {
   @param data callback stored in linked list
   @param arg information about the port number and state of that port
 
-  @return BmOK
+  @return BmOK on success
+  @return BmEINVAL if invalid values
  */
 static BmErr link_change_cbs(void *data, void *arg) {
-  (void)arg;
+  if (!data || !arg) {
+    return BmEINVAL;
+  }
+
   L2LinkChangeCb cb = *(L2LinkChangeCb *)data;
   L2LinkChangeData *link_change = (L2LinkChangeData *)arg;
 
-  if (cb) {
-    cb(link_change->port, link_change->state);
-  }
+  cb(link_change->port_num, link_change->state);
 
   return BmOK;
 }
@@ -401,8 +403,9 @@ static void link_change(uint8_t port_idx, bool is_up) {
     CTX.enabled_ports_mask &= ~port_mask;
   }
 
-  bm_debug("Network Device Port %u: %s\n", data.port, is_up ? "up" : "down");
-  ll_traverse(&CTX.link_change_cb, link_change_cbs, &data);
+  bm_debug("Network Device Port %u: %s\n", data.port_num,
+           is_up ? "up" : "down");
+  ll_traverse(&CTX.link_change_callback_list, link_change_cbs, &data);
 }
 
 /*!
@@ -464,8 +467,7 @@ BmErr bm_l2_init(NetworkDevice network_device) {
   } else {
     err = BmENOMEM;
   }
-  bm_err_check(err, CTX.network_device.trait->enable(CTX.network_device.self,
-                                                     device_all_ports));
+  bm_err_check(err, CTX.network_device.trait->enable(CTX.network_device.self));
   return err;
 }
 
@@ -488,7 +490,7 @@ BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb) {
   if (cb) {
     item = ll_create_item(item, &cb, sizeof(&cb), cb_count);
     err = item != NULL ? BmOK : BmENOMEM;
-    bm_err_check(err, ll_item_add(&CTX.link_change_cb, item));
+    bm_err_check(err, ll_item_add(&CTX.link_change_callback_list, item));
   }
 
   return err;
@@ -557,11 +559,11 @@ BmErr bm_l2_netif_set_power(bool on) {
   BmErr err = BmOK;
   NetworkDevice device = CTX.network_device;
   if (on) {
-    bm_err_check(err, device.trait->enable(device.self, device_all_ports));
+    bm_err_check(err, device.trait->enable(device.self));
     bm_err_check(err, bm_l2_set_netif(true));
   } else {
     bm_err_check(err, bm_l2_set_netif(false));
-    bm_err_check(err, device.trait->disable(device.self, device_all_ports));
+    bm_err_check(err, device.trait->disable(device.self));
   }
   return err;
 }
@@ -578,12 +580,12 @@ BmErr bm_l2_netif_set_power(bool on) {
 BmErr bm_l2_netif_enable_disable_port(uint8_t port_num, bool enable) {
   BmErr err = BmEINVAL;
   NetworkDevice device = CTX.network_device;
-  if (port_num <= CTX.num_ports && port_num > device_all_ports) {
+  if (port_num <= CTX.num_ports && port_num > 0) {
     err = BmOK;
     if (enable) {
-      bm_err_check(err, device.trait->enable(device.self, port_num));
+      bm_err_check(err, device.trait->enable_port(device.self, port_num));
     } else {
-      bm_err_check(err, device.trait->disable(device.self, port_num));
+      bm_err_check(err, device.trait->disable_port(device.self, port_num));
     }
     link_change(port_num - 1, enable);
   }

@@ -30,6 +30,13 @@ static NetworkDevice setup() {
   return device;
 }
 
+TEST(Adin2111, set_power_cb_before_init) {
+  setup();
+  // Called twice because we first turn the adin on,
+  // then when we get SPI errors, we turn it off
+  EXPECT_EQ(network_device_power_cb_fake.call_count, 2);
+}
+
 TEST(Adin2111, send) {
   NetworkDevice device = setup();
   BmErr err = device.trait->send(device.self, (unsigned char *)"hello", 5,
@@ -39,7 +46,7 @@ TEST(Adin2111, send) {
 
 TEST(Adin2111, enable) {
   NetworkDevice device = setup();
-  BmErr err = device.trait->enable(device.self, 0);
+  BmErr err = device.trait->enable(device.self);
   // We're exercising the embedded driver code,
   // but there's no real SPI device on the bus.
   EXPECT_EQ(err, BmENODEV);
@@ -48,19 +55,24 @@ TEST(Adin2111, enable) {
 TEST(Adin2111, disable) {
   NetworkDevice device = setup();
   // SEGFAULT because PHY is NULL, because no real SPI transactions
-  EXPECT_DEATH(device.trait->disable(device.self, 0), "");
+  EXPECT_DEATH(device.trait->disable(device.self), "");
+}
+
+TEST(Adin2111, enable_port) {
+  NetworkDevice device = setup();
+  // SEGFAULT because PHY is NULL, because no real SPI transactions
+  EXPECT_DEATH(device.trait->enable_port(device.self, 1), "");
+}
+
+TEST(Adin2111, disable_port) {
+  NetworkDevice device = setup();
+  // SEGFAULT because PHY is NULL, because no real SPI transactions
+  EXPECT_DEATH(device.trait->disable_port(device.self, 1), "");
 }
 
 TEST(Adin2111, num_ports) {
   NetworkDevice device = setup();
   EXPECT_EQ(device.trait->num_ports(), ADIN2111_PORT_NUM);
-}
-
-TEST(Adin2111, set_power_cb_before_init) {
-  setup();
-  // Called twice because we first turn the adin on,
-  // then when we get SPI errors, we turn it off
-  EXPECT_EQ(network_device_power_cb_fake.call_count, 2);
 }
 
 TEST(Adin2111, port_stats) {

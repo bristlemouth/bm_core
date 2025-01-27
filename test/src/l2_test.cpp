@@ -151,16 +151,16 @@ TEST_F(L2, port_state) {
  @brief Disable/enable ports
  */
 TEST_F(L2, enable_disable_ports) {
-  netdevice_enable_fake.return_val = BmOK;
-  netdevice_disable_fake.return_val = BmOK;
+  netdevice_enable_port_fake.return_val = BmOK;
+  netdevice_disable_port_fake.return_val = BmOK;
   for (uint8_t i = 0; i < port_per_device; i++) {
     EXPECT_EQ(bm_l2_netif_enable_disable_port(i + 1, false), BmOK);
     EXPECT_EQ(bm_l2_netif_enable_disable_port(i + 1, true), BmOK);
   }
 
   // Test failures
-  netdevice_enable_fake.return_val = BmENOMEM;
-  netdevice_disable_fake.return_val = BmENOMEM;
+  netdevice_enable_port_fake.return_val = BmENOMEM;
+  netdevice_disable_port_fake.return_val = BmENOMEM;
   for (uint8_t i = 0; i < port_per_device; i++) {
     EXPECT_NE(bm_l2_netif_enable_disable_port(i + 1, false), BmOK);
     EXPECT_NE(bm_l2_netif_enable_disable_port(i + 1, true), BmOK);
