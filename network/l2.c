@@ -378,7 +378,9 @@ static BmErr link_change_cbs(void *data, void *arg) {
   L2LinkChangeCb cb = *(L2LinkChangeCb *)data;
   L2LinkChangeData *link_change = (L2LinkChangeData *)arg;
 
-  cb(link_change->port_num, link_change->state);
+  if (cb) {
+    cb(link_change->port_num, link_change->state);
+  }
 
   return BmOK;
 }
