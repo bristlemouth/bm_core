@@ -142,15 +142,15 @@ inline static BmErr adin2111_netdevice_enable_port(uint8_t port_num) {
 
   switch (enable_port) {
   case ADIN2111_PORT_1:
-  case ADIN2111_PORT_2: {
+  case ADIN2111_PORT_2:
     if (adin2111_EnablePort(&DEVICE_STRUCT, enable_port) != ADI_ETH_SUCCESS) {
       err = BmENODEV;
     } else {
       err = BmOK;
     }
-  } break;
-  default: {
-  } break;
+    break;
+  default:
+    break;
   }
 
   return err;
@@ -194,16 +194,16 @@ inline static BmErr adin2111_netdevice_disable_port(uint8_t port_num) {
   // 25 of the Rev B ADIN2111 datasheet:
   // https://www.analog.com/media/en/technical-documentation/data-sheets/adin2111.pdf
   case ADIN2111_PORT_1:
-  case ADIN2111_PORT_2: {
+  case ADIN2111_PORT_2:
     result = adin2111_DisablePort(&DEVICE_STRUCT, disable_port);
     if (result != ADI_ETH_SUCCESS) {
       err = BmENODEV;
     } else {
       err = BmOK;
     }
-  } break;
-  default: {
-  } break;
+    break;
+  default:
+    break;
   }
 
   return err;
