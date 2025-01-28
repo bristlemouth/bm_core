@@ -37,9 +37,17 @@ static void *ADIN2111_MAC_INT_CALLBACK_PARAM = NULL;
 static struct LinkChange LINK_CHANGE = {NULL, ADIN2111_PORT_1};
 
 /**************** Private Helper Functions ****************/
+/*!
+  @brief Register interrupt pin callback for the ADIN2111 network device
 
-// Required by the Analog Devices adi_hal.h to be implementeed by the application.
-// We save the pointer here in our driver wrapper to simplify Bristlemouth integration.
+  @details Required by the Analog Devices adi_hal.h to be implementeed by the application.
+           We save the pointer here in our driver wrapper to simplify Bristlemouth integration.
+
+  @param intCallback callback function to be used on the actual pin interrupt
+  @param hDevice network device pointer
+
+  @return ADI_ETH_SUCCESS
+ */
 uint32_t HAL_RegisterCallback(HAL_Callback_t const *intCallback,
                               void *hDevice) {
   // Analog Devices code has a bug at adi_mac.c:633 where they
@@ -49,8 +57,18 @@ uint32_t HAL_RegisterCallback(HAL_Callback_t const *intCallback,
   return ADI_ETH_SUCCESS;
 }
 
-// Called by the driver when the link status changes
-// If the user has registered a callback, call it
+/*!
+ @brief ADIN2111 network device link change callback
+
+ @details Called by the driver when the link status changes,
+          if the user has registered a callback, setup variables
+          necessary for when there is an interrupt on the device
+
+ @param device_handle network device pointer
+ @param event unused
+ @param status_registers_param registers with information on which port has a
+                               link change event
+ */
 static void link_change_callback_(void *device_handle, uint32_t event,
                                   void *status_registers_param) {
   (void)event;
@@ -70,7 +88,153 @@ static void link_change_callback_(void *device_handle, uint32_t event,
   }
 }
 
-// Start up and enable the ADIN2111 hardware
+/*!
+ @brief Obtain the ADIN2111 driver's transmission port
+
+ @details Convert the port number to the driver's port enumeration
+
+ @param port_num Port number, 1/2/x, x will flood all ports
+
+ @return Port to transmit data on
+ */
+static inline adin2111_TxPort_e driver_tx_port(uint8_t port_num) {
+  switch (port_num) {
+  case 1:
+    return ADIN2111_TX_PORT_1;
+  case 2:
+    return ADIN2111_TX_PORT_2;
+  default:
+    return ADIN2111_TX_PORT_FLOOD;
+  }
+}
+
+/*!
+ @brief Obtain the ADIN2111 driver's generic port
+
+ @details Convert the port number to the driver's port enumeration
+
+ @param port_num Port number, 1 or 2
+
+ @return Port for ADIN2111 driver API functions
+ */
+static inline adin2111_Port_e driver_port(uint8_t port_num) {
+  switch (port_num) {
+  case 1:
+    return ADIN2111_PORT_1;
+  case 2:
+    return ADIN2111_PORT_2;
+  default:
+    return ADIN2111_PORT_NUM;
+  }
+}
+
+/*!
+  @brief Enable single network device port
+
+  @param port_num port number to enable, 1 or 2
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+inline static BmErr adin2111_netdevice_enable_port(uint8_t port_num) {
+  BmErr err = BmEINVAL;
+  adin2111_Port_e enable_port = driver_port(port_num);
+
+  switch (enable_port) {
+  case ADIN2111_PORT_1:
+  case ADIN2111_PORT_2:
+    if (adin2111_EnablePort(&DEVICE_STRUCT, enable_port) != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+    } else {
+      err = BmOK;
+    }
+    break;
+  default:
+    break;
+  }
+
+  return err;
+}
+
+/*!
+  @brief Enable single network device port
+
+  @details Trait wrapper function for adin2111_netdevice_enable_port
+
+  @param self unused
+  @param port_num port number to enable, 1 or 2
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+inline static BmErr adin2111_netdevice_enable_port_(void *self,
+                                                    uint8_t port_num) {
+  (void)self;
+  return adin2111_netdevice_enable_port(port_num);
+}
+
+/*!
+  @brief Disable single network device port
+
+  @details The ADIN2111 can only disable port 2 individually, if port 1 is shut
+           down, so is port 2
+
+  @param port_num port number to disable, 1 or 2
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+inline static BmErr adin2111_netdevice_disable_port(uint8_t port_num) {
+  BmErr err = BmEINVAL;
+  adi_eth_Result_e result = ADI_ETH_SUCCESS;
+  adin2111_Port_e disable_port = driver_port(port_num);
+
+  switch (disable_port) {
+  // WARNING: If port 1 is disabled, port 2 will also be disabled as per page
+  // 25 of the Rev B ADIN2111 datasheet:
+  // https://www.analog.com/media/en/technical-documentation/data-sheets/adin2111.pdf
+  case ADIN2111_PORT_1:
+  case ADIN2111_PORT_2:
+    result = adin2111_DisablePort(&DEVICE_STRUCT, disable_port);
+    if (result != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+    } else {
+      err = BmOK;
+    }
+    break;
+  default:
+    break;
+  }
+
+  return err;
+}
+
+/*!
+  @brief Disable single network device port
+
+  @details Trait wrapper function for adin2111_netdevice_disable_port
+
+  @param self unused
+  @param port_num port number to disable, 1 or 2
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+static BmErr adin2111_netdevice_disable_port_(void *self, uint8_t port_num) {
+  (void)self;
+  return adin2111_netdevice_disable_port(port_num);
+}
+
+/*!
+  @brief Enable the network device
+
+  @details This turns on the power to the ADIN2111, initializes is,
+           registers the proper callbacks and setups buffers for the ADIN2111
+           driver
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
 static BmErr adin2111_netdevice_enable(void) {
   BmErr err = BmOK;
 
@@ -111,10 +275,9 @@ static BmErr adin2111_netdevice_enable(void) {
     goto end;
   }
 
-  for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
-    result = adin2111_EnablePort(&DEVICE_STRUCT, i);
-    if (result != ADI_ETH_SUCCESS) {
-      err = BmENODEV;
+  for (int i = 1; i <= ADIN2111_PORT_NUM; i++) {
+    err = adin2111_netdevice_enable_port(i);
+    if (err != BmOK) {
       break;
     }
   }
@@ -127,38 +290,67 @@ end:
   return err;
 }
 
-// Trait wrapper function to convert self from void* to Adin2111*
+/*!
+  @brief Enable the network device
+
+  @details Trait wrapper function to convert self from void* to Adin2111*
+
+  @param self unused
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
 inline static BmErr adin2111_netdevice_enable_(void *self) {
   (void)self;
   return adin2111_netdevice_enable();
 }
 
-// Shut down and disable the ADIN2111 hardware
-static BmErr adin2111_netdevice_disable(void) {
-  BmErr err = BmOK;
+/*!
+  @brief Disable the network device
 
-  for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
-    adi_eth_Result_e result = adin2111_DisablePort(&DEVICE_STRUCT, i);
-    if (result != ADI_ETH_SUCCESS) {
-      err = BmENODEV;
+  @details Shut down and disable the ADIN2111 hardware.
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+static BmErr adin2111_netdevice_disable(void) {
+  BmErr err = BmEINVAL;
+
+  for (int i = 1; i <= ADIN2111_PORT_NUM; i++) {
+    err = adin2111_netdevice_disable_port(i);
+    if (err != BmOK) {
       break;
     }
   }
 
-  if (NETWORK_DEVICE.callbacks->power) {
+  if (err == BmOK && NETWORK_DEVICE.callbacks->power) {
     NETWORK_DEVICE.callbacks->power(false);
   }
 
   return err;
 }
 
-// Trait wrapper function to convert self from void* to Adin2111*
+/*!
+  @brief Disable the network device
+
+  @details Trait wrapper function to convert self from void* to Adin2111*
+
+  @param self unused
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
 inline static BmErr adin2111_netdevice_disable_(void *self) {
   (void)self;
   return adin2111_netdevice_disable();
 }
 
-// After a TX buffer is sent, it gets freed here
+/*!
+  @brief After a TX buffer is sent, it gets freed here
+
+  @param buffer_description ADIN2111 driver buffer description of what was just
+                            transmitted
+ */
 static void free_tx_buffer(adi_eth_BufDesc_t *buffer_description) {
   if (buffer_description) {
     if (buffer_description->pBuf) {
@@ -168,7 +360,14 @@ static void free_tx_buffer(adi_eth_BufDesc_t *buffer_description) {
   }
 }
 
-// This is the callback that the driver calls after a TX buffer is sent
+/*!
+  @brief This is the callback that the driver calls after a TX buffer is sent
+
+  @param device_param unused
+  @param event unused
+  @param buffer_description ADIN2111 driver buffer description of what was just
+                            transmitted
+ */
 static void tx_complete(void *device_param, uint32_t event,
                         void *buffer_description) {
   (void)device_param;
@@ -177,18 +376,18 @@ static void tx_complete(void *device_param, uint32_t event,
   free_tx_buffer(buffer_description);
 }
 
-static inline adin2111_TxPort_e driver_tx_port(uint8_t port) {
-  switch (port) {
-  case 1:
-    return ADIN2111_TX_PORT_1;
-  case 2:
-    return ADIN2111_TX_PORT_2;
-  default:
-    return ADIN2111_TX_PORT_FLOOD;
-  }
-}
+/*!
+  @brief Transmit data to network
 
-// Allocate buffers for sending, copy the given data, and submit to the driver
+  @details Allocate buffers for sending, copy the given data, and submit to the driver
+
+  @param data pointer to data to send over the network
+  @param length data length
+  @param port port to transmit data onto
+
+  @return BmOk on success
+  @return BmErr on failure
+ */
 static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
                                      uint8_t port) {
   BmErr err = BmOK;
@@ -224,15 +423,35 @@ end:
   return err;
 }
 
-// Trait wrapper function to convert self from void* to Adin2111*
+/*!
+  @brief Transmit data to network
+
+  @details Trait wrapper function to convert self from void* to Adin2111*
+
+  @param self unused
+  @param data pointer to data to send over the network
+  @param length data length
+  @param port port to transmit data onto
+
+  @return BmOk on success
+  @return BmErr on failure
+ */
 static inline BmErr adin2111_netdevice_send_(void *self, uint8_t *data,
                                              size_t length, uint8_t port) {
   (void)self;
   return adin2111_netdevice_send(data, length, port);
 }
 
-// Called by the driver on received data
-// If the user has registered a callback, call it
+/*!
+  @brief ADIN2111 driver receive callback
+
+  @details Called by the driver on received data,
+           if the user has registered a callback, call it
+
+  @param device unused
+  @param event unused
+  @param buffer_description_param
+ */
 static void receive_callback(void *device, uint32_t event,
                              void *buffer_description_param) {
   (void)device;
@@ -260,9 +479,26 @@ static void receive_callback(void *device, uint32_t event,
   }
 }
 
+/*!
+  @brief Obtain number of ports on network device
+
+  @details Trait function to obtain the number of ports on the ADIN2111
+
+  @return ADIN2111_PORT_NUM
+ */
 static inline uint8_t adin2111_num_ports(void) { return ADIN2111_PORT_NUM; }
 
-// Get device-specific statistics for a port
+/*!
+  @brief Obtain statistics from the network device
+
+  @details Get ADIN2111 specific statistics for a port
+
+  @param port_index port index to obtain stats on, 0 or 1
+  @param stats pointer to the stats to be obtained
+
+  @return BmOk on success
+  @return BmErr on failure
+ */
 static BmErr adin2111_port_stats(uint8_t port_index, Adin2111PortStats *stats) {
   BmErr err = BmOK;
 
@@ -297,15 +533,35 @@ end:
   return err;
 }
 
-// Trait wrapper function to convert void* to device-specific types
+/*!
+  @brief Obtain statistics from the network device
+
+  @details Trait wrapper function to convert void* to device-specific types
+
+  @param self unused
+  @param port_index port index to obtain stats on, 0 or 1
+  @param stats pointer to the stats to be obtained
+
+  @return BmOk on success
+  @return BmErr on failure
+ */
 static inline BmErr adin2111_port_stats_(void *self, uint8_t port_index,
                                          void *stats) {
   (void)self;
   return adin2111_port_stats(port_index, stats);
 }
 
-// L2 calls this trait function from a thread
-// after getting out of the external pin interrupt context.
+/*!
+  @brief Handle network device interrupt
+
+  @details L2 calls this trait function from a thread
+           after getting out of the external pin interrupt context.
+
+  @param self unused
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
 static BmErr adin2111_handle_interrupt(void *self) {
   (void)self;
   BmErr err = BmENODEV;
@@ -326,11 +582,17 @@ static BmErr adin2111_handle_interrupt(void *self) {
   return err;
 }
 
+/*!
+  @brief Create an ADIN2111 specific network device with required traits
+         and callbacks
+ */
 static void create_network_device(void) {
   static NetworkDeviceTrait const trait = {
       .send = adin2111_netdevice_send_,
       .enable = adin2111_netdevice_enable_,
       .disable = adin2111_netdevice_disable_,
+      .enable_port = adin2111_netdevice_enable_port_,
+      .disable_port = adin2111_netdevice_disable_port_,
       .num_ports = adin2111_num_ports,
       .port_stats = adin2111_port_stats_,
       .handle_interrupt = adin2111_handle_interrupt};
@@ -341,9 +603,12 @@ static void create_network_device(void) {
 }
 
 /**************** Public API Functions ****************/
+/*!
+  @brief Initialize an Adin2111 device
 
-/*! @brief Initialize an Adin2111 device
-    @return BmOK if successful, otherwise an error */
+  @return BmOK on success
+  @return BmErr on failure
+ */
 BmErr adin2111_init(void) {
   BmErr err = BmOK;
 
@@ -377,7 +642,11 @@ end:
   return err;
 }
 
-/// Get a generic NetworkDevice for the Adin2111
+/*!
+  @brief Get a generic NetworkDevice for the Adin2111
+
+  @return ADIN2111 network device
+ */
 NetworkDevice adin2111_network_device(void) {
   // set up the static memory
   create_network_device();

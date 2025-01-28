@@ -13,6 +13,8 @@ DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_send, void *, uint8_t *, size_t,
                         uint8_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_enable, void *);
 DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_disable, void *);
+DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_enable_port, void *, uint8_t);
+DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_disable_port, void *, uint8_t);
 DECLARE_FAKE_VALUE_FUNC(uint8_t, netdevice_num_ports);
 DECLARE_FAKE_VALUE_FUNC(BmErr, netdevice_port_stats, void *, uint8_t, void *);
 

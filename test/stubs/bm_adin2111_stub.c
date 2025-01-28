@@ -9,6 +9,8 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_send, void *, uint8_t *, size_t,
                        uint8_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_enable, void *);
 DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_disable, void *);
+DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_enable_port, void *, uint8_t);
+DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_disable_port, void *, uint8_t);
 DEFINE_FAKE_VALUE_FUNC(uint8_t, netdevice_num_ports);
 DEFINE_FAKE_VALUE_FUNC(BmErr, netdevice_port_stats, void *, uint8_t, void *);
 
@@ -18,6 +20,8 @@ static NetworkDeviceTrait const fake_netdevice_trait = {
     .send = netdevice_send,
     .enable = netdevice_enable,
     .disable = netdevice_disable,
+    .enable_port = netdevice_enable_port,
+    .disable_port = netdevice_disable_port,
     .num_ports = netdevice_num_ports,
     .port_stats = netdevice_port_stats};
 

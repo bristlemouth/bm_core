@@ -17,6 +17,8 @@ typedef struct {
   BmErr (*const send)(void *self, uint8_t *data, size_t length, uint8_t port);
   BmErr (*const enable)(void *self);
   BmErr (*const disable)(void *self);
+  BmErr (*const enable_port)(void *self, uint8_t port_num);
+  BmErr (*const disable_port)(void *self, uint8_t port_num);
   uint8_t (*const num_ports)(void);
   BmErr (*const port_stats)(void *self, uint8_t port_index, void *stats);
   BmErr (*const handle_interrupt)(void *self);
