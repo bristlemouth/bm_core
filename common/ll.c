@@ -39,7 +39,7 @@ static BmErr ll_advance_cursor(LL *ll, void **data) {
  @brief Reset List Cursor
 
  @details Resets list cursor to begin iterative operations from the list's
-          head. This should be used once the pop API has reached the end
+          head. This should be used once the advance API has reached the end
           of the list.
  
  @param ll list to reset cursor

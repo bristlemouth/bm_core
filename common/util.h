@@ -59,6 +59,8 @@ typedef struct {
 
 #define array_size(x) (sizeof(x) / sizeof(x[0]))
 #define member_size(type, member) (sizeof(((type *)0)->member))
+#define s_to_ms(x) (x * 1000)
+#define ms_to_s(x) (x / 1000)
 
 uint32_t time_remaining(uint32_t start, uint32_t current, uint32_t timeout);
 uint32_t utc_from_date_time(uint16_t year, uint8_t month, uint8_t day,
