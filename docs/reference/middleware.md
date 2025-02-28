@@ -69,9 +69,9 @@ the system information provided from a node is as follows:
 - The crc of the device's config CBOR map (see above)
 
 ### Power Information Timing Service
-A service to provide a node information on how long the bus will be on,
-the time remaining for the bus to be on,
-and the upcoming off time.
+A service to provide a node information total time the bus power will be on,
+the time remaining for the bus power to be on,
+and the upcoming time the bus power will be off.
 This service is available on the following topic: `bus_power_controller/timing`.
 Power information timing is reported in the following format when requested:
 
