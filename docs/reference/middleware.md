@@ -25,12 +25,14 @@ the following diagram shows how these components work together:
 ## Supported Services
 
 These services offer a request/reply form of communication.
-This allows for applications to publish to certain topics when information is requested or replied
-and obtain information from a specific node ID.
+This allows for applications to publish to certain topics when information is requested or replied to.
+Please view the [Bristlemouth Specification](https://bristlemouth.notion.site/The-Bristlemouth-Standard-Specification-f5449080f5c940cabbd0512b4d2aeb82)
+for further information on services.
 The following services are supported on Bristlemouth:
 
 - config_cbor_map
 - sys_info
+- power_info
 
 ### Config CBOR Map Service
 The replier to this service will generate a key-pair table of all configuration values on the system
@@ -65,3 +67,20 @@ the system information provided from a node is as follows:
 - The GIT SHA of the node
 - The node's ID
 - The crc of the device's config CBOR map (see above)
+
+### Power Information Timing Service
+A service to provide a node information total time the bus power will be on,
+the time remaining for the bus power to be on,
+and the upcoming time the bus power will be off.
+This service is available on the following topic: `bus_power_controller/timing`.
+Power information timing is reported in the following format when requested:
+
+```
+    {
+      "total_on_s": 310,
+      "remaining_on_s": 121,
+      ”upcoming_off_s”: 1500
+    }
+```
+
+This information is useful to ensure that critical operations on a node will be finalized before the power turns off.

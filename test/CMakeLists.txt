@@ -102,10 +102,23 @@ set (ALIGNED_MALLOC_TEST_SRCS
     # File we are testing
     ${COMMON_DIR}/aligned_malloc.c
 
-    # Supporting files
+    # Stubs
     ${STUB_DIR}/bm_os_stub.c
 )
 create_gtest("aligned_malloc" "${ALIGNED_MALLOC_TEST_SRCS}")
+
+# Callback Queue unit tests
+set (CB_QUEUE_TEST_SRCS
+    # File we are testing
+    ${COMMON_DIR}/cb_queue.c
+
+    # Supporting Files
+    ${COMMON_DIR}/ll.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("cb_queue" "${CB_QUEUE_TEST_SRCS}")
 
 # PACKET TESTS
 set (PACKET_SRCS
@@ -375,6 +388,20 @@ set (CONFIG_CBOR_MAP_SRCS
     ${STUB_DIR}/device_stub.c
 )
 create_gtest("config_cbor_map_service" "${CONFIG_CBOR_MAP_SRCS}")
+
+# POWER_INFO TESTS
+set (POWER_INFO_SRCS
+    # File we're testing
+    ${MIDDLEWARE_DIR}/power_info_service.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/bm_service_stub.c
+    ${STUB_DIR}/bm_service_request_stub.c
+    ${STUB_DIR}/cb_queue_stub.c
+    ${STUB_DIR}/power_info_reply_msg_stub.c
+)
+create_gtest("power_info_service" "${POWER_INFO_SRCS}")
 
 # SYS INFO SERVICE TESTS
 set (SYS_INFO_SERVICE_SRCS

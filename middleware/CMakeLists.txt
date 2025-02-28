@@ -6,6 +6,7 @@ set(SOURCES
     config_cbor_map_service.c
     echo_service.c
     middleware.c
+    power_info_service.c
     pubsub.c
     sys_info_service.c
 )

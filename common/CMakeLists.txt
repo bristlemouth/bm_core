@@ -1,5 +1,6 @@
 set(SOURCES
     aligned_malloc.c
+    cb_queue.c
     device.c
     lib_state_machine.c
     ll.c
