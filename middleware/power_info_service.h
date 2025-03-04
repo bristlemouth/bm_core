@@ -4,6 +4,8 @@
 #include "power_info_reply_msg.h"
 #include "util.h"
 
+#define POWER_SERVICE_UNDEFINED UINT32_MAX
+
 #ifdef __cplusplus
 extern "C" {
 #endif
