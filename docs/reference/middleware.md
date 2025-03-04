@@ -84,3 +84,14 @@ Power information timing is reported in the following format when requested:
 ```
 
 This information is useful to ensure that critical operations on a node will be finalized before the power turns off.
+If one of the values are undefined,
+it is standard to indicate this by utilizing the macro `POWER_SERVICE_UNDEFINED`.
+When an undefined value is given,
+it is the responsibility of the requestor to handle this accordingly.
+For example,
+if `upcoming_off_s` is equivalent to `POWER_SERVICE_UNDEFINED`,
+then the requestor should prepare for the power to potentially never return.
+Another example of this is if the power is on indefinitely for the time being,
+`POWER_SERVICE_UNDEFINED` shall be used to indicate that there is a potential for the bus power timing to change.
+In this use case,
+the requestor should continue to request the service to ensure this value does not change.
