@@ -138,7 +138,7 @@ BmErr bm_middleware_local_pub(void *buf, uint32_t size) {
 
   if (buf) {
     queue_item.buf = buf;
-    queue_item.node_id = ip_to_nodeid((void *)bm_ip_get(1));
+    queue_item.node_id = ip_to_nodeid(bm_ip_get(1));
     queue_item.size = size;
 
     // add one to reference count since we'll be using it in two places

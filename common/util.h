@@ -94,17 +94,15 @@ void date_time_from_utc(uint64_t utc_us, UtcDateTime *date_time);
     }                                                                          \
   }
 
-//TODO: this is a placeholder until ip addresses are figured out
 typedef struct {
-  uint32_t addr[4];
-  uint8_t reserved;
-} bm_ip_addr;
+  uint8_t addr[16];
+} BmIpAddr;
 
-extern const bm_ip_addr multicast_global_addr;
-extern const bm_ip_addr multicast_ll_addr;
+extern const BmIpAddr multicast_global_addr;
+extern const BmIpAddr multicast_ll_addr;
 
-bool is_global_multicast(const uint8_t *dst_ip);
-bool is_link_local_multicast(const uint8_t *dst_ip);
+bool is_global_multicast(const BmIpAddr *dst_ip);
+bool is_link_local_multicast(const BmIpAddr *dst_ip);
 bool is_little_endian(void);
 void swap_16bit(void *x);
 void swap_32bit(void *x);
@@ -126,7 +124,7 @@ static inline uint32_t uint8_to_uint32(uint8_t *buf) {
   \param *ip address to extract node id from
   \return node id
 */
-static inline uint64_t ip_to_nodeid(void *ip) {
+static inline uint64_t ip_to_nodeid(const BmIpAddr *ip) {
   uint32_t high_word = 0;
   uint32_t low_word = 0;
   if (ip && is_little_endian()) {

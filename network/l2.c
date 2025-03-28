@@ -264,7 +264,8 @@ static void bm_l2_process_tx_evt(L2QueueElement *tx_evt) {
   }
 
   uint8_t *payload = (uint8_t *)bm_l2_get_payload(tx_evt->buf);
-  const uint8_t *dst_ip = &payload[ipv6_destination_address_offset];
+  const BmIpAddr *dst_ip =
+      (BmIpAddr *)&payload[ipv6_destination_address_offset];
   if (is_global_multicast(dst_ip)) {
     send_global_multicast_packet(payload, tx_evt->length, tx_evt->port_mask);
   } else if (is_link_local_multicast(dst_ip)) {
@@ -301,7 +302,8 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
     return;
   }
 
-  const uint8_t *dst_ip = &payload[ipv6_destination_address_offset];
+  const BmIpAddr *dst_ip =
+      (BmIpAddr *)&payload[ipv6_destination_address_offset];
   if (is_global_multicast(dst_ip)) {
     clear_ingress_port(payload);
     const uint16_t new_ports_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
