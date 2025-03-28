@@ -1,8 +1,42 @@
 #include "util.h"
 #include <stdint.h>
 
-const bm_ip_addr multicast_global_addr = {{0x3FF, 0x0, 0x0, 0x1000000}, 0};
-const bm_ip_addr multicast_ll_addr = {{0x2FF, 0x0, 0x0, 0x1000000}, 0};
+const BmIpAddr multicast_global_addr = {{
+    0xFF,
+    0x03,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+}};
+const BmIpAddr multicast_ll_addr = {{
+    0xFF,
+    0x02,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+}};
 
 uint32_t time_remaining(uint32_t start, uint32_t current, uint32_t timeout) {
   int32_t remaining = (int32_t)((start + timeout) - current);
@@ -14,26 +48,24 @@ uint32_t time_remaining(uint32_t start, uint32_t current, uint32_t timeout) {
   return remaining;
 }
 
-bool is_global_multicast(const uint8_t *dst_ip) {
+bool is_global_multicast(const BmIpAddr *dst_ip) {
   bool is_global_multi = false;
   if (dst_ip != NULL) {
     // Global multicast address is FF03::1
-    uint8_t *global_multi_bytes = (uint8_t *)&multicast_global_addr;
-    is_global_multi = dst_ip[0] == global_multi_bytes[0] && // FF
-                      dst_ip[1] == global_multi_bytes[1] && // 03
-                      dst_ip[15] == global_multi_bytes[15]; // 01
+    is_global_multi = dst_ip->addr[0] == multicast_global_addr.addr[0] && // FF
+                      dst_ip->addr[1] == multicast_global_addr.addr[1] && // 03
+                      dst_ip->addr[15] == multicast_global_addr.addr[15]; // 01
   }
   return is_global_multi;
 }
 
-bool is_link_local_multicast(const uint8_t *dst_ip) {
+bool is_link_local_multicast(const BmIpAddr *dst_ip) {
   bool is_ll_multi = false;
   if (dst_ip != NULL) {
     // Link-local multicast address is FF02::1
-    uint8_t *ll_multi_bytes = (uint8_t *)&multicast_ll_addr;
-    is_ll_multi = dst_ip[0] == ll_multi_bytes[0] && // FF
-                  dst_ip[1] == ll_multi_bytes[1] && // 02
-                  dst_ip[15] == ll_multi_bytes[15]; // 01
+    is_ll_multi = dst_ip->addr[0] == multicast_ll_addr.addr[0] && // FF
+                  dst_ip->addr[1] == multicast_ll_addr.addr[1] && // 02
+                  dst_ip->addr[15] == multicast_ll_addr.addr[15]; // 01
   }
   return is_ll_multi;
 }

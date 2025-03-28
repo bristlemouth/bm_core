@@ -143,7 +143,7 @@ void *bcmp_get_queue(void) { return CTX.queue; }
   @return BmOK on success
   @return BmErr on failure
 */
-BmErr bcmp_tx(const void *dst, BcmpMessageType type, uint8_t *data,
+BmErr bcmp_tx(const BmIpAddr *dst, BcmpMessageType type, uint8_t *data,
               uint16_t size, uint32_t seq_num,
               BmErr (*reply_cb)(uint8_t *payload)) {
   BmErr err = BmEINVAL;
@@ -211,7 +211,7 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
       header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
       bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
 
-      err = bm_ip_tx_perform(forward, &port_specific_dst);
+      err = bm_ip_tx_perform(forward, (BmIpAddr *)&port_specific_dst);
       if (err != BmOK) {
         bm_debug("Error forwarding BMCP packet link-locally: %d\n", err);
       }
