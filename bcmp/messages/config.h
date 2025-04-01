@@ -26,6 +26,9 @@ bool bcmp_config_status_request(uint64_t target_node_id,
 bool bcmp_config_del_key(uint64_t target_node_id, BmConfigPartition partition,
                          size_t key_len, const char *key,
                          BmErr (*reply_cb)(uint8_t *));
+bool bcmp_config_clear_partition(uint64_t target_node_id,
+                                 BmConfigPartition partition,
+                                 BmErr (*reply_cb)(uint8_t *));
 
 #ifdef __cplusplus
 }

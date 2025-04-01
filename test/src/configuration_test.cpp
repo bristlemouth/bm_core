@@ -329,10 +329,129 @@ TEST_F(ConfigurationTest, BadCborGetSet) {
             true);
   EXPECT_EQ(
       set_config_cbor(BM_CFG_PARTITION_SYSTEM,
-                      "a super long key string that shouldn't work",
-                      strlen("a super long key string that shouldn't work"),
+                      "a_super_long_key_string_that_should_not_work",
+                      strlen("a_super_long_key_string_that_should_not_work"),
                       cborBuffer, buffer_size),
       false); // key string too long.
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 1);
+}
+
+TEST_F(ConfigurationTest, InvalidKeyCharacters) {
+  uint8_t cborBuffer[MAX_STR_LEN_BYTES];
+  size_t buffer_size = sizeof(cborBuffer);
+  uint8_t num_keys;
+  const ConfigKey *key_list = NULL;
+  const char *silly = "The quick brown fox jumps over the lazy dog";
+  uint8_t silly_bar[25];
+  size_t size = sizeof(silly_bar);
+
+  memset(cborBuffer, 0xFF, buffer_size);
+  config_init();
+  key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
+  EXPECT_EQ(num_keys, 0);
+  EXPECT_EQ((key_list != NULL), true);
+
+  // Set a value properly to test setting raw cbor value
+  EXPECT_EQ(set_config_uint(BM_CFG_PARTITION_SYSTEM, "foo", strlen("foo"), 100),
+            true);
+  EXPECT_EQ(get_config_cbor(BM_CFG_PARTITION_SYSTEM, "foo", strlen("foo"),
+                            cborBuffer, &buffer_size),
+            true);
+  EXPECT_EQ(set_config_cbor(BM_CFG_PARTITION_SYSTEM, "this will not work",
+                            strlen("this will not work"), cborBuffer,
+                            buffer_size),
+            false);
+
+  // Test other setting API
+  EXPECT_EQ(set_config_int(BM_CFG_PARTITION_SYSTEM, "this-will-not-work",
+                           strlen("this-will-not-work"), -1),
+            false);
+  EXPECT_EQ(set_config_uint(BM_CFG_PARTITION_SYSTEM, "this!will!not!work",
+                            strlen("this!will!not!work"), 1),
+            false);
+  EXPECT_EQ(set_config_uint(BM_CFG_PARTITION_SYSTEM, "this_will}not{work",
+                            strlen("this_will}not{work"), 1),
+            false);
+  EXPECT_EQ(set_config_float(BM_CFG_PARTITION_SYSTEM, "this*will(not)work",
+                             strlen("this*will(not)work"), 100.0),
+            false);
+  EXPECT_EQ(set_config_string(BM_CFG_PARTITION_SYSTEM, "this_will_not@work",
+                              strlen("this_will_not@work"), silly,
+                              strlen(silly)),
+            false);
+
+  EXPECT_EQ(set_config_buffer(BM_CFG_PARTITION_SYSTEM, "thiszwillznot^work",
+                              strlen("thiszwillznot^work"), silly_bar, size),
+            false);
+
+  // Underscores will work! Let's test that here
+  EXPECT_EQ(set_config_buffer(BM_CFG_PARTITION_SYSTEM, "this_will_work",
+                              strlen("this_will_work"), silly_bar, size),
+            true);
+}
+
+TEST_F(ConfigurationTest, ClearingPartition) {
+  uint8_t num_keys;
+  const ConfigKey *key_list = NULL;
+
+  config_init();
+  key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
+  EXPECT_EQ(num_keys, 0);
+  EXPECT_EQ((key_list != NULL), true);
+
+  // Set random uint32_t
+  uint32_t foo = 42;
+  uint32_t result_foo = 0;
+  EXPECT_EQ(set_config_uint(BM_CFG_PARTITION_SYSTEM, "foo", strlen("foo"), foo),
+            true);
+  EXPECT_EQ(get_config_uint(BM_CFG_PARTITION_SYSTEM, "foo", strlen("foo"),
+                            &result_foo),
+            true);
+  EXPECT_EQ(foo, result_foo);
+  key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
+  EXPECT_EQ(num_keys, 1);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
+
+  // Set random int32_t
+  int32_t bar = -1000;
+  int32_t result_bar = 0;
+  EXPECT_EQ(set_config_int(BM_CFG_PARTITION_SYSTEM, "bar", strlen("bar"), bar),
+            true);
+  EXPECT_EQ(get_config_int(BM_CFG_PARTITION_SYSTEM, "bar", strlen("bar"),
+                           &result_bar),
+            true);
+  EXPECT_EQ(get_config_uint(BM_CFG_PARTITION_SYSTEM, "foo", strlen("foo"),
+                            &result_foo),
+            true);
+  EXPECT_EQ(foo, result_foo);
+  EXPECT_EQ(bar, result_bar);
+  key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
+  EXPECT_EQ(num_keys, 2);
+  EXPECT_EQ(strncmp("bar", key_list[1].key_buf, sizeof("bar")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
+
+  //  Set random float
+  float baz = 3.14159;
+  float result_baz = 0;
+  EXPECT_EQ(
+      set_config_float(BM_CFG_PARTITION_SYSTEM, "baz", strlen("baz"), baz),
+      true);
+  EXPECT_EQ(get_config_float(BM_CFG_PARTITION_SYSTEM, "baz", strlen("baz"),
+                             &result_baz),
+            true);
+  EXPECT_EQ(baz, result_baz);
+  key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
+  EXPECT_EQ(num_keys, 3);
+  EXPECT_EQ(strncmp("baz", key_list[2].key_buf, sizeof("baz")), 0);
+  EXPECT_EQ(strncmp("bar", key_list[1].key_buf, sizeof("bar")), 0);
+  EXPECT_EQ(strncmp("foo", key_list[0].key_buf, sizeof("foo")), 0);
+
+  // Test clearing partition
+  EXPECT_EQ(clear_partition(BM_CFG_PARTITION_SYSTEM), true);
+  key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
+  EXPECT_EQ(num_keys, 0);
+
+  // Test improper argument
+  EXPECT_EQ(clear_partition(BM_CFG_PARTITION_COUNT), false);
 }

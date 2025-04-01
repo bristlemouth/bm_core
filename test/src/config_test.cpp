@@ -210,3 +210,14 @@ TEST_F(Config, decode) {
   bm_free(bytes.set);
   bm_free(bytes.large_get);
 }
+
+TEST_F(Config, ClearPartitionRequest) {
+  uint64_t target_node_id = RND.rnd_int(UINT64_MAX, 0);
+
+  EXPECT_EQ(
+      bcmp_config_clear_partition(target_node_id, BM_CFG_PARTITION_USER, NULL),
+      true);
+  EXPECT_EQ(
+      bcmp_config_clear_partition(target_node_id, BM_CFG_PARTITION_COUNT, NULL),
+      false);
+}
