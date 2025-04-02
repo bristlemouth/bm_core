@@ -754,6 +754,7 @@ bool clear_partition(BmConfigPartition partition) {
 
     config_partition->header.numKeys = 0;
     config_partition->header.version = CONFIG_VERSION;
+    CONFIGS[partition].needs_commit = true;
   }
 
   return ret;
@@ -776,6 +777,7 @@ bool save_config(BmConfigPartition partition, bool restart) {
     if (restart) {
       bm_config_reset();
     }
+    CONFIGS[partition].needs_commit = false;
     ret = true;
   } while (0);
 
@@ -832,5 +834,11 @@ bool get_value_size(BmConfigPartition partition, const char *key,
 }
 
 bool needs_commit(BmConfigPartition partition) {
-  return CONFIGS[partition].needs_commit;
+  bool ret = false;
+
+  if (partition < BM_CFG_PARTITION_COUNT) {
+    ret = CONFIGS[partition].needs_commit;
+  }
+
+  return ret;
 }

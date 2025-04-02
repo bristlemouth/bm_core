@@ -451,6 +451,9 @@ TEST_F(ConfigurationTest, ClearingPartition) {
   EXPECT_EQ(clear_partition(BM_CFG_PARTITION_SYSTEM), true);
   key_list = get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
   EXPECT_EQ(num_keys, 0);
+  EXPECT_EQ(needs_commit(BM_CFG_PARTITION_SYSTEM), true);
+  EXPECT_EQ(save_config(BM_CFG_PARTITION_SYSTEM, false), true);
+  EXPECT_EQ(needs_commit(BM_CFG_PARTITION_SYSTEM), false);
 
   // Test improper argument
   EXPECT_EQ(clear_partition(BM_CFG_PARTITION_COUNT), false);
