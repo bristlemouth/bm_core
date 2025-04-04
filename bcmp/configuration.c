@@ -2,6 +2,7 @@
 #include "bm_config.h"
 #include "bm_configs_generic.h"
 #include "crc.h"
+#include <inttypes.h>
 #include <stdio.h>
 #ifndef CBOR_CUSTOM_ALLOC_INCLUDE
 #error "CBOR_CUSTOM_ALLOC_INCLUDE must be defined!"configuration.c
@@ -35,6 +36,34 @@ static bool find_key_idx(BmConfigPartition partition, const char *key,
   return ret;
 }
 
+/*!
+ @brief Determines if a key is valid or not
+
+ @details Key must have alphabetical or numerical numbers, key can also have
+          underscores and terminating characters
+
+ @param key Key to evaluate
+ @param key_len Length of key to evaluat
+
+ @return true if key is valid, false if key is not valid
+ */
+static inline bool is_key_valid(const char *key, uint32_t key_len) {
+  bool ret = true;
+
+  for (uint32_t i = 0; i < key_len; i++) {
+    if (!(key[i] >= '0' && key[i] <= '9') &&
+        !(key[i] >= 'a' && key[i] <= 'z') &&
+        !(key[i] >= 'A' && key[i] <= 'Z') && key[i] != '_' && key[i] != '\0') {
+      bm_debug("Improper character in key at index: %" PRIu32 "\n",
+               (uint32_t)i);
+      ret = false;
+      break;
+    }
+  }
+
+  return ret;
+}
+
 static bool prepare_cbor_encoder(BmConfigPartition partition, const char *key,
                                  size_t key_len, CborEncoder *encoder,
                                  uint8_t *key_idx, bool *key_exists) {
@@ -52,6 +81,9 @@ static bool prepare_cbor_encoder(BmConfigPartition partition, const char *key,
       }
       *key_exists = find_key_idx(partition, key, key_len, key_idx);
       if (!*key_exists) {
+        if (!is_key_valid(key, key_len)) {
+          break;
+        }
         *key_idx = config_partition->header.numKeys;
       }
       if (snprintf(config_partition->keys[*key_idx].key_buf,
@@ -560,6 +592,9 @@ bool set_config_cbor(BmConfigPartition partition, const char *key,
         break;
       }
       if (!find_key_idx(partition, key, key_len, &key_idx)) {
+        if (!is_key_valid(key, key_len)) {
+          break;
+        }
         if (config_partition->header.numKeys >= MAX_NUM_KV) {
           break;
         }
@@ -699,6 +734,32 @@ const char *data_type_enum_to_str(ConfigDataTypes type) {
   return ret;
 }
 
+/*!
+ @brief Clear a partition
+
+ @details Erases all keys and values in a partition.
+
+ @param partition Partition to erase
+
+ @return true if partition was successfully erased, false otherwise
+ */
+bool clear_partition(BmConfigPartition partition) {
+  bool ret = false;
+
+  if (partition < BM_CFG_PARTITION_COUNT) {
+    ConfigPartition *config_partition =
+        (ConfigPartition *)CONFIGS[partition].ram_buffer;
+    ret = true;
+    memset(config_partition, 0, sizeof(CONFIGS[partition].ram_buffer));
+
+    config_partition->header.numKeys = 0;
+    config_partition->header.version = CONFIG_VERSION;
+    CONFIGS[partition].needs_commit = true;
+  }
+
+  return ret;
+}
+
 bool save_config(BmConfigPartition partition, bool restart) {
   bool ret = false;
   ConfigPartition *config_partition =
@@ -716,6 +777,7 @@ bool save_config(BmConfigPartition partition, bool restart) {
     if (restart) {
       bm_config_reset();
     }
+    CONFIGS[partition].needs_commit = false;
     ret = true;
   } while (0);
 
@@ -772,5 +834,11 @@ bool get_value_size(BmConfigPartition partition, const char *key,
 }
 
 bool needs_commit(BmConfigPartition partition) {
-  return CONFIGS[partition].needs_commit;
+  bool ret = false;
+
+  if (partition < BM_CFG_PARTITION_COUNT) {
+    ret = CONFIGS[partition].needs_commit;
+  }
+
+  return ret;
 }

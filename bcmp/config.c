@@ -5,6 +5,7 @@
 #include "bm_os.h"
 #include "cbor.h"
 #include "device.h"
+#include "messages.h"
 #include "packet.h"
 #include "util.h"
 #include <inttypes.h>
@@ -296,6 +297,35 @@ bool bcmp_config_del_key(uint64_t target_node_id, BmConfigPartition partition,
     }
   }
   return rval;
+}
+
+/*!
+ @brief Removes all keys from a partition
+
+ @details Will remove all keys from a targe node's configuration partition
+
+ @param target_node_id Target node id to remove configuration values from
+ @param partition Partition to delete configuration values from
+ @param reply_cb Callback when a reply is received over the bus, can be NULL
+
+ @return true if clear partition message is sent properly, false otherwise
+ */
+bool bcmp_config_clear_partition(uint64_t target_node_id,
+                                 BmConfigPartition partition,
+                                 BmErr (*reply_cb)(uint8_t *)) {
+  bool ret = false;
+
+  if (partition < BM_CFG_PARTITION_COUNT) {
+    BmConfigClearRequest clear_msg;
+    clear_msg.header.target_node_id = target_node_id;
+    clear_msg.header.source_node_id = node_id();
+    clear_msg.partition = partition;
+    ret = bcmp_tx(&multicast_ll_addr, BcmpConfigClearRequestMessage,
+                  (uint8_t *)&clear_msg, sizeof(BmConfigClearRequest), 0,
+                  reply_cb) == BmOK;
+  }
+
+  return ret;
 }
 
 static bool bcmp_config_status_response(uint64_t target_node_id,
@@ -592,6 +622,77 @@ static void bcmp_process_del_response_message(BmConfigDeleteKeyResponse *msg) {
 }
 
 /*!
+ @brief Send clear partition response message
+
+ @details Will send a clear partition response message indicating whether or
+          not a partition clear request message was properly processed
+
+ @param target_node_id Node to send the response message to
+ @param partition Partition that was attempted to be cleared
+ @param success If partition was successfully cleared
+ @param seq_num Sequence number of the response
+
+ @return true if clear partition response message was sent successfull, false
+         otherwise
+ */
+static bool bcmp_send_clear_response_message(uint64_t target_node_id,
+                                             BmConfigPartition partition,
+                                             bool success, uint16_t seq_num) {
+  bool ret = false;
+  BmConfigClearResponse clear_resp;
+
+  clear_resp.header.target_node_id = target_node_id;
+  clear_resp.header.source_node_id = node_id();
+  clear_resp.success = success;
+  clear_resp.partition = partition;
+
+  ret = bcmp_tx(&multicast_ll_addr, BcmpConfigClearResponseMessage,
+                (uint8_t *)&clear_resp, sizeof(BmConfigClearResponse), seq_num,
+                NULL) == BmOK;
+
+  return ret;
+}
+
+/*!
+ @brief Process a clear request message
+
+ @details Will attempt clear the requested partition requested and send a
+          response indicating if the partition was cleared successfully
+
+ @param msg BmConfigClearRequest message
+ @param seq_num Sequence number message to respond with
+ */
+static void bcmp_process_clear_request_message(BmConfigClearRequest *msg,
+                                               uint16_t seq_num) {
+  if (msg) {
+    bool success = clear_partition(msg->partition);
+    if (!success) {
+      bm_debug("Could not clear partition: %d\n", msg->partition);
+    }
+    if (!bcmp_send_clear_response_message(msg->header.source_node_id,
+                                          msg->partition, success, seq_num)) {
+      bm_debug("Could not send clear response message\n");
+    }
+  }
+}
+
+/*!
+ @brief Process clear response message
+
+ @details Prints out whether or not request was received successfully by target
+          node and cleared properly
+
+ @param msg BmConfigClearResponse message
+ */
+static void bcmp_process_clear_response_message(BmConfigClearResponse *msg) {
+  if (msg) {
+    bm_debug("Node Id: %016" PRIx64
+             " Partition Clear Response - Partition: %d, Success %d\n",
+             msg->header.source_node_id, msg->partition, msg->success);
+  }
+}
+
+/*!
     \return true if the caller should forward the message, false if the message was handled
 */
 static BmErr bcmp_process_config_message(BcmpProcessData data) {
@@ -659,6 +760,16 @@ static BmErr bcmp_process_config_message(BcmpProcessData data) {
       bcmp_process_del_response_message(msg);
       break;
     }
+    case BcmpConfigClearRequestMessage: {
+      BmConfigClearRequest *msg = (BmConfigClearRequest *)data.payload;
+      bcmp_process_clear_request_message(msg, data.header->seq_num);
+      break;
+    }
+    case BcmpConfigClearResponseMessage: {
+      BmConfigClearResponse *msg = (BmConfigClearResponse *)data.payload;
+      bcmp_process_clear_response_message(msg);
+      break;
+    }
     default:
       bm_debug("Invalid config msg\n");
       break;
@@ -710,6 +821,16 @@ BmErr bcmp_config_init(void) {
       false,
       bcmp_process_config_message,
   };
+  BcmpPacketCfg config_clear_request = {
+      false,
+      true,
+      bcmp_process_config_message,
+  };
+  BcmpPacketCfg config_clear_response = {
+      true,
+      false,
+      bcmp_process_config_message,
+  };
   BcmpPacketCfg config_value = {
       true,
       false,
@@ -727,6 +848,10 @@ BmErr bcmp_config_init(void) {
       err, packet_add(&config_delete_request, BcmpConfigDeleteRequestMessage));
   bm_err_check(err, packet_add(&config_delete_response,
                                BcmpConfigDeleteResponseMessage));
+  bm_err_check(
+      err, packet_add(&config_clear_request, BcmpConfigClearRequestMessage));
+  bm_err_check(
+      err, packet_add(&config_clear_response, BcmpConfigClearResponseMessage));
   bm_err_check(err, packet_add(&config_value, BcmpConfigValueMessage));
   return err;
 }

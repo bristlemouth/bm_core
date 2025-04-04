@@ -452,6 +452,20 @@ typedef struct {
   char key[0];
 } __attribute__((packed)) BmConfigDeleteKeyResponse;
 
+typedef struct {
+  BmConfigHeader header;
+  // Partition id
+  BmConfigPartition partition;
+} __attribute__((packed)) BmConfigClearRequest;
+
+typedef struct {
+  BmConfigHeader header;
+  // success
+  bool success;
+  // Partition id
+  BmConfigPartition partition;
+} __attribute__((packed)) BmConfigClearResponse;
+
 typedef enum {
   BcmpAckMessage = 0x00,
   BcmpHeartbeatMessage = 0x01,
@@ -490,6 +504,8 @@ typedef enum {
   BcmpConfigStatusResponseMessage = 0xA5,
   BcmpConfigDeleteRequestMessage = 0xA6,
   BcmpConfigDeleteResponseMessage = 0xA7,
+  BcmpConfigClearRequestMessage = 0xA8,
+  BcmpConfigClearResponseMessage = 0xA9,
 
   BcmpDFUStartMessage = 0xD0,
   BcmpDFUPayloadReqMessage = 0xD1,

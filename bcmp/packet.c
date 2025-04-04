@@ -180,6 +180,8 @@ static void check_endianness(void *buf, BcmpMessageType type) {
     case BcmpConfigStatusResponseMessage:
     case BcmpConfigDeleteRequestMessage:
     case BcmpConfigDeleteResponseMessage:
+    case BcmpConfigClearRequestMessage:
+    case BcmpConfigClearResponseMessage:
     case BcmpDFUStartMessage:
     case BcmpDFUPayloadReqMessage:
     case BcmpDFUPayloadMessage:

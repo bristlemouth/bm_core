@@ -76,6 +76,7 @@ const ConfigKey *get_stored_keys(BmConfigPartition partition,
                                  uint8_t *num_stored_keys);
 bool remove_key(BmConfigPartition partition, const char *key, size_t key_len);
 const char *data_type_enum_to_str(ConfigDataTypes type);
+bool clear_partition(BmConfigPartition partition);
 bool save_config(BmConfigPartition partition, bool restart);
 bool get_value_size(BmConfigPartition partition, const char *key,
                     size_t key_len, size_t *size);

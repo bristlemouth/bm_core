@@ -449,3 +449,23 @@ Public API supported by the BCMP configuration module is as follows:
 
   :returns: true if delete message is sent properly, false otherwise
 ```
+```{eval-rst}
+.. cpp:function:: bool bcmp_config_clear_partition(uint64_t target_node_id,
+                                 BmConfigPartition partition,
+                                 BmErr (*reply_cb)(uint8_t *));
+  Removes all keys from a partition
+
+  :param target_node_id: Target node id to remove configuration values from
+  :param partition: Partition to delete configuration values from
+  :param reply_cb: Callback when a reply is received over the bus, can be NULL
+                   the uint8_t buffer should be cast to BmConfigClearRequest * before
+                   use, ex:
+
+                   BmErr my_cb_function(uint8_t *data) {
+                     BmConfigClearRequest *msg = (BmConfigClearRequest *)data;
+
+                     // ... insert other logic here ...
+                   }
+
+  :return true if clear partition message is sent properly, false otherwise
+```
