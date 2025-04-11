@@ -362,6 +362,7 @@ BmErr bm_l2_submit(void *buf, uint32_t size) {
   // need for additional locking
   if (CTX.netif->input((struct pbuf *)buf, CTX.netif) != ERR_OK) {
     err = BmEBADMSG;
+    // Do not need to free memory here as it is handled in L2
   }
 
   return err;
