@@ -346,8 +346,10 @@ void bm_l2_free(void *buf) { pbuf_free((struct pbuf *)buf); }
 /*!
   @brief Submit A Buffer Up Bristlemouth Stack
 
-  @details This shall handle transmitted the L2 (raw) data up to
-           the bcmp and middleware implementations
+  @details This shall handle transmitting the L2 (raw) data up to
+           the bcmp and middleware implementations. L2 is responsible for
+           freeing any memory that might have been allocated if this function
+           returns an error.
 
   @param buf buffer created with bm_l2_new
   @param size size of buffer to submite up the stack in bytes
