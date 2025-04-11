@@ -23,6 +23,12 @@
 #define ifname0 'b'
 #define ifname1 'm'
 #define ethernet_mtu 1500
+#define bm_ip_to_lwip_ip_compound(ip)                                          \
+  (&(const ip_addr_t){{ip_uint8_to_uint32((uint8_t *)&ip->addr[0]),            \
+                       ip_uint8_to_uint32((uint8_t *)&ip->addr[4]),            \
+                       ip_uint8_to_uint32((uint8_t *)&ip->addr[8]),            \
+                       ip_uint8_to_uint32((uint8_t *)&ip->addr[12])},          \
+                      0})
 
 static struct netif netif;
 
@@ -42,6 +48,24 @@ typedef struct {
 } LwipLayout;
 
 static struct LwipCtx CTX;
+
+/*!
+ @brief Translate BmIpAddr Address Format To ip_addr_t IP Address Format
+
+ @details This is used to copy the array of uint8_t values in BmIpAddr to
+          uint32_t values of ip_addr_t, use this API with caution, it does not
+          validate if buffer is large enough or NULL in favor of speed
+          optimization
+
+ @param buf 
+
+ @return uint32_t value of translated data
+ */
+static inline uint32_t ip_uint8_to_uint32(uint8_t *buf)
+    __attribute__((always_inline));
+static inline uint32_t ip_uint8_to_uint32(uint8_t *buf) {
+  return (uint32_t)(buf[0] | buf[1] << 8 | buf[2] << 16 | buf[3] << 24);
+}
 
 /*!
  @brief Obtain Data From LwipLayout Abstraction
@@ -509,16 +533,14 @@ BmErr bm_ip_tx_copy(void *payload, const void *data, uint32_t size,
 BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
   BmErr err = BmEINVAL;
   LwipLayout *layout = NULL;
-  ip_addr_t tx_src = {0};
-  ip_addr_t tx_dst = {0};
 
   if (payload) {
     layout = (LwipLayout *)payload;
-    memcpy(&tx_dst, dst == NULL ? (ip_addr_t *)layout->dst : (ip_addr_t *)dst,
-           sizeof(BmIpAddr));
-    memcpy(&tx_src, layout->src, sizeof(BmIpAddr));
-    err = raw_sendto_if_src(CTX.raw_pcb, layout->pbuf, &tx_dst, CTX.netif,
-                            &tx_src) == ERR_OK
+    err = raw_sendto_if_src(CTX.raw_pcb, layout->pbuf,
+                            dst == NULL ? bm_ip_to_lwip_ip_compound(layout->dst)
+                                        : bm_ip_to_lwip_ip_compound(dst),
+                            CTX.netif,
+                            bm_ip_to_lwip_ip_compound(layout->src)) == ERR_OK
               ? BmOK
               : BmEBADMSG;
   }
@@ -646,15 +668,14 @@ void bm_udp_cleanup(void *buf) {
  @return 
  */
 BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
-                        const BmIpAddr *addr, uint16_t port) {
+                        const BmIpAddr *dest_addr, uint16_t port) {
   (void)size;
   BmErr err = BmEINVAL;
-  ip_addr_t send_addr = {0};
 
-  if (buf && pcb && addr) {
-    memcpy(&send_addr, (ip_addr_t *)addr, sizeof(BmIpAddr));
+  if (buf && pcb && dest_addr) {
     err = safe_udp_sendto_if((struct udp_pcb *)pcb, (struct pbuf *)buf,
-                             (const ip_addr_t *)addr, port, CTX.netif) == ERR_OK
+                             bm_ip_to_lwip_ip_compound(dest_addr), port,
+                             CTX.netif) == ERR_OK
               ? BmOK
               : BmEBADMSG;
   }

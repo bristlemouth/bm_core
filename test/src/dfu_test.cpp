@@ -1192,7 +1192,7 @@ TEST_F(BcmpDfu, forward_ll_msg_for_other) {
       .header = (BcmpHeader *)fwd_start_msg,
       .payload = (uint8_t *)fwd_start_msg,
       .size = sizeof(BcmpDfuStart),
-      .dst = (void *)&multicast_ll_addr,
+      .dst = (BmIpAddr *)&multicast_ll_addr,
   };
   dfu_copy_and_process_message(data);
   EXPECT_EQ(bcmp_ll_forward_fake.call_count, 1);
@@ -1205,7 +1205,7 @@ TEST_F(BcmpDfu, forward_ll_msg_for_other) {
 
   // Do not forward global multicast message not intended for this node
   // Already forwarded in L2 before being passed to BCMP
-  data.dst = (void *)&multicast_global_addr;
+  data.dst = (BmIpAddr *)&multicast_global_addr;
   fwd_start_msg->info.addresses.dst_node_id = other;
   dfu_copy_and_process_message(data);
   EXPECT_EQ(bcmp_ll_forward_fake.call_count, 0);
