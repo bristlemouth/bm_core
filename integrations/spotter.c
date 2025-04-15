@@ -48,9 +48,11 @@ BmErr spotter_log(uint64_t target_node_id, const char *file_name,
   va_list va;
 
   do {
-    va_start(va, format);
     // check how long the string we are printing will be
+    va_start(va, format);
     int32_t data_len = vsnprintf(NULL, 0, format, va);
+    va_end(va);
+
     va_start(va, format);
     if (data_len == 0) {
       err = BmENODATA;

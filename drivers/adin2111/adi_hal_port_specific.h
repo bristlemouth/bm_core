@@ -35,7 +35,7 @@ extern "C" {
 #elif defined (__CC_ARM)
   /* Keil uses a decorator which is placed in the same position as pragmas */
   #define HAL_ALIGNED_ATTRIBUTE(num)
-  #define HAL_ALIGNED_PRAGMA(num) __align(##num)
+  #define HAL_ALIGNED_PRAGMA(num) __align(num)
   #define HAL_UNUSED_ATTRIBUTE ATTRIBUTE(unused)
 #else
 #error "Toolchain not supported"
