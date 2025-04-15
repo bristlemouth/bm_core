@@ -36,7 +36,7 @@ BmErr packet_add(BcmpPacketCfg *cfg, BcmpMessageType type) {
   if (PACKET_META.count && PACKET_META.tracker >= PACKET_META.count) {
     err = BmENOMEM;
   } else if (cfg) {
-    item = ll_create_item(item, cfg, sizeof(BcmpPacketCfg), type);
+    item = ll_create_item(cfg, sizeof(BcmpPacketCfg), type);
     err = item ? ll_item_add(&PACKET_META.ll, item) : err;
   }
 

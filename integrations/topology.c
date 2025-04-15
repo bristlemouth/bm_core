@@ -130,8 +130,7 @@ static void process_start_topology_event(void) {
   const uint8_t num_ports = CTX.num_ports;
 
   // Check our neighbors
-  uint8_t num_neighbors = 0;
-  BcmpNeighbor *neighbor = bcmp_get_neighbors(&num_neighbors);
+  uint8_t num_neighbors = bcmp_get_neighbors_count();
 
   // here we will assemble the entry for the SM
   uint8_t *neighbor_entry_buff =
@@ -163,8 +162,7 @@ static void process_start_topology_event(void) {
 
     assemble_neighbor_info_list(
         (BcmpNeighborInfo *)&neighbor_entry->neighbor_table_reply
-            ->port_list[num_ports],
-        neighbor, num_neighbors);
+            ->port_list[num_ports]);
 
     // this is the root
     neighbor_entry->is_root = true;

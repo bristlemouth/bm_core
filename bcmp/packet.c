@@ -217,7 +217,7 @@ static bool sequence_list_add_message(BcmpRequestElement message,
   LLItem *item = NULL;
   if (bm_semaphore_take(PACKET.sequence_list_semaphore,
                         default_message_timeout_ms) == BmOK) {
-    item = ll_create_item(item, &message, sizeof(BcmpRequestElement), seq_num);
+    item = ll_create_item(&message, sizeof(BcmpRequestElement), seq_num);
     if (item) {
       ll_item_add(&PACKET.sequence_list, item);
       ret = true;
@@ -375,7 +375,7 @@ BmErr packet_add(BcmpPacketCfg *cfg, BcmpMessageType type) {
   LLItem *item = NULL;
 
   if (cfg) {
-    item = ll_create_item(item, cfg, sizeof(BcmpPacketCfg), type);
+    item = ll_create_item(cfg, sizeof(BcmpPacketCfg), type);
     err = item ? ll_item_add(&PACKET.packet_list, item) : err;
   }
 

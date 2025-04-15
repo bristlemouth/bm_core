@@ -4,6 +4,7 @@
 #include "bm_os.h"
 #include "device.h"
 #include "l2.h"
+#include "ll.h"
 #include "messages/info.h"
 #include "packet.h"
 #include <inttypes.h>
@@ -11,16 +12,17 @@
 
 // Timer to stop waiting for a nodes neighbor table
 #define bcmp_neighbor_timer_timeout_s 1
-#define bcmp_table_max_len 1024
+#define bcmp_table_max_len 2048
 
 // Pointer to neighbor linked-list
-static BcmpNeighbor *NEIGHBORS = NULL;
 static uint8_t NUM_NEIGHBORS = 0;
 static NeighborDiscoveryCallback NEIGHBOR_DISCOVERY_CB = NULL;
 static NeighborRequestCallback NEIGHBOR_REQUEST_CB = NULL;
 static uint64_t TARGET_NODE_ID = 0;
 static uint8_t NUM_PORTS = 0;
 static BmTimer NEIGHBOR_TIMER = NULL;
+static LL NEIGHBOR_LL = {0};
+static uint32_t NEIGHBOR_ID = 0;
 
 /*!
   @brief Send reply to neighbor table request
@@ -33,8 +35,7 @@ static BmErr bcmp_send_neighbor_table(void *addr) {
   BmErr err = BmENOMEM;
 
   // Check our neighbors
-  uint8_t num_neighbors = 0;
-  BcmpNeighbor *neighbor = bcmp_get_neighbors(&num_neighbors);
+  uint8_t num_neighbors = bcmp_get_neighbors_count();
   uint16_t neighbor_table_len = sizeof(BcmpNeighborTableReply) +
                                 sizeof(BcmpPortInfo) * NUM_PORTS +
                                 sizeof(BcmpNeighborInfo) * num_neighbors;
@@ -62,8 +63,7 @@ static BmErr bcmp_send_neighbor_table(void *addr) {
     }
 
     assemble_neighbor_info_list(
-        (BcmpNeighborInfo *)&neighbor_table_reply->port_list[NUM_PORTS],
-        neighbor, num_neighbors);
+        (BcmpNeighborInfo *)&neighbor_table_reply->port_list[NUM_PORTS]);
 
     err = bcmp_tx(addr, BcmpNeighborTableReplyMessage,
                   (uint8_t *)neighbor_table_reply, neighbor_table_len, 0, NULL);
@@ -142,16 +142,24 @@ BmErr bcmp_neighbor_init(uint8_t num_ports) {
 }
 
 /*!
-  @brief Accessor to latest the neighbor linked-list and nieghbor count
+  @brief Obtain neighbor count
 
-  @param[out] &num_neighbors - number of neighbors
-
-  @return - pointer to neighbors linked-list
+  @return - Number of neighbors
 */
-BcmpNeighbor *bcmp_get_neighbors(uint8_t *num_neighbors) {
-  bcmp_check_neighbors();
-  *num_neighbors = NUM_NEIGHBORS;
-  return NEIGHBORS;
+uint8_t bcmp_get_neighbors_count(void) { return NUM_NEIGHBORS; }
+
+static BcmpNeighbor *NEIGHBOR_FOUND = NULL;
+static BmErr find_node_id_traverse(void *data, void *arg) {
+  BmErr ret = BmOK;
+  BcmpNeighbor *neighbor = (BcmpNeighbor *)data;
+  uint64_t node_id = *(uint64_t *)arg;
+
+  if (neighbor->node_id == node_id) {
+    NEIGHBOR_FOUND = neighbor;
+    ret = BmEALREADY;
+  }
+
+  return ret;
 }
 
 /*!
@@ -163,19 +171,30 @@ BcmpNeighbor *bcmp_get_neighbors(uint8_t *num_neighbors) {
   @return NULL if unsuccessful
 */
 BcmpNeighbor *bcmp_find_neighbor(uint64_t node_id) {
-  BcmpNeighbor *neighbor = NEIGHBORS;
+  NEIGHBOR_FOUND = NULL;
 
-  while (neighbor != NULL) {
-    if (node_id && node_id == neighbor->node_id) {
-      // Found it!
-      break;
-    }
-
-    // Go to the next one
-    neighbor = neighbor->next;
+  if (ll_traverse(&NEIGHBOR_LL, find_node_id_traverse, &node_id) !=
+      BmEALREADY) {
+    NEIGHBOR_FOUND = NULL;
   }
 
-  return neighbor;
+  return NEIGHBOR_FOUND;
+}
+
+static BmErr for_each_traverse(void *data, void *arg) {
+  BcmpNeighbor *neighbor = (BcmpNeighbor *)data;
+  NeighborCallback cb = (NeighborCallback)arg;
+
+  if (neighbor == NEIGHBOR_LL.head->data) {
+    NUM_NEIGHBORS = 0;
+  }
+
+  if (cb) {
+    cb(neighbor);
+  }
+  NUM_NEIGHBORS++;
+
+  return BmOK;
 }
 
 /*!
@@ -184,16 +203,7 @@ BcmpNeighbor *bcmp_find_neighbor(uint64_t node_id) {
   @param *callback - callback function to call for each neighbor
 */
 void bcmp_neighbor_foreach(NeighborCallback cb) {
-  BcmpNeighbor *neighbor = NEIGHBORS;
-  NUM_NEIGHBORS = 0;
-
-  while (neighbor != NULL) {
-    cb(neighbor);
-    NUM_NEIGHBORS++;
-
-    // Go to the next one
-    neighbor = neighbor->next;
-  }
+  ll_traverse(&NEIGHBOR_LL, for_each_traverse, cb);
 }
 
 /*!
@@ -220,6 +230,20 @@ static void neighbor_check(BcmpNeighbor *neighbor) {
 */
 void bcmp_check_neighbors(void) { bcmp_neighbor_foreach(neighbor_check); }
 
+static BcmpNeighbor *REMOVE_NEIGHBOR = NULL;
+static BmErr neighbor_port_populated_traverse(void *data, void *arg) {
+  BmErr ret = BmOK;
+  BcmpNeighbor *neighbor = (BcmpNeighbor *)data;
+  uint8_t port = *(uint8_t *)arg;
+
+  if (neighbor->port == port) {
+    REMOVE_NEIGHBOR = neighbor;
+    ret = BmEALREADY;
+  }
+
+  return ret;
+}
+
 /*!
   @brief Add neighbor to neighbor table
 
@@ -228,59 +252,26 @@ void bcmp_check_neighbors(void) { bcmp_neighbor_foreach(neighbor_check); }
   @return pointer to neighbor if successful, NULL otherwise (if neighbor is already present, for example)
 */
 static BcmpNeighbor *bcmp_add_neighbor(uint64_t node_id, uint8_t port) {
-  BcmpNeighbor *new_neighbor =
-      (BcmpNeighbor *)(bm_malloc(sizeof(BcmpNeighbor)));
+  LLItem *item = NULL;
+  BcmpNeighbor new_neighbor = {0};
+  BcmpNeighbor *ret = NULL;
+  new_neighbor.node_id = node_id;
+  new_neighbor.port = port;
+  new_neighbor.id = NEIGHBOR_ID;
 
-  if (new_neighbor) {
-    memset(new_neighbor, 0, sizeof(BcmpNeighbor));
-
-    new_neighbor->node_id = node_id;
-    new_neighbor->port = port;
-
-    BcmpNeighbor *neighbor = NULL;
-
-    // Check to see if port is already populated, remove if so
-    if (NEIGHBORS) {
-      uint64_t node_id = 0;
-      neighbor = NEIGHBORS;
-      do {
-        node_id = neighbor->next ? neighbor->next->node_id : neighbor->node_id;
-        if (neighbor->port == port) {
-          bcmp_remove_neighbor_from_table(neighbor);
-          neighbor = bcmp_find_neighbor(node_id);
-        }
-        neighbor = neighbor ? neighbor->next : NULL;
-      } while (neighbor);
-      neighbor = NULL;
-    }
-
-    if (NEIGHBORS == NULL) {
-      // First neighbor!
-      NEIGHBORS = new_neighbor;
-    } else {
-      neighbor = NEIGHBORS;
-
-      // Go to the last neighbor and insert the new one there
-      while (neighbor && (neighbor->next != NULL)) {
-        if (node_id == neighbor->node_id) {
-          neighbor = NULL;
-          break;
-        }
-
-        // Go to the next one
-        neighbor = neighbor->next;
-      }
-
-      if (neighbor != NULL) {
-        neighbor->next = new_neighbor;
-      } else {
-        bm_free(new_neighbor);
-        new_neighbor = NULL;
-      }
-    }
+  // Check to see if port is already populated, remove if so
+  if (ll_traverse(&NEIGHBOR_LL, neighbor_port_populated_traverse, &port) ==
+      BmEALREADY) {
+    bcmp_remove_neighbor_from_table(REMOVE_NEIGHBOR);
   }
 
-  return new_neighbor;
+  item = ll_create_item(&new_neighbor, sizeof(BcmpNeighbor), new_neighbor.id);
+  if (item && ll_item_add(&NEIGHBOR_LL, item) == BmOK) {
+    NEIGHBOR_ID++;
+    ret = (BcmpNeighbor *)item->data;
+  }
+
+  return ret;
 }
 
 /*!
@@ -310,8 +301,10 @@ BcmpNeighbor *bcmp_update_neighbor(uint64_t node_id, uint8_t port) {
   @return true if the neighbor was freed, false otherwise
 */
 bool bcmp_free_neighbor(BcmpNeighbor *neighbor) {
-  bool rval = false;
+  bool ret = false;
+
   if (neighbor) {
+    ret = true;
     if (neighbor->version_str) {
       bm_free(neighbor->version_str);
     }
@@ -319,12 +312,9 @@ bool bcmp_free_neighbor(BcmpNeighbor *neighbor) {
     if (neighbor->device_name) {
       bm_free(neighbor->device_name);
     }
-
-    bm_free(neighbor);
-    rval = true;
   }
 
-  return rval;
+  return ret;
 }
 
 /*!
@@ -337,38 +327,11 @@ bool bcmp_free_neighbor(BcmpNeighbor *neighbor) {
 */
 bool bcmp_remove_neighbor_from_table(BcmpNeighbor *neighbor) {
   bool rval = false;
+  LLItem *item = ll_get_item_by_data(&NEIGHBOR_LL, neighbor);
 
-  if (neighbor) {
-    // Check if we're the first in the table
-    if (neighbor == NEIGHBORS) {
-      bm_debug("First neighbor!\n");
-      // Remove neighbor from the list
-      NEIGHBORS = neighbor->next;
-      rval = true;
-    } else {
-      BcmpNeighbor *next_neighbor = NEIGHBORS;
-      while (next_neighbor->next != NULL) {
-        if (next_neighbor->next == neighbor) {
-
-          // Found it!
-
-          // Remove neighbor from the list
-          next_neighbor->next = neighbor->next;
-          rval = true;
-          break;
-        }
-
-        // Go to the next one
-        next_neighbor = next_neighbor->next;
-      }
-    }
-
-    if (!rval) {
-      bm_debug("Something went wrong...\n");
-    }
-
-    // Free the neighbor
-    rval = bcmp_free_neighbor(neighbor);
+  if (item) {
+    bcmp_free_neighbor(neighbor);
+    rval = ll_remove(&NEIGHBOR_LL, neighbor->id) == BmOK;
   }
 
   return rval;
@@ -458,17 +421,24 @@ BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr,
   return err;
 }
 
-// assembles the neighbor info list
-void assemble_neighbor_info_list(BcmpNeighborInfo *neighbor_info_list,
-                                 BcmpNeighbor *neighbor,
-                                 uint8_t num_neighbors) {
-  uint16_t neighbor_count = 0;
-  while (neighbor != NULL && neighbor_count < num_neighbors) {
-    neighbor_info_list[neighbor_count].node_id = neighbor->node_id;
-    neighbor_info_list[neighbor_count].port = neighbor->port;
-    neighbor_info_list[neighbor_count].online = (uint8_t)neighbor->online;
-    neighbor_count++;
-    // Go to the next one
-    neighbor = neighbor->next;
+static BmErr assemble_neighbor_info_list_traverse(void *data, void *arg) {
+  static uint16_t neighbor_count = 0;
+  BcmpNeighborInfo *neighbor_info_list = (BcmpNeighborInfo *)arg;
+  BcmpNeighbor *neighbor = (BcmpNeighbor *)data;
+
+  if (neighbor == NEIGHBOR_LL.head->data) {
+    neighbor_count = 0;
   }
+
+  neighbor_info_list[neighbor_count].node_id = neighbor->node_id;
+  neighbor_info_list[neighbor_count].port = neighbor->port;
+  neighbor_info_list[neighbor_count].online = (uint8_t)neighbor->online;
+
+  return BmOK;
+}
+
+// assembles the neighbor info list
+void assemble_neighbor_info_list(BcmpNeighborInfo *neighbor_info_list) {
+  ll_traverse(&NEIGHBOR_LL, assemble_neighbor_info_list_traverse,
+              neighbor_info_list);
 }

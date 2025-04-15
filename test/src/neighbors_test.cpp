@@ -42,7 +42,6 @@ protected:
 TEST_F(Neighbors, update_neighbor) {
   uint64_t node_id = (uint64_t)RND.rnd_int(UINT64_MAX, UINT8_MAX);
   uint8_t neighbor_count = (uint8_t)RND.rnd_int(UINT8_MAX, 128);
-  uint8_t num_neighbors = 0;
   char *version_string = (char *)malloc(RND.rnd_int(UINT8_MAX, 8));
   char *device_name = (char *)malloc(RND.rnd_int(UINT8_MAX, 8));
   BcmpNeighbor *neighbors[neighbor_count];
@@ -75,8 +74,7 @@ TEST_F(Neighbors, update_neighbor) {
   bm_get_tick_count_fake.return_val = 100000;
   neighbors[0]->online = false;
   bcmp_check_neighbors();
-  ASSERT_EQ(bcmp_get_neighbors(&num_neighbors), neighbors[0]);
-  ASSERT_EQ(num_neighbors, neighbor_count);
+  ASSERT_EQ(bcmp_get_neighbors_count(), neighbor_count);
 
   for (int16_t i = neighbor_count - 1; i >= 0; i--) {
     ASSERT_EQ(bcmp_remove_neighbor_from_table(neighbors[i]), true);

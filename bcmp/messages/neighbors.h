@@ -11,7 +11,7 @@ extern "C" {
 
 typedef struct BmNeighbor {
   // Pointer to next neighbor
-  struct BmNeighbor *next;
+  uint32_t id;
 
   uint64_t node_id;
 
@@ -48,7 +48,7 @@ typedef void (*NeighborDiscoveryCallback)(bool discovered,
 typedef BmErr (*NeighborRequestCallback)(BcmpNeighborTableReply *reply);
 
 BmErr bcmp_neighbor_init(uint8_t num_ports);
-BcmpNeighbor *bcmp_get_neighbors(uint8_t *num_neighbors);
+uint8_t bcmp_get_neighbors_count(void);
 void bcmp_check_neighbors(void);
 void bcmp_print_neighbor_info(BcmpNeighbor *neighbor);
 bool bcmp_remove_neighbor_from_table(BcmpNeighbor *neighbor);
@@ -61,8 +61,7 @@ void bcmp_neighbor_invoke_discovery_cb(bool discovered, BcmpNeighbor *neighbor);
 BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr,
                                   NeighborRequestCallback request,
                                   BmTimerCallback timeout);
-void assemble_neighbor_info_list(BcmpNeighborInfo *neighbor_info_list,
-                                 BcmpNeighbor *neighbor, uint8_t num_neighbors);
+void assemble_neighbor_info_list(BcmpNeighborInfo *neighbor_info_list);
 
 #ifdef __cplusplus
 }

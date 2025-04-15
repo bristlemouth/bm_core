@@ -46,7 +46,7 @@ TEST_F(Heartbeat, bcmp_send_heartbeat) {
 TEST_F(Heartbeat, bcmp_process_heartbeat) {
   ASSERT_EQ(bcmp_heartbeat_init(), BmOK);
   BcmpNeighbor neighbor = {
-      NULL,
+      0,
       gen_rnd_u64,
       {
           gen_rnd_u8,

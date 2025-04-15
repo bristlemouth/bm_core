@@ -352,7 +352,7 @@ BmErr bcmp_resource_discovery_send_request(uint64_t target_node_id,
   err = bcmp_tx(&multicast_ll_addr, BcmpResourceTableRequestMessage,
                 (uint8_t *)&req, sizeof(req), 0, NULL);
   if (err == BmOK) {
-    item = ll_create_item(item, &cb, sizeof(cb), target_node_id);
+    item = ll_create_item(&cb, sizeof(cb), target_node_id);
     if (item && ll_item_add(&RESOURCE_REQUEST_LIST, item) == BmOK) {
       err = BmOK;
     } else {

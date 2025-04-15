@@ -73,7 +73,7 @@ protected:
         EXPECT_EQ(ll_create_item_static(&ITEMS[i], data, rsu.next()), BmOK);
         EXPECT_EQ(ll_item_add(&ll, &ITEMS[i]), BmOK);
       } else {
-        dyn_item = ll_create_item(dyn_item, data, BSIZE, rsu.next());
+        dyn_item = ll_create_item(data, BSIZE, rsu.next());
         if (!dyn_track) {
           dyn_track = dyn_item;
         }

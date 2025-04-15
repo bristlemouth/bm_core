@@ -14,7 +14,7 @@ BmErr queue_cb_enqueue(BmCbQueue *q, BmQueueCb cb) {
 
   if (q) {
     err = BmENOMEM;
-    cb_item = ll_create_item(cb_item, &cb, sizeof(&cb), q->add_id);
+    cb_item = ll_create_item(&cb, sizeof(&cb), q->add_id);
 
     if (cb_item) {
       err = ll_item_add(&q->cb_list, cb_item);

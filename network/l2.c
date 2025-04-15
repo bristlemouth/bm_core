@@ -490,7 +490,7 @@ BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb) {
   static uint32_t cb_count = 0;
 
   if (cb) {
-    item = ll_create_item(item, &cb, sizeof(&cb), cb_count);
+    item = ll_create_item(&cb, sizeof(&cb), cb_count);
     err = item != NULL ? BmOK : BmENOMEM;
     bm_err_check(err, ll_item_add(&CTX.link_change_callback_list, item));
   }

@@ -553,7 +553,7 @@ void *bm_udp_bind_port(uint16_t port, BmErr (*cb)(void *, uint64_t, uint32_t)) {
   UdpCb udp_cb = {cb};
 
   // Utilize pointer to pcb to be the id of LL item and add it to list
-  item = ll_create_item(item, &udp_cb, sizeof(udp_cb), (uint32_t)pcb);
+  item = ll_create_item(&udp_cb, sizeof(udp_cb), (uint32_t)pcb);
   if (pcb && item && ll_item_add(&CTX.udp_list, item) == BmOK) {
     // Bind UDP layer to created pcb
     udp_bind(pcb, IP_ANY_TYPE, port);

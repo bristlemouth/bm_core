@@ -2,7 +2,7 @@
 #include "mock_neighbors.h"
 
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_init, uint8_t);
-DEFINE_FAKE_VALUE_FUNC(BcmpNeighbor *, bcmp_get_neighbors, uint8_t *);
+DEFINE_FAKE_VALUE_FUNC(uint8_t, bcmp_get_neighbors_count);
 DEFINE_FAKE_VOID_FUNC(bcmp_check_neighbors);
 DEFINE_FAKE_VOID_FUNC(bcmp_print_neighbor_info, BcmpNeighbor *);
 DEFINE_FAKE_VALUE_FUNC(bool, bcmp_remove_neighbor_from_table, BcmpNeighbor *);
@@ -17,7 +17,6 @@ bool bcmp_free_neighbor(BcmpNeighbor *neighbor) {
       bm_free(neighbor->device_name);
     }
 
-    bm_free(neighbor);
     rval = true;
   }
 
@@ -31,5 +30,4 @@ DEFINE_FAKE_VOID_FUNC(bcmp_neighbor_register_discovery_callback,
 DEFINE_FAKE_VOID_FUNC(bcmp_neighbor_invoke_discovery_cb, bool, BcmpNeighbor *);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_request_neighbor_table, uint64_t,
                        const void *, NeighborRequestCallback, BmTimerCallback);
-DEFINE_FAKE_VOID_FUNC(assemble_neighbor_info_list, BcmpNeighborInfo *,
-                      BcmpNeighbor *, uint8_t);
+DEFINE_FAKE_VOID_FUNC(assemble_neighbor_info_list, BcmpNeighborInfo *);

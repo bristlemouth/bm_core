@@ -176,17 +176,13 @@ static BmErr bcmp_process_info_reply(BcmpProcessData data) {
       err = BmENOMEM;
 
       // Create temporary neighbor struct that is used by the print function
-      BcmpNeighbor *tmp_neighbor =
-          (BcmpNeighbor *)bm_malloc(sizeof(BcmpNeighbor));
-      if (tmp_neighbor) {
-        memset(tmp_neighbor, 0, sizeof(BcmpNeighbor));
+      BcmpNeighbor tmp_neighbor = {0};
 
-        populate_neighbor_info(tmp_neighbor, info);
-        bcmp_print_neighbor_info(tmp_neighbor);
+      populate_neighbor_info(&tmp_neighbor, info);
+      bcmp_print_neighbor_info(&tmp_neighbor);
 
-        // Clean up
-        err = bcmp_free_neighbor(tmp_neighbor) ? BmOK : BmEINVAL;
-      }
+      // Clean up
+      err = bcmp_free_neighbor(&tmp_neighbor) ? BmOK : BmEINVAL;
     }
   }
   ll_remove(&INFO_REQUEST_LIST, info->info.node_id);
@@ -222,7 +218,7 @@ BmErr bcmp_request_info(uint64_t target_node_id, const void *addr,
   LLItem *item = NULL;
   InfoCb info_cb = {cb};
 
-  item = ll_create_item(item, &info_cb, sizeof(info_cb), target_node_id);
+  item = ll_create_item(&info_cb, sizeof(info_cb), target_node_id);
   if (item) {
     err = ll_item_add(&INFO_REQUEST_LIST, item);
 

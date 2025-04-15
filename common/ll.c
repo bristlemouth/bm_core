@@ -90,9 +90,9 @@ BmErr ll_create_item_static(LLItem *item, void *data, uint32_t id) {
  @return Pointer to newly created LL item on success
  @return NULL on failure
  */
-LLItem *ll_create_item(LLItem *item, void *data, uint32_t size, uint32_t id) {
+LLItem *ll_create_item(void *data, uint32_t size, uint32_t id) {
   void *tmp = NULL;
-  item = (LLItem *)bm_malloc(sizeof(LLItem));
+  LLItem *item = (LLItem *)bm_malloc(sizeof(LLItem));
 
   if (item) {
     if (data) {
@@ -192,6 +192,17 @@ BmErr ll_get_item(LL *ll, uint32_t id, void **data) {
   return ret;
 }
 
+LLItem *ll_get_item_by_data(LL *ll, void *data) {
+  LLItem *current = NULL;
+  if (ll && data) {
+    current = ll->head;
+    while (current != NULL && current->data != data) {
+      current = current->next;
+    }
+  }
+  return current;
+}
+
 /*!
  @brief Remove Item From Linked List
 
@@ -220,7 +231,6 @@ BmErr ll_remove(LL *ll, uint32_t id) {
       if (current == ll->head) {
         ll->head = current->next;
       } else {
-        ret = BmOK;
         if (current == ll->tail) {
           ll->tail = current->previous;
         }
