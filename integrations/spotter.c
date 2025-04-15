@@ -45,13 +45,16 @@ BmErr spotter_log(uint64_t target_node_id, const char *file_name,
                   uint8_t print_time, const char *format, ...) {
   BmErr err = BmOK;
   bm_print_publication_t *printf_pub = NULL;
+
+  va_list va_len_check;
   va_list va;
 
+  va_start(va_len_check, format);
+  va_copy(va, va_len_check);
+
   do {
-    va_start(va, format);
     // check how long the string we are printing will be
-    int32_t data_len = vsnprintf(NULL, 0, format, va);
-    va_start(va, format);
+    int32_t data_len = vsnprintf(NULL, 0, format, va_len_check);
     if (data_len == 0) {
       err = BmENODATA;
       break;
@@ -114,6 +117,7 @@ BmErr spotter_log(uint64_t target_node_id, const char *file_name,
   } while (0);
 
   va_end(va);
+  va_end(va_len_check);
 
   if (printf_pub) {
     bm_free(printf_pub);
