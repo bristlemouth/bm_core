@@ -65,7 +65,7 @@ TEST_F(Neighbors, update_neighbor) {
 
   // Test multiple adds
   for (uint8_t i = 0; i < neighbor_count; i++) {
-    neighbors[i] = bcmp_update_neighbor(rsu.next(), 1);
+    neighbors[i] = bcmp_update_neighbor(rsu.next(), i + 2);
     neighbors[i]->online = true;
     neighbors[i]->last_heartbeat_ticks = 0;
     ASSERT_NE(neighbors[i], nullptr);
@@ -155,4 +155,50 @@ TEST_F(Neighbors, request_reply) {
   EXPECT_NE(packet_process_invoke(BcmpNeighborTableRequestMessage, data), BmOK);
 
   packet_cleanup();
+}
+
+TEST_F(Neighbors, same_port_node_add) {
+  uint64_t node_id_init_1 = (uint64_t)RND.rnd_int(UINT64_MAX, UINT8_MAX);
+  uint64_t node_id_init_2 = (uint64_t)RND.rnd_int(UINT64_MAX, UINT8_MAX);
+  uint64_t node_id_init_3 = (uint64_t)RND.rnd_int(UINT64_MAX, UINT8_MAX);
+  uint8_t test_num = (uint8_t)RND.rnd_int(UINT8_MAX, 128);
+
+  BcmpNeighbor *neighbor_first = bcmp_update_neighbor(node_id_init_1, 1);
+  BcmpNeighbor *neighbor_second = bcmp_update_neighbor(node_id_init_2, 2);
+  BcmpNeighbor *neighbor_third = bcmp_update_neighbor(node_id_init_3, 2);
+  EXPECT_NE(neighbor_first, nullptr);
+  EXPECT_NE(neighbor_second, nullptr);
+  EXPECT_NE(neighbor_third, nullptr);
+  EXPECT_EQ(bcmp_request_info_fake.call_count, 3);
+  RESET_FAKE(bcmp_request_info);
+  EXPECT_NE(neighbor_second, neighbor_first);
+
+  for (uint8_t i = 0; i < test_num; i++) {
+    uint64_t node_id_replace = (uint64_t)RND.rnd_int(UINT64_MAX, UINT8_MAX);
+    uint64_t node_id_compare = 0;
+    uint8_t to_replace = i % 3 + 1;
+    BcmpNeighbor *neighbor_replace =
+        bcmp_update_neighbor(node_id_replace, to_replace);
+
+    EXPECT_NE(neighbor_replace, nullptr);
+    EXPECT_EQ(bcmp_request_info_fake.call_count, 1);
+    RESET_FAKE(bcmp_request_info);
+
+    switch (to_replace) {
+    case 1:
+      node_id_compare = node_id_init_1;
+      break;
+    case 2:
+      node_id_compare = node_id_init_2;
+      break;
+    case 3:
+      node_id_compare = node_id_init_3;
+      break;
+    default:
+      FAIL();
+      break;
+    }
+    EXPECT_EQ(bcmp_find_neighbor(node_id_compare), nullptr);
+    EXPECT_EQ(bcmp_find_neighbor(node_id_replace), neighbor_replace);
+  }
 }

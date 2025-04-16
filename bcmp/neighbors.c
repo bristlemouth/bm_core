@@ -14,7 +14,7 @@
 #define bcmp_table_max_len 1024
 
 // Pointer to neighbor linked-list
-static BcmpNeighbor *NEIGHBORS;
+static BcmpNeighbor *NEIGHBORS = NULL;
 static uint8_t NUM_NEIGHBORS = 0;
 static NeighborDiscoveryCallback NEIGHBOR_DISCOVERY_CB = NULL;
 static NeighborRequestCallback NEIGHBOR_REQUEST_CB = NULL;
@@ -238,6 +238,22 @@ static BcmpNeighbor *bcmp_add_neighbor(uint64_t node_id, uint8_t port) {
     new_neighbor->port = port;
 
     BcmpNeighbor *neighbor = NULL;
+
+    // Check to see if port is already populated, remove if so
+    if (NEIGHBORS) {
+      uint64_t node_id = 0;
+      neighbor = NEIGHBORS;
+      do {
+        node_id = neighbor->next ? neighbor->next->node_id : neighbor->node_id;
+        if (neighbor->port == port) {
+          bcmp_remove_neighbor_from_table(neighbor);
+          neighbor = bcmp_find_neighbor(node_id);
+        }
+        neighbor = neighbor ? neighbor->next : NULL;
+      } while (neighbor);
+      neighbor = NULL;
+    }
+
     if (NEIGHBORS == NULL) {
       // First neighbor!
       NEIGHBORS = new_neighbor;
