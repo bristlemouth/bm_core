@@ -23,6 +23,12 @@
 #define ifname0 'b'
 #define ifname1 'm'
 #define ethernet_mtu 1500
+#define bm_ip_to_lwip_ip(ip)                                                   \
+  (&(const ip_addr_t){{ip_uint8_to_uint32((uint8_t *)&ip->addr[0]),            \
+                       ip_uint8_to_uint32((uint8_t *)&ip->addr[4]),            \
+                       ip_uint8_to_uint32((uint8_t *)&ip->addr[8]),            \
+                       ip_uint8_to_uint32((uint8_t *)&ip->addr[12])},          \
+                      0})
 
 static struct netif netif;
 
@@ -37,11 +43,29 @@ struct LwipCtx {
 };
 typedef struct {
   struct pbuf *pbuf;
-  const ip_addr_t *src;
-  const ip_addr_t *dst;
+  const BmIpAddr *src;
+  const BmIpAddr *dst;
 } LwipLayout;
 
 static struct LwipCtx CTX;
+
+/*!
+ @brief Translate BmIpAddr Address Format To ip_addr_t IP Address Format
+
+ @details This is used to copy the array of uint8_t values in BmIpAddr to
+          uint32_t values of ip_addr_t, use this API with caution, it does not
+          validate if buffer is large enough or NULL in favor of speed
+          optimization
+
+ @param buf 
+
+ @return uint32_t value of translated data
+ */
+static inline uint32_t ip_uint8_to_uint32(uint8_t *buf)
+    __attribute__((always_inline));
+static inline uint32_t ip_uint8_to_uint32(uint8_t *buf) {
+  return (uint32_t)(buf[0] | buf[1] << 8 | buf[2] << 16 | buf[3] << 24);
+}
 
 /*!
  @brief Obtain Data From LwipLayout Abstraction
@@ -62,9 +86,9 @@ static void *message_get_data(void *payload) {
 
  @return pointer to source ip address
 */
-static void *message_get_src_ip(void *payload) {
+static BmIpAddr *message_get_src_ip(void *payload) {
   LwipLayout *ret = (LwipLayout *)payload;
-  return (void *)ret->src;
+  return (BmIpAddr *)ret->src;
 }
 
 /*!
@@ -74,9 +98,9 @@ static void *message_get_src_ip(void *payload) {
 
  @return pointer to destination ip address
 */
-static void *message_get_dst_ip(void *payload) {
+static BmIpAddr *message_get_dst_ip(void *payload) {
   LwipLayout *ret = (LwipLayout *)payload;
-  return (void *)ret->dst;
+  return (BmIpAddr *)ret->dst;
 }
 
 /*!
@@ -130,11 +154,11 @@ static uint8_t ip_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
     // Make a copy of the IP address since we'll be modifying it later when we
     // remove the src/dest ports (and since it might not be in the pbuf so someone
     // else is managing that memory)
-    ip_addr_t *src_ref = (ip_addr_t *)bm_malloc(sizeof(ip_addr_t));
-    ip_addr_t *dst_ref = (ip_addr_t *)bm_malloc(sizeof(ip_addr_t));
+    BmIpAddr *src_ref = (BmIpAddr *)bm_malloc(sizeof(BmIpAddr));
+    BmIpAddr *dst_ref = (BmIpAddr *)bm_malloc(sizeof(BmIpAddr));
     LwipLayout *layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
-    memcpy(dst_ref, ip6_hdr->dest.addr, sizeof(ip_addr_t));
-    memcpy(src_ref, src, sizeof(ip_addr_t));
+    memcpy(dst_ref, ip6_hdr->dest.addr, sizeof(BmIpAddr));
+    memcpy(src_ref, src, sizeof(BmIpAddr));
     *layout = (LwipLayout){pbuf, src_ref, dst_ref};
 
     BcmpQueueItem item = {BcmpEventRx, (void *)layout, layout->pbuf->len};
@@ -414,8 +438,8 @@ const char *bm_ip_get_str(uint8_t idx) {
 
   @return Pointer to static IP address
 */
-const void *bm_ip_get(uint8_t idx) {
-  return (const void *)netif_ip6_addr(CTX.netif, idx);
+const BmIpAddr *bm_ip_get(uint8_t idx) {
+  return (const BmIpAddr *)netif_ip6_addr(CTX.netif, idx);
 }
 
 /*!
@@ -452,19 +476,19 @@ void bm_ip_rx_cleanup(void *payload) {
           and assigning it here to its associated abstraction object
 
  @param dst destination IP address
- @param size sizeo of object to create
+ @param size size of object to create
 
  @return pointer to created abstraction object
  */
-void *bm_ip_tx_new(const void *dst, uint32_t size) {
+void *bm_ip_tx_new(const BmIpAddr *dst, uint32_t size) {
   struct pbuf *pbuf = NULL;
   LwipLayout *layout = NULL;
-  const ip_addr_t *src = netif_ip_addr6(CTX.netif, 0);
+  const BmIpAddr *src = (BmIpAddr *)netif_ip_addr6(CTX.netif, 0);
 
   if (dst) {
     pbuf = pbuf_alloc(PBUF_IP, size, PBUF_RAM);
     layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
-    *layout = (LwipLayout){pbuf, src, (const ip_addr_t *)dst};
+    *layout = (LwipLayout){pbuf, src, (const BmIpAddr *)dst};
   }
 
   return (void *)layout;
@@ -506,14 +530,16 @@ BmErr bm_ip_tx_copy(void *payload, const void *data, uint32_t size,
 
  @return
  */
-BmErr bm_ip_tx_perform(void *payload, const void *dst) {
+BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
   BmErr err = BmEINVAL;
   LwipLayout *layout = NULL;
+
   if (payload) {
     layout = (LwipLayout *)payload;
-    layout->dst = dst == NULL ? layout->dst : (const ip_addr_t *)dst;
-    err = raw_sendto_if_src(CTX.raw_pcb, layout->pbuf, layout->dst, CTX.netif,
-                            layout->src) == ERR_OK
+    err = raw_sendto_if_src(CTX.raw_pcb, layout->pbuf,
+                            dst == NULL ? bm_ip_to_lwip_ip(layout->dst)
+                                        : bm_ip_to_lwip_ip(dst),
+                            CTX.netif, bm_ip_to_lwip_ip(layout->src)) == ERR_OK
               ? BmOK
               : BmEBADMSG;
   }
@@ -640,15 +666,18 @@ void bm_udp_cleanup(void *buf) {
 
  @return 
  */
-BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size, const void *addr,
-                        uint16_t port) {
+BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
+                        const BmIpAddr *dest_addr, uint16_t port) {
   (void)size;
   BmErr err = BmEINVAL;
-  if (buf && pcb && addr) {
+
+  if (buf && pcb && dest_addr) {
     err = safe_udp_sendto_if((struct udp_pcb *)pcb, (struct pbuf *)buf,
-                             (const ip_addr_t *)addr, port, CTX.netif) == ERR_OK
+                             bm_ip_to_lwip_ip(dest_addr), port,
+                             CTX.netif) == ERR_OK
               ? BmOK
               : BmEBADMSG;
   }
+
   return err;
 }

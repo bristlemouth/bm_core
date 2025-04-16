@@ -71,12 +71,14 @@ TEST_F(Bcmp, init) {
 }
 
 TEST_F(Bcmp, bcmp_tx) {
-  const uint32_t dst = RND.rnd_int(UINT32_MAX, 1);
+  BmIpAddr dst = {0};
   const uint16_t size =
       RND.rnd_int(max_payload_len - sizeof(BcmpHeader), UINT8_MAX);
   BcmpMessageType type = (BcmpMessageType)RND.rnd_int(UINT8_MAX, 0);
   uint8_t seq_num = RND.rnd_int(UINT8_MAX, 0);
   uint8_t *data = (uint8_t *)bm_malloc(size);
+
+  RND.rnd_array((uint8_t *)&dst.addr[0], sizeof(BmIpAddr));
 
   // Test success
   bm_ip_tx_new_fake.return_val = data;

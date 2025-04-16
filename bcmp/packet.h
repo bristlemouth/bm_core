@@ -6,13 +6,13 @@ typedef struct {
   BcmpHeader *header;
   uint8_t *payload;
   uint32_t size;
-  void *src;
-  void *dst;
+  BmIpAddr *src;
+  BmIpAddr *dst;
   uint8_t ingress_port;
 } BcmpProcessData;
 
 typedef void *(*BcmpGetData)(void *payload);
-typedef void *(*BcmpGetIPAddr)(void *payload);
+typedef BmIpAddr *(*BcmpGetIPAddr)(void *payload);
 typedef uint16_t (*BcmpGetChecksum)(void *payload, uint32_t size);
 typedef BmErr (*BcmpProcessCb)(BcmpProcessData data);
 typedef BmErr (*BcmpSequencedRequestCb)(uint8_t *payload);

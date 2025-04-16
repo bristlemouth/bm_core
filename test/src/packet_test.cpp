@@ -29,8 +29,8 @@ class Packet : public ::testing::Test {
 public:
   typedef struct {
     uint8_t *payload;
-    uint32_t src_addr[4];
-    uint32_t dst_addr[4];
+    uint8_t src_addr[16];
+    uint8_t dst_addr[16];
   } PacketTestData;
   uint8_t *test_payload;
   size_t test_payload_size;
@@ -42,13 +42,13 @@ protected:
     PacketTestData *ret = (PacketTestData *)payload;
     return (void *)ret->payload;
   }
-  static void *src_ip(void *payload) {
+  static BmIpAddr *src_ip(void *payload) {
     PacketTestData *ret = (PacketTestData *)payload;
-    return (void *)ret->src_addr;
+    return (BmIpAddr *)&ret->src_addr;
   }
-  static void *dst_ip(void *payload) {
+  static BmIpAddr *dst_ip(void *payload) {
     PacketTestData *ret = (PacketTestData *)payload;
-    return (void *)ret->dst_addr;
+    return (BmIpAddr *)&ret->dst_addr;
   }
   static uint16_t calc_checksum(void *payload, uint32_t size) {
     if (fail_checksum) {
