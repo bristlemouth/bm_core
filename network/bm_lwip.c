@@ -23,7 +23,7 @@
 #define ifname0 'b'
 #define ifname1 'm'
 #define ethernet_mtu 1500
-#define bm_ip_to_lwip_ip_compound(ip)                                          \
+#define bm_ip_to_lwip_ip(ip)                                                   \
   (&(const ip_addr_t){{ip_uint8_to_uint32((uint8_t *)&ip->addr[0]),            \
                        ip_uint8_to_uint32((uint8_t *)&ip->addr[4]),            \
                        ip_uint8_to_uint32((uint8_t *)&ip->addr[8]),            \
@@ -537,10 +537,9 @@ BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
   if (payload) {
     layout = (LwipLayout *)payload;
     err = raw_sendto_if_src(CTX.raw_pcb, layout->pbuf,
-                            dst == NULL ? bm_ip_to_lwip_ip_compound(layout->dst)
-                                        : bm_ip_to_lwip_ip_compound(dst),
-                            CTX.netif,
-                            bm_ip_to_lwip_ip_compound(layout->src)) == ERR_OK
+                            dst == NULL ? bm_ip_to_lwip_ip(layout->dst)
+                                        : bm_ip_to_lwip_ip(dst),
+                            CTX.netif, bm_ip_to_lwip_ip(layout->src)) == ERR_OK
               ? BmOK
               : BmEBADMSG;
   }
@@ -674,7 +673,7 @@ BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
 
   if (buf && pcb && dest_addr) {
     err = safe_udp_sendto_if((struct udp_pcb *)pcb, (struct pbuf *)buf,
-                             bm_ip_to_lwip_ip_compound(dest_addr), port,
+                             bm_ip_to_lwip_ip(dest_addr), port,
                              CTX.netif) == ERR_OK
               ? BmOK
               : BmEBADMSG;
