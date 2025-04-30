@@ -652,3 +652,18 @@ NetworkDevice adin2111_network_device(void) {
   create_network_device();
   return NETWORK_DEVICE;
 }
+
+void adin2111_settestmode(void) {
+    if (adin2111_SetTestMode(&DEVICE_STRUCT, ADIN2111_PORT_1, ADI_PHY_TEST_MODE_2) == ADI_ETH_SUCCESS) {
+        printf("Port 1 on the ADIN set to Test Mode 2\n");
+    } else {
+        printf("Port 1 on the ADIN failed to enter Test Mode 2\n");
+    }
+
+    if (adin2111_SetTestMode(&DEVICE_STRUCT, ADIN2111_PORT_2, ADI_PHY_TEST_MODE_2) == ADI_ETH_SUCCESS) {
+        printf("Port 2 on the ADIN set to Test Mode 2\n");
+    } else {
+        printf("Port 2 on the ADIN failed to enter Test Mode 2\n");
+    }
+
+}

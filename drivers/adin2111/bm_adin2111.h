@@ -19,6 +19,7 @@ extern "C" {
 
 BmErr adin2111_init(void);
 NetworkDevice adin2111_network_device(void);
+void adin2111_settestmode(void);
 
 #ifdef __cplusplus
 }
