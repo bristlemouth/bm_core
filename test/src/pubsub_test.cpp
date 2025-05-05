@@ -177,11 +177,15 @@ TEST_F(PubSub, publish) {
   ASSERT_EQ(bm_pub(topic, buf, array_size(buf), type, version), BmOK);
   ASSERT_EQ(bm_unsub(topic, sub_callback_0), BmOK);
 
+  // Test publishing without data (ensure it doesn't break with strange use cases)
+  ASSERT_EQ(bm_pub(topic, NULL, 0, type, version), BmOK);
+  ASSERT_EQ(bm_pub(topic, NULL, array_size(buf), type, version), BmOK);
+  ASSERT_EQ(bm_pub(topic, buf, 0, type, version), BmOK);
+
   // Test improper use cases
   ASSERT_NE(bm_pub(NULL, buf, array_size(buf), type, version), BmOK);
-  ASSERT_NE(bm_pub(topic, NULL, array_size(buf), type, version), BmOK);
-  ASSERT_NE(bm_pub(topic, buf, 0, type, version), BmOK);
   ASSERT_NE(bm_pub_wl(topic, 0, buf, array_size(buf), type, version), BmOK);
+
   ASSERT_NE(
       bm_pub_wl(topic, BM_TOPIC_MAX_LEN, buf, array_size(buf), type, version),
       BmOK);
