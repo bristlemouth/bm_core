@@ -10,13 +10,22 @@ DEFINE_FFF_GLOBALS;
 #define test_topic_1 "example/sub1/topic"
 #define test_topic_2 "example/**/topic"
 #define test_topic_3 "example/*/difficult/str/*/*test"
-#define test_topic_3_helper "example/really/difficult/str/0123456789ABCDEF/test"
+#define test_topic_3_helper                                                    \
+  "example/really/difficult/str/0123456789ABCDEF/here/test"
+#define test_topic_3_fail_helper_1 "example/difficult/str/0123456789ABCDEF/test"
+#define test_topic_3_fail_helper_2                                             \
+  "example/really/difficult/str/0123456789ABCDEF/"
+#define test_topic_3_fail_helper_3 "example/really/difficult/str/test"
 #define test_topic_4 "example/end/str/*"
 #define test_topic_4_helper "example/end/str/0123456789ABCDEF"
+#define test_topic_4_fail_helper "example/end/str"
 #define test_topic_5 "*/begin/str"
 #define test_topic_5_helper "0123456789ABCDEF/begin/str"
-#define test_topic_6 "*four*/wildcards/*crazy*"
-#define test_topic_6_helper "wowfourisacrazy/wildcards/amountcrazy/"
+#define test_topic_5_fail_helper "begin/str"
+#define test_topic_6 "*fouris/*/wildcards/*crazy*"
+#define test_topic_6_helper "wowfouris/acrazy/wildcards/amountcrazy/"
+#define test_topic_6_fail_helper_1 "wowfouris/acrazy/wildcards/amount"
+#define test_topic_6_fail_helper_2 "wowisacrazy/wildcards/amountcrazy/"
 
 extern "C" {
 #include "mock_bm_ip.h"
@@ -149,6 +158,11 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_3, sub_callback_2), BmOK);
 
   sub_search_helper(test_topic_3_helper, (uint32_t[]){4, 4, 4});
+  // Ensure failures on strings that do not exactly match pattern
+  sub_search_helper(test_topic_3_fail_helper_1, (uint32_t[]){4, 4, 4});
+  sub_search_helper(test_topic_3_fail_helper_2, (uint32_t[]){4, 4, 4});
+  sub_search_helper(test_topic_3_fail_helper_3, (uint32_t[]){4, 4, 4});
+
   ASSERT_EQ(bm_unsub(test_topic_3, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_3, sub_callback_0), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_3, sub_callback_2), BmOK);
@@ -160,6 +174,8 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_4, sub_callback_2), BmOK);
 
   sub_search_helper(test_topic_4_helper, (uint32_t[]){5, 5, 5});
+  // Ensure failures on strings that does not exactly match pattern
+  sub_search_helper(test_topic_4_fail_helper, (uint32_t[]){5, 5, 5});
   ASSERT_EQ(bm_unsub(test_topic_4, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_4, sub_callback_0), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_4, sub_callback_2), BmOK);
@@ -171,6 +187,8 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_5, sub_callback_2), BmOK);
 
   sub_search_helper(test_topic_5_helper, (uint32_t[]){6, 6, 6});
+  // Ensure failures on string that does not exactly match pattern
+  sub_search_helper(test_topic_5_fail_helper, (uint32_t[]){6, 6, 6});
 
   ASSERT_EQ(bm_unsub(test_topic_5, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_5, sub_callback_0), BmOK);
@@ -183,6 +201,9 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_6, sub_callback_2), BmOK);
 
   sub_search_helper(test_topic_6_helper, (uint32_t[]){7, 7, 7});
+  // Ensure failures on strings that do not exactly match pattern
+  sub_search_helper(test_topic_6_fail_helper_1, (uint32_t[]){7, 7, 7});
+  sub_search_helper(test_topic_6_fail_helper_2, (uint32_t[]){7, 7, 7});
 
   ASSERT_EQ(bm_unsub(test_topic_6, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_6, sub_callback_0), BmOK);
