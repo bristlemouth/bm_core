@@ -309,7 +309,7 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
 
   do {
 
-    if (!topic || !topic_len || !data || !len) {
+    if (!topic || !topic_len) {
       break;
     }
 
@@ -335,7 +335,10 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
     header->ext_header.version = version;
 
     memcpy((void *)header->topic, topic, topic_len);
-    memcpy((void *)&header->topic[header->topic_len], data, len);
+
+    if (data && len) {
+      memcpy((void *)&header->topic[header->topic_len], data, len);
+    }
 
     // If we have a local subscription, submit it to the local queue as well
     if (get_sub(topic, topic_len)) {
@@ -373,7 +376,7 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
   } while (0);
 
   if (err != BmOK) {
-    bm_debug("Unable to publish to topic\n");
+    bm_debug("Unable to publish to topic, err: %d\n", err);
   } else {
     if (bcmp_resource_discovery_add_resource(
             topic, topic_len, PUB, default_resource_add_timeout_ms) == BmOK) {
