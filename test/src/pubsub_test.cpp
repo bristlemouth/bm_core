@@ -88,8 +88,9 @@ protected:
     CB2_CALLED++;
   }
 
-  void sub_search_helper(const char *str, uint32_t count[3],
+  void sub_search_helper(const char *str, std::vector<uint32_t> &count,
                          uint8_t mask = 0x7) {
+    ASSERT_EQ(count.size(), 3);
     uint8_t buf[UINT8_MAX] = {0};
     BmPubSubData *data = NULL;
 
@@ -115,6 +116,8 @@ protected:
 };
 
 TEST_F(PubSub, subscribe) {
+  std::vector<uint32_t> count_checks = {1, 1, 1};
+
   // Add topics and associate multiple callbacks with topics
   bcmp_resource_discovery_add_resource_fake.return_val = BmOK;
   ASSERT_EQ(bm_sub(test_topic_0, sub_callback_0), BmOK);
@@ -128,8 +131,9 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_1, sub_callback_2), BmOK);
 
   // Test making sure that callbacks are called properly
-  sub_search_helper(test_topic_0, (uint32_t[]){1, 1, 1});
-  sub_search_helper(test_topic_1, (uint32_t[]){2, 2, 2});
+  sub_search_helper(test_topic_0, count_checks);
+  count_checks = {2, 2, 2};
+  sub_search_helper(test_topic_1, count_checks);
 
   // Unsubscribe from all topics
   ASSERT_EQ(bm_unsub(test_topic_0, sub_callback_2), BmOK);
@@ -146,7 +150,8 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_2, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_2, sub_callback_2), BmOK);
 
-  sub_search_helper(test_topic_1, (uint32_t[]){3, 3, 3});
+  count_checks = {3, 3, 3};
+  sub_search_helper(test_topic_1, count_checks);
   ASSERT_EQ(bm_unsub(test_topic_2, sub_callback_2), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_2, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_2, sub_callback_0), BmOK);
@@ -157,11 +162,12 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_3, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_3, sub_callback_2), BmOK);
 
-  sub_search_helper(test_topic_3_helper, (uint32_t[]){4, 4, 4});
+  count_checks = {4, 4, 4};
+  sub_search_helper(test_topic_3_helper, count_checks);
   // Ensure failures on strings that do not exactly match pattern
-  sub_search_helper(test_topic_3_fail_helper_1, (uint32_t[]){4, 4, 4});
-  sub_search_helper(test_topic_3_fail_helper_2, (uint32_t[]){4, 4, 4});
-  sub_search_helper(test_topic_3_fail_helper_3, (uint32_t[]){4, 4, 4});
+  sub_search_helper(test_topic_3_fail_helper_1, count_checks);
+  sub_search_helper(test_topic_3_fail_helper_2, count_checks);
+  sub_search_helper(test_topic_3_fail_helper_3, count_checks);
 
   ASSERT_EQ(bm_unsub(test_topic_3, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_3, sub_callback_0), BmOK);
@@ -173,9 +179,10 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_4, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_4, sub_callback_2), BmOK);
 
-  sub_search_helper(test_topic_4_helper, (uint32_t[]){5, 5, 5});
+  count_checks = {5, 5, 5};
+  sub_search_helper(test_topic_4_helper, count_checks);
   // Ensure failures on strings that does not exactly match pattern
-  sub_search_helper(test_topic_4_fail_helper, (uint32_t[]){5, 5, 5});
+  sub_search_helper(test_topic_4_fail_helper, count_checks);
   ASSERT_EQ(bm_unsub(test_topic_4, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_4, sub_callback_0), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_4, sub_callback_2), BmOK);
@@ -186,9 +193,10 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_5, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_5, sub_callback_2), BmOK);
 
-  sub_search_helper(test_topic_5_helper, (uint32_t[]){6, 6, 6});
+  count_checks = {6, 6, 6};
+  sub_search_helper(test_topic_5_helper, count_checks);
   // Ensure failures on string that does not exactly match pattern
-  sub_search_helper(test_topic_5_fail_helper, (uint32_t[]){6, 6, 6});
+  sub_search_helper(test_topic_5_fail_helper, count_checks);
 
   ASSERT_EQ(bm_unsub(test_topic_5, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_5, sub_callback_0), BmOK);
@@ -200,10 +208,11 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_6, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_6, sub_callback_2), BmOK);
 
-  sub_search_helper(test_topic_6_helper, (uint32_t[]){7, 7, 7});
+  count_checks = {7, 7, 7};
+  sub_search_helper(test_topic_6_helper, count_checks);
   // Ensure failures on strings that do not exactly match pattern
-  sub_search_helper(test_topic_6_fail_helper_1, (uint32_t[]){7, 7, 7});
-  sub_search_helper(test_topic_6_fail_helper_2, (uint32_t[]){7, 7, 7});
+  sub_search_helper(test_topic_6_fail_helper_1, count_checks);
+  sub_search_helper(test_topic_6_fail_helper_2, count_checks);
 
   ASSERT_EQ(bm_unsub(test_topic_6, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_6, sub_callback_0), BmOK);
@@ -214,12 +223,15 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_2, sub_callback_0), BmOK);
   ASSERT_EQ(bm_sub(test_topic_3, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_6, sub_callback_2), BmOK);
-  sub_search_helper(test_topic_3_helper, (uint32_t[]){7, 8, 7});
-  sub_search_helper(test_topic_4_helper, (uint32_t[]){7, 8, 7});
-  sub_search_helper(test_topic_5_helper, (uint32_t[]){7, 8, 7});
-  sub_search_helper(test_topic_1, (uint32_t[]){8, 8, 7});
-  sub_search_helper(test_topic_0, (uint32_t[]){8, 8, 7});
-  sub_search_helper(test_topic_6_helper, (uint32_t[]){8, 8, 8});
+  count_checks = {7, 8, 7};
+  sub_search_helper(test_topic_3_helper, count_checks);
+  sub_search_helper(test_topic_4_helper, count_checks);
+  sub_search_helper(test_topic_5_helper, count_checks);
+  count_checks = {8, 8, 7};
+  sub_search_helper(test_topic_1, count_checks);
+  sub_search_helper(test_topic_0, count_checks);
+  count_checks = {8, 8, 8};
+  sub_search_helper(test_topic_6_helper, count_checks);
   ASSERT_EQ(bm_unsub(test_topic_2, sub_callback_0), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_3, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_6, sub_callback_2), BmOK);
