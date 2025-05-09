@@ -117,13 +117,8 @@ size_t bm_strnlen(const char *s, size_t max_length) {
  */
 bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
                        uint16_t pattern_len) {
-  bool ret = false;
   int32_t star_idx = -1;
   uint16_t i = 0, j = 0;
-
-  if (str_len && pattern_len) {
-    ret = true;
-  }
 
   while (i < str_len) {
     if (str[i] == pattern[j]) {
@@ -138,7 +133,6 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
       j = star_idx + 1;
       i++;
     } else {
-      ret = false;
       break;
     }
   }
