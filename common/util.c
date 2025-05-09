@@ -142,7 +142,7 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
     j++;
   }
 
-  return j == pattern_len;
+  return j == pattern_len && i == str_len;
 }
 
 // leap year calulator expects year argument as years offset from 1970
