@@ -119,7 +119,6 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
                        uint16_t pattern_len) {
   bool ret = false;
   int32_t star_idx = -1;
-  uint16_t str_lookback_idx = 0;
   uint16_t i = 0, j = 0;
 
   if (str_len && pattern_len) {
@@ -134,11 +133,10 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
     } else if (j < pattern_len && pattern[j] == '*') {
       star_idx = j++;
       // Keep index of string
-      str_lookback_idx = i;
     } else if (star_idx != -1) {
       // Keep iterating until next character in pattern matches next character in string
       j = star_idx + 1;
-      i = ++str_lookback_idx;
+      i++;
     } else {
       ret = false;
       break;
