@@ -88,8 +88,7 @@ protected:
     CB2_CALLED++;
   }
 
-  void sub_search_helper(const char *str, std::vector<uint32_t> &count,
-                         uint8_t mask = 0x7) {
+  void sub_search_helper(const char *str, std::vector<uint32_t> &count) {
     ASSERT_EQ(count.size(), 3);
     uint8_t buf[UINT8_MAX] = {0};
     BmPubSubData *data = NULL;
@@ -102,15 +101,9 @@ protected:
     memcpy((void *)data->topic, str, strlen(str));
     bm_udp_get_payload_fake.return_val = data;
     bm_handle_msg(RND.rnd_int(UINT64_MAX, UINT32_MAX), buf, array_size(buf));
-    if (mask & 0x1) {
-      EXPECT_EQ(CB0_CALLED, count[0]);
-    }
-    if (mask & 0x2) {
-      EXPECT_EQ(CB1_CALLED, count[1]);
-    }
-    if (mask & 0x4) {
-      EXPECT_EQ(CB2_CALLED, count[2]);
-    }
+    EXPECT_EQ(CB0_CALLED, count[0]);
+    EXPECT_EQ(CB1_CALLED, count[1]);
+    EXPECT_EQ(CB2_CALLED, count[2]);
     bm_free(data);
   }
 };
