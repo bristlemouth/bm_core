@@ -130,7 +130,6 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
       // Keep index of string
     } else if (star_idx != -1) {
       // Keep iterating until next character in pattern matches next character in string
-      j = star_idx + 1;
       i++;
     } else {
       break;
