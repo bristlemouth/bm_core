@@ -102,6 +102,53 @@ size_t bm_strnlen(const char *s, size_t max_length) {
   return s - start;
 }
 
+/*!
+ @brief Match A Wildcard Pattern To A String
+
+ @details Matches a wildcard pattern (currently only supports '*') to a string,
+          can also be used as a memcmp function.
+
+ @param str string to match to pattern
+ @param str_len length of string
+ @param pattern pattern string to compare against str
+ @param pattern_len length of pattern string
+
+ @return true if match, false if it does not match
+ */
+bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
+                       uint16_t pattern_len) {
+  int32_t star_idx = -1;
+  uint16_t i = 0, j = 0;
+
+  while (i < str_len && j < pattern_len) {
+    if (str[i] == pattern[j]) {
+      i++;
+      j++;
+      star_idx = -1;
+    } else if (pattern[j] == '*') {
+      star_idx = j++;
+      // Keep index of string
+    } else if (star_idx != -1) {
+      // Keep iterating until next character in pattern matches next character in string
+      i++;
+    } else {
+      break;
+    }
+  }
+
+  // Skip trailing '*' in pattern
+  while (j < pattern_len && pattern[j] == '*') {
+    j++;
+  }
+
+  // If final pattern char is '*', match to the end of the string
+  if (star_idx == pattern_len - 1) {
+    i = str_len;
+  }
+
+  return j == pattern_len && i == str_len;
+}
+
 // leap year calulator expects year argument as years offset from 1970
 #define leap_year(Y)                                                           \
   (((1970 + Y) > 0) && !((1970 + Y) % 4) &&                                    \

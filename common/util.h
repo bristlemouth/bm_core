@@ -108,6 +108,8 @@ void swap_16bit(void *x);
 void swap_32bit(void *x);
 void swap_64bit(void *x);
 size_t bm_strnlen(const char *s, size_t max_length);
+bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
+                       uint16_t pattern_len);
 
 static inline uint16_t uint8_to_uint16(uint8_t *buf) {
   return (uint16_t)(buf[1] | buf[0] << 8);
