@@ -120,12 +120,12 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
   int32_t star_idx = -1;
   uint16_t i = 0, j = 0;
 
-  while (i < str_len) {
+  while (i < str_len && j < pattern_len) {
     if (str[i] == pattern[j]) {
       i++;
       j++;
       star_idx = -1;
-    } else if (j < pattern_len && pattern[j] == '*') {
+    } else if (pattern[j] == '*') {
       star_idx = j++;
       // Keep index of string
     } else if (star_idx != -1) {
@@ -139,6 +139,11 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
   // Skip trailing '*' in pattern
   while (j < pattern_len && pattern[j] == '*') {
     j++;
+  }
+
+  // If final pattern char is '*', match to the end of the string
+  if (star_idx == pattern_len - 1) {
+    i = str_len;
   }
 
   return j == pattern_len && i == str_len;
