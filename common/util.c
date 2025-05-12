@@ -118,19 +118,21 @@ size_t bm_strnlen(const char *s, size_t max_length) {
 bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
                        uint16_t pattern_len) {
   int32_t star_idx = -1;
+  uint16_t match_idx = 0;
   uint16_t i = 0, j = 0;
 
-  while (i < str_len && j < pattern_len) {
-    if (str[i] == pattern[j]) {
+  while (i < str_len) {
+    if (j < pattern_len && str[i] == pattern[j]) {
       i++;
       j++;
-      star_idx = -1;
-    } else if (pattern[j] == '*') {
+    } else if (j < pattern_len && pattern[j] == '*') {
       star_idx = j++;
+      match_idx = i;
       // Keep index of string
     } else if (star_idx != -1) {
       // Keep iterating until next character in pattern matches next character in string
-      i++;
+      j = star_idx + 1;
+      i = ++match_idx;
     } else {
       break;
     }
