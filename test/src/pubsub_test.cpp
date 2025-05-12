@@ -324,3 +324,7 @@ TEST_F(PubSub, utility) {
   ASSERT_EQ(bm_unsub(test_topic_1, sub_callback_2), BmOK);
   RESET_FAKE(bcmp_resource_discovery_add_resource);
 }
+
+TEST_F(PubSub, wildcard_match) {
+  ASSERT_TRUE(bm_wildcard_match("aaaa", 4, "a*a", 3));
+}
