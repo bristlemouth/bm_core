@@ -128,9 +128,8 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
     } else if (j < pattern_len && pattern[j] == '*') {
       star_idx = j++;
       match_idx = i;
-      // Keep index of string
     } else if (star_idx != -1) {
-      // Keep iterating until next character in pattern matches next character in string
+      // No match but a previous wildcard is found, backtrack to last '*'
       j = star_idx + 1;
       i = ++match_idx;
     } else {
@@ -143,12 +142,7 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
     j++;
   }
 
-  // If final pattern char is '*', match to the end of the string
-  if (star_idx == pattern_len - 1) {
-    i = str_len;
-  }
-
-  return j == pattern_len && i == str_len;
+  return j == pattern_len;
 }
 
 // leap year calulator expects year argument as years offset from 1970
