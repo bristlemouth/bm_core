@@ -31,7 +31,7 @@ static bool echo_service_handler(size_t service_strlen, const char *service,
                                  size_t req_data_len, uint8_t *req_data,
                                  size_t *buffer_len, uint8_t *reply_data) {
   bool rval = true;
-  bm_debug("Data received on service: %.*s\n", (uint32_t)service_strlen,
+  bm_debug("Data received on service: %.*s\n", (int)service_strlen,
            service);
   if (*buffer_len <= MAX_BM_SERVICE_DATA_SIZE) {
     *buffer_len = req_data_len;

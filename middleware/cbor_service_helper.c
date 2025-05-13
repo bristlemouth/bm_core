@@ -147,7 +147,7 @@ uint8_t *services_cbor_as_map(size_t *buffer_size, BmConfigPartition type) {
     } else if (err == CborNoError) {
       *buffer_size = cbor_encoder_get_buffer_size(&encoder, buffer);
     } else {
-      bm_debug("Failed to encode config as cbor map, err=%" PRIu32 "\n", err);
+      bm_debug("Failed to encode config as cbor map, err=%d\n", err);
       bm_free(buffer);
       buffer = NULL;
     }
