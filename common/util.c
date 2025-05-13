@@ -105,8 +105,8 @@ size_t bm_strnlen(const char *s, size_t max_length) {
 /*!
  @brief Match A Wildcard Pattern To A String
 
- @details Matches a wildcard pattern (currently only supports '*') to a string,
-          can also be used as a memcmp function.
+ @details Matches a wildcard pattern (currently only supports '*' and '?') to a
+          string, can also be used as a memcmp function.
 
  @param str string to match to pattern
  @param str_len length of string
@@ -122,7 +122,7 @@ bool bm_wildcard_match(const char *str, uint16_t str_len, const char *pattern,
   uint16_t i = 0, j = 0;
 
   while (i < str_len) {
-    if (j < pattern_len && str[i] == pattern[j]) {
+    if (j < pattern_len && (pattern[j] == '?' || str[i] == pattern[j])) {
       i++;
       j++;
     } else if (j < pattern_len && pattern[j] == '*') {
