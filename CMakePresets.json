@@ -21,5 +21,11 @@
             "name": "unit-tests",
             "jobs": 8
         }
+    ],
+    "testPresets": [
+        {
+            "configurePreset": "unit-tests",
+            "name": "unit-tests"
+        }
     ]
 }
