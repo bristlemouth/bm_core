@@ -514,12 +514,13 @@ static BmSubNode *get_sub(const char *topic, uint16_t topic_len) {
   BmSubNode *node = CTX.subscription_list.next;
 
   while (node != NULL) {
-    if ((node->sub.topic_len == topic_len) &&
-        (memcmp(node->sub.topic, topic, topic_len) == 0)) {
+    if (bm_wildcard_match(topic, topic_len, node->sub.topic,
+                          node->sub.topic_len)) {
       break;
     }
     node = node->next;
   }
+
   return node;
 }
 

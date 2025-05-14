@@ -577,3 +577,10 @@ set(BRISTLEMOUTH_SRCS
     ${STUB_DIR}/topology_stub.c
 )
 create_gtest("bristlemouth" "${BRISTLEMOUTH_SRCS}")
+
+# Utility functions
+set (UTIL_SRCS
+    # File we're testing
+    ${COMMON_DIR}/util.c
+)
+create_gtest("util" "${UTIL_SRCS}")
