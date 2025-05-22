@@ -82,8 +82,8 @@ BmErr ll_create_item_static(LLItem *item, void *data, uint32_t id) {
 /*!
  @brief Create A Dynamic Linked List Item
 
- @param item pointer to item to create
- @param data data the item will point to
+ @param item pointer to item to create, should be NULL
+ @param data data the item will point to, may be NULL
  @param size length of data in bytes
  @param id unique identifier the item represents
  
@@ -91,17 +91,21 @@ BmErr ll_create_item_static(LLItem *item, void *data, uint32_t id) {
  @return NULL on failure
  */
 LLItem *ll_create_item(LLItem *item, void *data, uint32_t size, uint32_t id) {
-  void *tmp = NULL;
   item = (LLItem *)bm_malloc(sizeof(LLItem));
+  if (!item)
+    return NULL;
 
-  if (item) {
-    if (data) {
-      tmp = bm_malloc(size);
-      memcpy(tmp, data, size);
+  item->data = NULL;
+  item->id = id;
+  item->dynamic = 1;
+
+  if (data) {
+    item->data = bm_malloc(size);
+    if (!item->data) {
+      bm_free(item);
+      return NULL;
     }
-    item->data = tmp;
-    item->id = id;
-    item->dynamic = 1;
+    memcpy(item->data, data, size);
   }
 
   return item;
