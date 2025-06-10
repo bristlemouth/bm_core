@@ -2,9 +2,7 @@ name: Deploy Docs to Pages
 
 on:
   push:
-    branches:
-      - main
-      - fix/sphinx-build
+    branches: [main]
   workflow_dispatch:
 
 jobs:
