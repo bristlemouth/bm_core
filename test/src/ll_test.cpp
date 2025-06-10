@@ -175,6 +175,15 @@ TEST_F(ll_test, remove) {
   ll = create_test_helper(ll_remove_test_helper, true);
   ASSERT_NE(ll_remove(&ll, NOREACH), BmOK);
   ll_clean_up_helper(&ll);
+
+  // Test all pointers null after removing all items
+  ll = create_test_helper(NULL, true);
+  while (ll.head != nullptr) {
+    ASSERT_EQ(ll_remove(&ll, ll.head->id), BmOK);
+  }
+  ASSERT_EQ(ll.head, nullptr);
+  ASSERT_EQ(ll.tail, nullptr);
+  ASSERT_EQ(ll.cursor, nullptr);
 }
 
 static BmErr ll_traverse_test_helper(void *data, void *arg) {

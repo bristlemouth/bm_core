@@ -223,6 +223,9 @@ BmErr ll_remove(LL *ll, uint32_t id) {
     if (current) {
       if (current == ll->head) {
         ll->head = current->next;
+        if (current == ll->tail) {
+          ll->tail = NULL;
+        }
       } else {
         ret = BmOK;
         if (current == ll->tail) {
