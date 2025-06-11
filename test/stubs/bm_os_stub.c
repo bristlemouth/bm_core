@@ -34,6 +34,7 @@ DEFINE_FAKE_VALUE_FUNC(uint32_t, bm_ticks_to_ms, uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmTimer, bm_timer_create, const char *, uint32_t, bool,
                        void *, BmTimerCb);
 DEFINE_FAKE_VOID_FUNC(bm_timer_delete, BmTimer, uint32_t);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bm_timer_reset, BmTimer, uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bm_timer_start, BmTimer, uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bm_timer_stop, BmTimer, uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bm_timer_change_period, BmTimer, uint32_t,

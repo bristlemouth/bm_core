@@ -134,6 +134,14 @@ void bm_timer_delete(BmTimer timer, uint32_t timeout_ms) {
   xTimerDelete((TimerHandle_t)timer, timeout_ms);
 }
 
+BmErr bm_timer_reset(BmTimer timer, uint32_t timeout_ms) {
+  if (xTimerReset(timer, pdMS_TO_TICKS(timeout_ms)) == pdPASS) {
+    return BmOK;
+  } else {
+    return BmETIMEDOUT;
+  }
+}
+
 BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms) {
   if (xTimerStart(timer, pdMS_TO_TICKS(timeout_ms)) == pdPASS) {
     return BmOK;

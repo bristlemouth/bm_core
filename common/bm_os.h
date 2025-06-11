@@ -57,6 +57,7 @@ void bm_start_scheduler(void);
 BmTimer bm_timer_create(const char *name, uint32_t period_ms, bool auto_reload,
                         void *time_id, BmTimerCallback);
 void bm_timer_delete(BmTimer timer, uint32_t timeout_ms);
+BmErr bm_timer_reset(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_stop(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_change_period(BmTimer timer, uint32_t period_ms,
