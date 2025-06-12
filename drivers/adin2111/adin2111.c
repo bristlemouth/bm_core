@@ -665,6 +665,59 @@ adi_eth_Result_e adin2111_SetTestMode(adin2111_DeviceHandle_t hDevice, adin2111_
 }
 
 /*!
+ * @brief           Trigger autonegotiation on the ADIN device.
+ *
+ * @param [in]      hDevice         Device driver handle.
+ * @param [in]      port            Port number.
+ *
+ * @details         Will retrigger autonegotiation on the ADIN device. The status of the ADIN's autonegotiation should be
+ *                  polled before calling this API to determine if this is an appropriate time to renegotiate.
+ *
+ * @sa              adin2111_AutoNegotiateStatus()
+ */
+adi_eth_Result_e    adin2111_Renegotiate(adin2111_DeviceHandle_t hDevice, adin2111_Port_e port) {
+    adi_eth_Result_e    result = ADI_ETH_SUCCESS;
+
+    if ((port != ADIN2111_PORT_1) && (port != ADIN2111_PORT_2))
+    {
+        result = ADI_ETH_INVALID_PORT;
+    }
+    else
+    {
+        result = phyDriverEntry.Renegotiate(hDevice->pPhyDevice[port]);
+    }
+
+    return result;
+}
+
+/*!
+ * @brief           Get the status of autonegotiation.
+ *
+ * @param [in]      hDevice         Device driver handle.
+ * @param [in]      port            Port number.
+ * @param [out]     status          Status of autonegotiation.
+ *
+ * @details         Determines the status of the current autonegotiation that has occured. Will return ADI_ETH_SUCCESS if status was
+ *                  able to be obtained from the ADIN device.
+ *
+ * @sa
+ */
+adi_eth_Result_e adin2111_AutoNegotiateStatus(adin2111_DeviceHandle_t hDevice, adin2111_Port_e port, adi_phy_AnStatus_t *status) {
+    adi_eth_Result_e    result = ADI_ETH_SUCCESS;
+
+    if ((port != ADIN2111_PORT_1) && (port != ADIN2111_PORT_2))
+    {
+        result = ADI_ETH_INVALID_PORT;
+    }
+    else
+    {
+        result = phyDriverEntry.GetAnStatus(hDevice->pPhyDevice[port], status);
+    }
+
+    return result;
+}
+
+/*!
  * @brief           Set up MAC address filter and corresponding address rules.
  *
  * @param [in]      hDevice         Device driver handle.

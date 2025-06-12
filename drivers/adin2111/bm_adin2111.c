@@ -346,6 +346,71 @@ inline static BmErr adin2111_netdevice_disable_(void *self) {
 }
 
 /*!
+  @brief Renegotiate leader/follower resolution mechanic
+
+  @details Function to determine if the ADIN2111 should re-activate
+           autonegotiation for its leader/follower mechanic, this will see if
+           autonegotiation has been completed, and if so, determine if a fault
+           occurred, if a fault has occurred, re-trigger autonegotiation
+
+  @param port_num port number to determine if port autonegotiation shall retry
+  @param renegotiated if the autonegotiation was retriggered
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+inline static BmErr adin2111_netdevice_renegotiate(uint8_t port_num,
+                                                   bool *renegotiated) {
+  BmErr err = BmEINVAL;
+  adi_eth_Result_e result = ADI_ETH_SUCCESS;
+  adi_phy_AnStatus_t status = {};
+  adin2111_Port_e port = driver_port(port_num);
+
+  switch (port) {
+  case ADIN2111_PORT_1:
+  case ADIN2111_PORT_2:
+    err = BmOK;
+    *renegotiated = false;
+    result = adin2111_AutoNegotiateStatus(&DEVICE_STRUCT, port, &status);
+    if (result == ADI_ETH_SUCCESS &&
+        (status.anComplete &&
+         status.anMsResolution != ADI_PHY_AN_MS_RESOLUTION_SLAVE &&
+         status.anMsResolution != ADI_PHY_AN_MS_RESOLUTION_MASTER)) {
+      result = adin2111_Renegotiate(&DEVICE_STRUCT, port);
+      *renegotiated = true;
+    }
+
+    if (result != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+    }
+    break;
+  default:
+    break;
+  }
+
+  return err;
+}
+
+/*!
+  @brief Renegotiate leader/follower resolution mechanic
+
+  @details Trait wrapper function to determine if the ADIN2111 should
+           renegotiate its leader/follower mechanic to another network device
+
+  @param self unused
+  @param port_num port number to renegotiate on
+  @param renegotiated if the negotiation was triggered
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+static BmErr adin2111_netdevice_renegotiate_(void *self, uint8_t port_num,
+                                             bool *renegotiated) {
+  (void)self;
+  return adin2111_netdevice_renegotiate(port_num, renegotiated);
+}
+
+/*!
   @brief After a TX buffer is sent, it gets freed here
 
   @param buffer_description ADIN2111 driver buffer description of what was just
@@ -593,6 +658,7 @@ static void create_network_device(void) {
       .disable = adin2111_netdevice_disable_,
       .enable_port = adin2111_netdevice_enable_port_,
       .disable_port = adin2111_netdevice_disable_port_,
+      .retry_negotiation = adin2111_netdevice_renegotiate_,
       .num_ports = adin2111_num_ports,
       .port_stats = adin2111_port_stats_,
       .handle_interrupt = adin2111_handle_interrupt};

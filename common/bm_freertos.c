@@ -160,6 +160,10 @@ BmErr bm_timer_change_period(BmTimer timer, uint32_t period_ms,
   }
 }
 
+uint32_t bm_timer_get_id(BmTimer timer) {
+    return (uint32_t) pvTimerGetTimerID(timer);
+}
+
 uint32_t bm_get_tick_count(void) { return xTaskGetTickCount(); }
 
 uint32_t bm_get_tick_count_from_isr(void) { return xTaskGetTickCountFromISR(); }

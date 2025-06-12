@@ -55,12 +55,13 @@ void bm_start_scheduler(void);
 
 // Timer functions
 BmTimer bm_timer_create(const char *name, uint32_t period_ms, bool auto_reload,
-                        void *time_id, BmTimerCallback);
+                        void *time_id, BmTimerCallback cb);
 void bm_timer_delete(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_stop(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_change_period(BmTimer timer, uint32_t period_ms,
                              uint32_t timeout_ms);
+uint32_t bm_timer_get_id(BmTimer timer);
 uint32_t bm_get_tick_count(void);
 uint32_t bm_get_tick_count_from_isr(void);
 uint32_t bm_ms_to_ticks(uint32_t ms);

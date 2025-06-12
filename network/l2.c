@@ -79,6 +79,7 @@
 
 #define evt_queue_len (32)
 #define device_all_ports (0)
+#define renegotiate_wait_time_ms (100)
 
 typedef enum {
   L2Tx,
@@ -101,6 +102,7 @@ typedef struct {
   BmQueue evt_queue;
   BmTaskHandle task_handle;
   LL link_change_callback_list;
+  LL renegotiate_timer_list;
 } BmL2Ctx;
 
 typedef struct {
@@ -109,6 +111,101 @@ typedef struct {
 } L2LinkChangeData;
 
 static BmL2Ctx CTX = {0};
+
+/*!
+  @brief Trigger a renegotiation event on the requested port
+ 
+  @param timer timer which indicates the port
+ */
+static void bm_l2_renegotiate(BmTimer timer) {
+  uint32_t port_num = bm_timer_get_id(timer);
+  BmErr err = BmOK;
+  bool renegotiated = false;
+
+  err = CTX.network_device.trait->retry_negotiation(
+      CTX.network_device.self, (uint8_t)port_num, &renegotiated);
+
+  if (renegotiated) {
+    bm_debug("Renegotiated on port: %" PRIu32 "\n", port_num);
+  } else if (err != BmOK) {
+    bm_debug("Renegotiation failed, 0x%X on port: %" PRIu32 "\n", err,
+             port_num);
+  }
+}
+
+/*!
+  @brief Start renegotiate timer
+
+  @details If the retry_negotiation network trait exists, begin a polling
+           timer to see if the port shall be renegotiated
+ 
+  @param port_num port number to trigger the polling timer
+ 
+  @return BmOK on success
+  @return BmErr on failure
+ */
+static BmErr bm_l2_start_renegotiate_check(uint8_t port_num) {
+  BmTimer timer = NULL;
+  BmErr err = ll_get_item(&CTX.renegotiate_timer_list, port_num, &timer);
+
+  if (CTX.network_device.trait->retry_negotiation && err == BmENODEV) {
+    uint32_t port_num_cast = port_num;
+    timer = bm_timer_create("renegotiate_timer", renegotiate_wait_time_ms, true,
+                            (void *)port_num_cast, bm_l2_renegotiate);
+    if (!timer) {
+      return BmENOMEM;
+    }
+
+    LLItem *item = NULL;
+    item = ll_create_item(item, &timer, sizeof(timer), port_num);
+    if (!item) {
+      bm_timer_delete(timer, 0);
+      return BmENOMEM;
+    }
+
+    err = ll_item_add(&CTX.renegotiate_timer_list, item);
+    if (err != BmOK || bm_timer_start(timer, 0) != BmOK) {
+      ll_delete_item(item);
+      bm_timer_delete(timer, 0);
+      return BmECANCELED;
+    }
+
+    return BmOK;
+  }
+
+  return BmENODEV;
+}
+
+/*!
+  @brief Stop renegotiate timer
+
+  @details Stop a renegotiation timer if it has been started
+ 
+  @param port_num port number to stop the polling timer
+ 
+  @return BmOK on success
+  @return BmErr on failure
+ */
+static BmErr bm_l2_stop_renegotiate_check(uint8_t port_num) {
+  if (CTX.network_device.trait->retry_negotiation) {
+    BmTimer *timer = NULL;
+    BmErr err =
+        ll_get_item(&CTX.renegotiate_timer_list, port_num, (void **)&timer);
+
+    if (err != BmOK || !timer) {
+      bm_debug("Could not find negotiation timer on port: %u\n", port_num);
+      return BmENODATA;
+    }
+
+    ll_remove(&CTX.renegotiate_timer_list, port_num);
+    bm_timer_stop(*timer, 0);
+    bm_timer_delete(*timer, 0);
+    bm_debug("Deleting negotiation timer on port: %u\n", port_num);
+    return BmOK;
+  }
+
+  return BmENODEV;
+}
 
 /*!
   @brief L2 TX Function
@@ -338,6 +435,15 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
 static void bm_l2_thread(void *parameters) {
   (void)parameters;
 
+  // Begin renegotiation timers for the ports on the system until the
+  // links' are up
+  for (uint8_t port = 1; port <= CTX.num_ports; port++) {
+    BmErr err = bm_l2_start_renegotiate_check(port);
+    if (err != BmOK) {
+      bm_debug("Failed to start renegotiating check, reason: 0x%X", err);
+    }
+  }
+
   while (true) {
     L2QueueElement event;
     if (bm_queue_receive(CTX.evt_queue, &event, UINT32_MAX) == BmOK) {
@@ -355,6 +461,7 @@ static void bm_l2_thread(void *parameters) {
         break;
       }
       default: {
+        break;
       }
       }
     }
@@ -403,8 +510,10 @@ static void link_change(uint8_t port_idx, bool is_up) {
   L2LinkChangeData data = {port_idx + 1, is_up};
   if (is_up) {
     CTX.enabled_ports_mask |= port_mask;
+    bm_l2_stop_renegotiate_check(port_idx + 1);
   } else {
     CTX.enabled_ports_mask &= ~port_mask;
+    bm_l2_start_renegotiate_check(port_idx + 1);
   }
 
   bm_debug("Network Device Port %u: %s\n", data.port_num,
@@ -540,8 +649,8 @@ BmErr bm_l2_link_output(void *buf, uint32_t length) {
   @return true if port is online
   @retunr false if port is offline
  */
-bool bm_l2_get_port_state(uint8_t port) {
-  return (bool)(CTX.enabled_ports_mask & (1 << port));
+bool bm_l2_get_port_state(uint8_t port_idx) {
+  return (bool)(CTX.enabled_ports_mask & (1 << port_idx));
 }
 
 /*!
