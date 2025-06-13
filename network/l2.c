@@ -58,7 +58,7 @@
 #define ipv6_get_next_header(buf) (buf[ipv6_next_header_offset])
 #define ipv6_get_hop_limit(buf) (buf[ipv6_hop_limit_offset])
 
-// UDP Offsetsl2.c
+// UDP Offsets
 #define udp_src_offset                                                         \
   (ipv6_destination_address_offset + ipv6_destination_address_size_bytes)
 #define udp_destination_offset (udp_src_offset + udp_src_size_bytes)
