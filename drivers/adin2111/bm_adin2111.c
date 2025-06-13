@@ -58,6 +58,61 @@ uint32_t HAL_RegisterCallback(HAL_Callback_t const *intCallback,
 }
 
 /*!
+  @brief Trigger autonegotiation on the ADIN device
+  
+  @details Will retrigger autonegotiation on the ADIN device. The status of the
+           ADIN's autonegotiation should be polled before calling this API to
+           determine if this is an appropriate time to renegotiate. This
+           function is an addition to the ADIN driver (adin2111.c) and
+           necessary for Bristlemouth.
+
+  @param hDevice Device driver handle
+  @param port Port number
+  
+  @return ADI_ETH_SUCCESS on pass, other on failure
+ */
+static adi_eth_Result_e adin2111_Renegotiate(adin2111_DeviceHandle_t hDevice,
+                                             adin2111_Port_e port) {
+  adi_eth_Result_e result = ADI_ETH_SUCCESS;
+
+  if ((port != ADIN2111_PORT_1) && (port != ADIN2111_PORT_2)) {
+    result = ADI_ETH_INVALID_PORT;
+  } else {
+    result = phyDriverEntry.Renegotiate(hDevice->pPhyDevice[port]);
+  }
+
+  return result;
+}
+
+/*!
+  @brief Get the status of autonegotiation
+ 
+  @details Determines the status of the current autonegotiation that has
+           occured. Will return ADI_ETH_SUCCESS if status was able to be
+           obtained from the ADIN device. This function is an addition to
+           the ADIN driver (adin2111.c) and necessary for Bristlemouth.
+
+  @param hDevice Device driver handle
+  @param port Port number
+  @param status Status of autonegotiation
+ 
+  @return ADI_ETH_SUCCESS on pass, other on failure
+ */
+static adi_eth_Result_e
+adin2111_AutoNegotiateStatus(adin2111_DeviceHandle_t hDevice,
+                             adin2111_Port_e port, adi_phy_AnStatus_t *status) {
+  adi_eth_Result_e result = ADI_ETH_SUCCESS;
+
+  if ((port != ADIN2111_PORT_1) && (port != ADIN2111_PORT_2)) {
+    result = ADI_ETH_INVALID_PORT;
+  } else {
+    result = phyDriverEntry.GetAnStatus(hDevice->pPhyDevice[port], status);
+  }
+
+  return result;
+}
+
+/*!
  @brief ADIN2111 network device link change callback
 
  @details Called by the driver when the link status changes,

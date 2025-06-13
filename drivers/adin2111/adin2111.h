@@ -181,9 +181,6 @@ adi_eth_Result_e    adin2111_LedEn                   (adin2111_DeviceHandle_t hD
 adi_eth_Result_e    adin2111_SetLoopbackMode         (adin2111_DeviceHandle_t hDevice, adin2111_Port_e port, adi_phy_LoopbackMode_e loopbackMode);
 adi_eth_Result_e    adin2111_SetTestMode             (adin2111_DeviceHandle_t hDevice, adin2111_Port_e port, adi_phy_TestMode_e testMode);
 
-adi_eth_Result_e    adin2111_Renegotiate             (adin2111_DeviceHandle_t hDevice, adin2111_Port_e port);
-adi_eth_Result_e    adin2111_AutoNegotiateStatus     (adin2111_DeviceHandle_t hDevice, adin2111_Port_e port, adi_phy_AnStatus_t *status);
-
 adi_eth_Result_e    adin2111_AddAddressFilter        (adin2111_DeviceHandle_t hDevice, uint8_t *macAddr, uint8_t *macAddrMask, adi_mac_AddressRule_t addrRule);
 adi_eth_Result_e    adin2111_ClearAddressFilter      (adin2111_DeviceHandle_t hDevice, uint32_t addrIndex);
 adi_eth_Result_e    adin2111_SubmitTxBuffer          (adin2111_DeviceHandle_t hDevice, adin2111_TxPort_e port, adi_eth_BufDesc_t *pBufDesc);

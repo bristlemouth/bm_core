@@ -58,7 +58,7 @@
 #define ipv6_get_next_header(buf) (buf[ipv6_next_header_offset])
 #define ipv6_get_hop_limit(buf) (buf[ipv6_hop_limit_offset])
 
-// UDP Offsets
+// UDP Offsetsl2.c
 #define udp_src_offset                                                         \
   (ipv6_destination_address_offset + ipv6_destination_address_size_bytes)
 #define udp_destination_offset (udp_src_offset + udp_src_size_bytes)
@@ -437,8 +437,8 @@ static void bm_l2_thread(void *parameters) {
 
   // Begin renegotiation timers for the ports on the system until the
   // links' are up
-  for (uint8_t port = 1; port <= CTX.num_ports; port++) {
-    BmErr err = bm_l2_start_renegotiate_check(port);
+  for (uint8_t port_num = 1; port_num <= CTX.num_ports; port_num++) {
+    BmErr err = bm_l2_start_renegotiate_check(port_num);
     if (err != BmOK) {
       bm_debug("Failed to start renegotiating check, reason: 0x%X", err);
     }
@@ -510,10 +510,10 @@ static void link_change(uint8_t port_idx, bool is_up) {
   L2LinkChangeData data = {port_idx + 1, is_up};
   if (is_up) {
     CTX.enabled_ports_mask |= port_mask;
-    bm_l2_stop_renegotiate_check(port_idx + 1);
+    bm_l2_stop_renegotiate_check(data.port_num);
   } else {
     CTX.enabled_ports_mask &= ~port_mask;
-    bm_l2_start_renegotiate_check(port_idx + 1);
+    bm_l2_start_renegotiate_check(data.port_num);
   }
 
   bm_debug("Network Device Port %u: %s\n", data.port_num,
