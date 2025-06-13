@@ -19,6 +19,7 @@ typedef struct {
   BmErr (*const disable)(void *self);
   BmErr (*const enable_port)(void *self, uint8_t port_num);
   BmErr (*const disable_port)(void *self, uint8_t port_num);
+  BmErr (*const retry_negotiation)(void *self, uint8_t port_index, bool *renegotiated);
   uint8_t (*const num_ports)(void);
   BmErr (*const port_stats)(void *self, uint8_t port_index, void *stats);
   BmErr (*const handle_interrupt)(void *self);
