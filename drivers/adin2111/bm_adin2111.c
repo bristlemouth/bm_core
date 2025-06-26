@@ -135,8 +135,8 @@ static void link_change_callback_(void *device_handle, uint32_t event,
     if (status_registers->p1StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
       LINK_CHANGE.port_index = ADIN2111_PORT_1;
       LINK_CHANGE.device_handle = device_handle;
-    } else if (status_registers->p2StatusMasked ==
-               ADI_PHY_EVT_LINK_STAT_CHANGE) {
+    }
+    if (status_registers->p2StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
       LINK_CHANGE.port_index = ADIN2111_PORT_2;
       LINK_CHANGE.device_handle = device_handle;
     }
@@ -301,6 +301,13 @@ static BmErr adin2111_netdevice_enable(void) {
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
     goto end;
+  }
+
+  for (int i = 1; i <= ADIN2111_PORT_NUM; i++) {
+    err = adin2111_netdevice_disable_port(i);
+    if (err != BmOK) {
+      goto end;
+    }
   }
 
   result = adin2111_RegisterCallback(&DEVICE_STRUCT, link_change_callback_,
