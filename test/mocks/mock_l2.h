@@ -9,3 +9,4 @@ DECLARE_FAKE_VALUE_FUNC(BmErr, bm_l2_register_link_change_callback,
                         L2LinkChangeCb);
 DECLARE_FAKE_VALUE_FUNC(bool, bm_l2_get_port_state, uint8_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_l2_netif_set_power, bool);
+DECLARE_FAKE_VALUE_FUNC(BmErr, bm_l2_netif_enable_disable_port, uint8_t, bool);
