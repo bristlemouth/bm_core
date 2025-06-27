@@ -3,6 +3,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void *BmQueue;
 typedef void *BmSemaphore;
 typedef void *BmTimer;
@@ -24,6 +28,7 @@ DECLARE_FAKE_VALUE_FUNC(uint32_t, bm_ticks_to_ms, uint32_t);
 DECLARE_FAKE_VALUE_FUNC(BmTimer, bm_timer_create, const char *, uint32_t, bool,
                         void *, BmTimerCb);
 DECLARE_FAKE_VOID_FUNC(bm_timer_delete, BmTimer, uint32_t);
+DECLARE_FAKE_VALUE_FUNC(BmErr, bm_timer_reset, BmTimer, uint32_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_timer_start, BmTimer, uint32_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_timer_stop, BmTimer, uint32_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_timer_change_period, BmTimer, uint32_t,
@@ -44,3 +49,7 @@ DECLARE_FAKE_VALUE_FUNC(BmErr, bm_stream_buffer_receive, BmBuffer, uint8_t *,
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_task_create, BmTaskCb, const char *, uint32_t,
                         void *, uint32_t, BmTaskHandle);
 DECLARE_FAKE_VOID_FUNC(bm_task_delete, BmTaskHandle);
+
+#ifdef __cplusplus
+}
+#endif
