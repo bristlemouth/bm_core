@@ -31,7 +31,8 @@ typedef struct {
 } PubSubCtx;
 
 static BmSubNode *delete_sub(const char *topic, uint16_t topic_len);
-static BmSubNode *get_sub(const char *topic, uint16_t topic_len);
+static BmSubNode *get_sub(const char *topic, uint16_t topic_len,
+                          bool wildcard_search);
 static BmSubNode *get_last_sub(void);
 static PubSubCtx CTX;
 
@@ -83,7 +84,7 @@ BmErr bm_sub_wl(const char *topic, uint16_t topic_len,
       break;
     }
 
-    BmSubNode *ptr = get_sub(topic, topic_len);
+    BmSubNode *ptr = get_sub(topic, topic_len, false);
     err = BmENOMEM;
 
     // Subscription already exists, add a new callback
@@ -217,7 +218,7 @@ BmErr bm_unsub_wl(const char *topic, uint16_t topic_len,
       break;
     }
 
-    BmSubNode *ptr = get_sub(topic, topic_len);
+    BmSubNode *ptr = get_sub(topic, topic_len, false);
     /* Subscription already exists, update */
     if (ptr) {
 
@@ -341,7 +342,7 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
     }
 
     // If we have a local subscription, submit it to the local queue as well
-    if (get_sub(topic, topic_len)) {
+    if (get_sub(topic, topic_len, true)) {
       // Submit to local queue as well.
       // Caller must create a seperate buf than the IP stack send b/c
       // sending a buf to the IP stack must have a 1 reference count.
@@ -398,18 +399,24 @@ void bm_handle_msg(uint64_t node_id, void *buf, uint32_t size) {
   uint16_t data_len = size - sizeof(BmPubSubData) - header->topic_len;
 
   // TODO check header type and flags and do something about it
-  BmSubNode *ptr = get_sub(header->topic, header->topic_len);
+  BmSubNode *node = CTX.subscription_list.next;
 
-  if (ptr && ptr->sub.callbacks) {
-    BmPubSubNode *cb_node = ptr->sub.callbacks;
+  while (node != NULL) {
+    if (bm_wildcard_match(header->topic, header->topic_len, node->sub.topic,
+                          node->sub.topic_len)) {
+      if (node->sub.callbacks) {
+        BmPubSubNode *cb_node = node->sub.callbacks;
 
-    while (cb_node) {
-      cb_node->callback_fn(node_id, header->topic, header->topic_len,
-                           (const uint8_t *)&header->topic[header->topic_len],
-                           data_len, header->ext_header.type,
-                           header->ext_header.version);
-      cb_node = cb_node->next;
+        while (cb_node) {
+          cb_node->callback_fn(
+              node_id, header->topic, header->topic_len,
+              (const uint8_t *)&header->topic[header->topic_len], data_len,
+              header->ext_header.type, header->ext_header.version);
+          cb_node = cb_node->next;
+        }
+      }
     }
+    node = node->next;
   }
 }
 
@@ -506,17 +513,26 @@ static BmSubNode *delete_sub(const char *topic, uint16_t topic_len) {
 
   @param *topic topic string
   @param topic_len byte length of topic
+  @param wildcard_search should the search be based on wildcard topics 
 
   @return pointer to BmSubNode
   @return NULL if not found
 */
-static BmSubNode *get_sub(const char *topic, uint16_t topic_len) {
+static BmSubNode *get_sub(const char *topic, uint16_t topic_len,
+                          bool wildcard_search) {
   BmSubNode *node = CTX.subscription_list.next;
 
   while (node != NULL) {
-    if (bm_wildcard_match(topic, topic_len, node->sub.topic,
-                          node->sub.topic_len)) {
-      break;
+    if (wildcard_search) {
+      if (bm_wildcard_match(topic, topic_len, node->sub.topic,
+                            node->sub.topic_len)) {
+        break;
+      }
+    } else {
+      if (!memcmp(topic, node->sub.topic,
+                  bm_min(topic_len, node->sub.topic_len))) {
+        break;
+      }
     }
     node = node->next;
   }
