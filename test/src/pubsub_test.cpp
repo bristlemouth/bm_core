@@ -9,6 +9,7 @@ DEFINE_FFF_GLOBALS;
 #define test_topic_0 "example/sub0"
 #define test_topic_1 "example/sub1/topic"
 #define test_topic_2 "example/**/topic"
+#define test_topic_2_non_wildcard "example/sub2/topic"
 #define test_topic_3 "example/*/difficult/str/*/*test"
 #define test_topic_3_helper                                                    \
   "example/really/difficult/str/0123456789ABCDEF/here/test"
@@ -38,6 +39,7 @@ extern "C" {
 static uint8_t CB0_CALLED;
 static uint8_t CB1_CALLED;
 static uint8_t CB2_CALLED;
+static uint8_t CB_NON_WILDCARD_CALLED;
 
 class PubSub : public ::testing::Test {
 protected:
@@ -48,8 +50,22 @@ protected:
     CB0_CALLED = 0;
     CB1_CALLED = 0;
     CB2_CALLED = 0;
+    CB_NON_WILDCARD_CALLED = 0;
   }
   void TearDown() override {}
+  static void sub_callback_non_wildcard(uint64_t node_id, const char *topic,
+                                        uint16_t topic_len, const uint8_t *data,
+                                        uint16_t data_len, uint8_t type,
+                                        uint8_t version) {
+    (void)node_id;
+    (void)topic;
+    (void)topic_len;
+    (void)data;
+    (void)data_len;
+    (void)type;
+    (void)version;
+    CB_NON_WILDCARD_CALLED++;
+  }
   static void sub_callback_0(uint64_t node_id, const char *topic,
                              uint16_t topic_len, const uint8_t *data,
                              uint16_t data_len, uint8_t type, uint8_t version) {
@@ -88,8 +104,7 @@ protected:
     CB2_CALLED++;
   }
 
-  void sub_search_helper(const char *str, std::vector<uint32_t> &count) {
-    ASSERT_EQ(count.size(), 3);
+  void publish_to_topic(const char *str) {
     uint8_t buf[UINT8_MAX] = {0};
     BmPubSubData *data = NULL;
 
@@ -101,10 +116,16 @@ protected:
     memcpy((void *)data->topic, str, strlen(str));
     bm_udp_get_payload_fake.return_val = data;
     bm_handle_msg(RND.rnd_int(UINT64_MAX, UINT32_MAX), buf, array_size(buf));
+
+    bm_free(data);
+  }
+
+  void sub_search_helper(const char *str, std::vector<uint32_t> &count) {
+    ASSERT_EQ(count.size(), 3);
+    publish_to_topic(str);
     EXPECT_EQ(CB0_CALLED, count[0]);
     EXPECT_EQ(CB1_CALLED, count[1]);
     EXPECT_EQ(CB2_CALLED, count[2]);
-    bm_free(data);
   }
 };
 
@@ -143,11 +164,24 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_2, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_2, sub_callback_2), BmOK);
 
+  // Test that wildcard subbing is independant on another topic that would match
+  bcmp_resource_discovery_add_resource_fake.return_val = BmOK;
+  ASSERT_EQ(bm_sub(test_topic_2_non_wildcard, sub_callback_non_wildcard), BmOK);
+
   count_checks = {3, 3, 3};
   sub_search_helper(test_topic_1, count_checks);
+  ASSERT_EQ(CB_NON_WILDCARD_CALLED, 0);
+  publish_to_topic(test_topic_2_non_wildcard);
+  ASSERT_EQ(CB_NON_WILDCARD_CALLED, 1);
+  ASSERT_EQ(CB0_CALLED, 4);
+  ASSERT_EQ(CB1_CALLED, 4);
+  ASSERT_EQ(CB2_CALLED, 4);
+
   ASSERT_EQ(bm_unsub(test_topic_2, sub_callback_2), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_2, sub_callback_1), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_2, sub_callback_0), BmOK);
+  ASSERT_EQ(bm_unsub(test_topic_2_non_wildcard, sub_callback_non_wildcard),
+            BmOK);
 
   bcmp_resource_discovery_add_resource_fake.return_val = BmOK;
   ASSERT_EQ(bm_sub(test_topic_3, sub_callback_0), BmOK);
@@ -155,7 +189,7 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_3, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_3, sub_callback_2), BmOK);
 
-  count_checks = {4, 4, 4};
+  count_checks = {5, 5, 5};
   sub_search_helper(test_topic_3_helper, count_checks);
   // Ensure failures on strings that do not exactly match pattern
   sub_search_helper(test_topic_3_fail_helper_1, count_checks);
@@ -172,7 +206,7 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_4, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_4, sub_callback_2), BmOK);
 
-  count_checks = {5, 5, 5};
+  count_checks = {6, 6, 6};
   sub_search_helper(test_topic_4_helper, count_checks);
   // Ensure failures on strings that does not exactly match pattern
   sub_search_helper(test_topic_4_fail_helper, count_checks);
@@ -186,7 +220,7 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_5, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_5, sub_callback_2), BmOK);
 
-  count_checks = {6, 6, 6};
+  count_checks = {7, 7, 7};
   sub_search_helper(test_topic_5_helper, count_checks);
   // Ensure failures on string that does not exactly match pattern
   sub_search_helper(test_topic_5_fail_helper, count_checks);
@@ -201,7 +235,7 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_6, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_6, sub_callback_2), BmOK);
 
-  count_checks = {7, 7, 7};
+  count_checks = {8, 8, 8};
   sub_search_helper(test_topic_6_helper, count_checks);
   // Ensure failures on strings that do not exactly match pattern
   sub_search_helper(test_topic_6_fail_helper_1, count_checks);
@@ -216,14 +250,14 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_2, sub_callback_0), BmOK);
   ASSERT_EQ(bm_sub(test_topic_3, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_6, sub_callback_2), BmOK);
-  count_checks = {7, 8, 7};
+  count_checks = {8, 9, 8};
   sub_search_helper(test_topic_3_helper, count_checks);
   sub_search_helper(test_topic_4_helper, count_checks);
   sub_search_helper(test_topic_5_helper, count_checks);
-  count_checks = {8, 8, 7};
+  count_checks = {9, 9, 8};
   sub_search_helper(test_topic_1, count_checks);
   sub_search_helper(test_topic_0, count_checks);
-  count_checks = {8, 8, 8};
+  count_checks = {9, 9, 9};
   sub_search_helper(test_topic_6_helper, count_checks);
   ASSERT_EQ(bm_unsub(test_topic_2, sub_callback_0), BmOK);
   ASSERT_EQ(bm_unsub(test_topic_3, sub_callback_1), BmOK);
