@@ -104,7 +104,7 @@ protected:
     CB2_CALLED++;
   }
 
-  void publish_to_topic(const char *str) {
+  void simulate_publish_to_topic(const char *str) {
     uint8_t buf[UINT8_MAX] = {0};
     BmPubSubData *data = NULL;
 
@@ -122,7 +122,7 @@ protected:
 
   void sub_search_helper(const char *str, std::vector<uint32_t> &count) {
     ASSERT_EQ(count.size(), 3);
-    publish_to_topic(str);
+    simulate_publish_to_topic(str);
     EXPECT_EQ(CB0_CALLED, count[0]);
     EXPECT_EQ(CB1_CALLED, count[1]);
     EXPECT_EQ(CB2_CALLED, count[2]);
@@ -170,8 +170,13 @@ TEST_F(PubSub, subscribe) {
 
   count_checks = {3, 3, 3};
   sub_search_helper(test_topic_1, count_checks);
+
+  // The non-wildcard callback should not get called
   ASSERT_EQ(CB_NON_WILDCARD_CALLED, 0);
-  publish_to_topic(test_topic_2_non_wildcard);
+
+  // The non-wildcard and wildcard topic will get called if the non-wildcard
+  // topic is published
+  simulate_publish_to_topic(test_topic_2_non_wildcard);
   ASSERT_EQ(CB_NON_WILDCARD_CALLED, 1);
   ASSERT_EQ(CB0_CALLED, 4);
   ASSERT_EQ(CB1_CALLED, 4);
