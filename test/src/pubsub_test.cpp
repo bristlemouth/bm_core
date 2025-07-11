@@ -164,7 +164,7 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_2, sub_callback_1), BmOK);
   ASSERT_EQ(bm_sub(test_topic_2, sub_callback_2), BmOK);
 
-  // Test that wildcard subbing is independant on another topic that would match
+  // Test that wildcard subscribing is independent on another topic that would match
   bcmp_resource_discovery_add_resource_fake.return_val = BmOK;
   ASSERT_EQ(bm_sub(test_topic_2_non_wildcard, sub_callback_non_wildcard), BmOK);
 
