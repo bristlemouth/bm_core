@@ -11,7 +11,7 @@
 
 struct LinkChange {
   void *device_handle;
-  adin2111_Port_e port_index;
+  uint8_t port_mask;
 };
 
 // For now, there's only ever one ADIN2111.
@@ -133,11 +133,11 @@ static void link_change_callback_(void *device_handle, uint32_t event,
         (adi_mac_StatusRegisters_t *)status_registers_param;
 
     if (status_registers->p1StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
-      LINK_CHANGE.port_index = ADIN2111_PORT_1;
+      LINK_CHANGE.port_mask |= 1 << ADIN2111_PORT_1;
       LINK_CHANGE.device_handle = device_handle;
-    } else if (status_registers->p2StatusMasked ==
-               ADI_PHY_EVT_LINK_STAT_CHANGE) {
-      LINK_CHANGE.port_index = ADIN2111_PORT_2;
+    }
+    if (status_registers->p2StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
+      LINK_CHANGE.port_mask |= 1 << ADIN2111_PORT_2;
       LINK_CHANGE.device_handle = device_handle;
     }
   }
@@ -688,12 +688,15 @@ static BmErr adin2111_handle_interrupt(void *self) {
   if (ADIN2111_MAC_INT_CALLBACK) {
     ADIN2111_MAC_INT_CALLBACK(ADIN2111_MAC_INT_CALLBACK_PARAM, 0, NULL);
     if (LINK_CHANGE.device_handle) {
-      adi_eth_LinkStatus_e status;
-      adi_eth_Result_e result = adin2111_GetLinkStatus(
-          LINK_CHANGE.device_handle, LINK_CHANGE.port_index, &status);
-      if (result == ADI_ETH_SUCCESS) {
-        NETWORK_DEVICE.callbacks->link_change((uint8_t)LINK_CHANGE.port_index,
-                                              status);
+      for (uint8_t i = 0; i < ADIN2111_PORT_NUM; i++) {
+        if (LINK_CHANGE.port_mask & (1 << i)) {
+          adi_eth_LinkStatus_e status;
+          adi_eth_Result_e result =
+              adin2111_GetLinkStatus(LINK_CHANGE.device_handle, i, &status);
+          if (result == ADI_ETH_SUCCESS) {
+            NETWORK_DEVICE.callbacks->link_change(i, status);
+          }
+        }
       }
       LINK_CHANGE.device_handle = NULL;
     }
