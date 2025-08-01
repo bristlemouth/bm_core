@@ -51,20 +51,30 @@ TEST_F(Spotter, printf) {
 }
 
 TEST_F(Spotter, tx_data) {
-  uint8_t buf[UINT8_MAX];
-  RND.rnd_array(buf, UINT8_MAX);
+  uint8_t buf[1000];
+  RND.rnd_array(buf, sizeof(buf));
 
-  // Test proper use cases
+  // Max message sizes
   bm_pub_fake.return_val = BmOK;
-  ASSERT_EQ(
-      spotter_tx_data(buf, array_size(buf), BmNetworkTypeCellularIriFallback),
-      BmOK);
+  ASSERT_EQ(spotter_tx_data(buf, 311, BmNetworkTypeCellularIriFallback), BmOK);
+  ASSERT_EQ(spotter_tx_data(buf, 1000, BmNetworkTypeCellularOnly), BmOK);
 
-  // Test improper use cases
+  // Zero length data succeeds
+  ASSERT_EQ(spotter_tx_data(buf, 0, BmNetworkTypeCellularIriFallback), BmOK);
+  ASSERT_EQ(spotter_tx_data(buf, 0, BmNetworkTypeCellularOnly), BmOK);
+
+  // Payload too big
+  ASSERT_EQ(spotter_tx_data(buf, 312, BmNetworkTypeCellularIriFallback),
+            BmEMSGSIZE);
+  ASSERT_EQ(spotter_tx_data(buf, 1001, BmNetworkTypeCellularOnly), BmEMSGSIZE);
+
+  // bm_pub error should pass through
   bm_pub_fake.return_val = BmEBADMSG;
-  ASSERT_EQ(
-      spotter_tx_data(buf, array_size(buf), BmNetworkTypeCellularIriFallback),
-      BmEBADMSG);
-  ASSERT_EQ(spotter_tx_data(buf, UINT16_MAX, BmNetworkTypeCellularIriFallback),
-            BmEINVAL);
+  ASSERT_EQ(spotter_tx_data(buf, 100, BmNetworkTypeCellularIriFallback),
+            BmEBADMSG);
+  ASSERT_EQ(spotter_tx_data(buf, 100, BmNetworkTypeCellularOnly), BmEBADMSG);
+  bm_pub_fake.return_val = BmENOMEM;
+  ASSERT_EQ(spotter_tx_data(buf, 100, BmNetworkTypeCellularIriFallback),
+            BmENOMEM);
+  ASSERT_EQ(spotter_tx_data(buf, 100, BmNetworkTypeCellularOnly), BmENOMEM);
 }

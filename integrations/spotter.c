@@ -9,7 +9,8 @@
 #include <string.h>
 
 #define max_file_name_len 64
-#define spotter_tx_max_transmit_size_bytes 311
+#define spotter_tx_max_iridium_payload_bytes 311
+#define spotter_tx_max_cellular_payload_bytes 1000
 #define max_str_len(fname_len)                                                 \
   (int32_t)(max_payload_len - sizeof(bm_print_publication_t) - fname_len)
 static const uint8_t FPRINTF_TYPE = 1;
@@ -130,36 +131,31 @@ BmErr spotter_log(uint64_t target_node_id, const char *file_name,
 /*!
  @brief Transmit data via the Spotter's satellite or cellular connection.
  
- @details Currently, there are 2 notable limitations on this function.
-            - First, only network type `BmNetworkTypeCellularIriFallback`
-              shows up in the Sofar Ocean API.
-            - Second, the `data_len` has a realistic max of 311 bytes because
-              Iridium messages are limited to 340 bytes, and Spotter adds a
-              29-byte header.
- 
  @param data Pointer to the data to transmit.
- @param data_len Length of the data to transmit. Max: 311.
- @param type Network type to send over. MUST be BmNetworkTypeCellularIriFallback.
+ @param data_len Length of the data to transmit. Max 311 bytes for Iridium, 1000 bytes for Cellular.
+ @param type Network type to send over.
 
  @return BmOk if successful
  @return BmErr if unsuccessful
 */
 BmErr spotter_tx_data(const void *data, uint16_t data_len,
                       BmSerialNetworkType type) {
-  BmErr err = BmEINVAL;
-  size_t msg_len = sizeof(BmSerialNetworkDataHeader) + data_len;
+  const size_t max_spotter_tx_payload_len =
+      type == BmNetworkTypeCellularOnly ? spotter_tx_max_cellular_payload_bytes
+                                        : spotter_tx_max_iridium_payload_bytes;
+  if (data_len > max_spotter_tx_payload_len) {
+    return BmEMSGSIZE;
+  }
+
+  BmErr err = BmENOMEM;
+  const size_t msg_len = sizeof(BmSerialNetworkDataHeader) + data_len;
   uint8_t *data_buf = (uint8_t *)bm_malloc(msg_len);
   if (data_buf) {
-    do {
-      if (data_len > spotter_tx_max_transmit_size_bytes) {
-        break;
-      }
-      BmSerialNetworkDataHeader *header = (BmSerialNetworkDataHeader *)data_buf;
-      header->type = type;
-      memcpy(header->data, data, data_len);
-      err = bm_pub(SPOTTER_TRANSMIT_DATA_TOPIC, data_buf, msg_len,
-                   SPOTTER_TRANSMIT_TOPIC_TYPE, BM_COMMON_PUB_SUB_VERSION);
-    } while (0);
+    BmSerialNetworkDataHeader *header = (BmSerialNetworkDataHeader *)data_buf;
+    header->type = type;
+    memcpy(header->data, data, data_len);
+    err = bm_pub(SPOTTER_TRANSMIT_DATA_TOPIC, data_buf, msg_len,
+                 SPOTTER_TRANSMIT_TOPIC_TYPE, BM_COMMON_PUB_SUB_VERSION);
     bm_free(data_buf);
   }
   return err;
