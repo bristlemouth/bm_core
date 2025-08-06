@@ -62,11 +62,11 @@ protected:
     test_payload_size = RND.rnd_int(max_payload_size, min_payload_size);
     test_payload = (uint8_t *)calloc(test_payload_size, sizeof(uint8_t));
 
-    RESET_FAKE(bm_semaphore_create);
+    RESET_FAKE(bm_mutex_create);
     RESET_FAKE(bm_timer_create);
     RESET_FAKE(bm_timer_start);
     RESET_FAKE(bcmp_process_heartbeat);
-    bm_semaphore_create_fake.return_val =
+    bm_mutex_create_fake.return_val =
         (BmSemaphore)RND.rnd_int(UINT32_MAX, UINT16_MAX);
     bm_timer_create_fake.return_val =
         (BmTimer)RND.rnd_int(UINT32_MAX, UINT16_MAX);

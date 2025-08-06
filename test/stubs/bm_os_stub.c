@@ -23,6 +23,7 @@ void *bm_malloc(size_t size) {
   return ret;
 }
 void bm_free(void *p) { return free(p); }
+DEFINE_FAKE_VALUE_FUNC(BmSemaphore, bm_mutex_create);
 DEFINE_FAKE_VALUE_FUNC(BmSemaphore, bm_semaphore_create);
 DEFINE_FAKE_VOID_FUNC(bm_semaphore_delete, BmSemaphore);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bm_semaphore_give, BmSemaphore);

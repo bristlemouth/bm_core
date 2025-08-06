@@ -61,7 +61,7 @@ static void _service_request_timer_expiry_cb(void *arg);
 BmErr bm_service_request_init(void) {
   BmErr err = BmENOMEM;
 
-  CTX.lock = bm_semaphore_create();
+  CTX.lock = bm_mutex_create();
   CTX.expiry_timer_handle = bm_timer_create(
       "Service request expiry timer", bm_ms_to_ticks(ExpiryTimerPeriodMs), true,
       NULL, _service_request_timer_callback);

@@ -350,7 +350,7 @@ BmErr packet_init(BcmpGetIPAddr src_ip, BcmpGetIPAddr dst_ip, BcmpGetData data,
 
     // Create timer and semaphore for sequenced packet handling
     err = BmENOMEM;
-    PACKET.sequence_list_semaphore = bm_semaphore_create();
+    PACKET.sequence_list_semaphore = bm_mutex_create();
     if (PACKET.sequence_list_semaphore) {
       PACKET.timer = bm_timer_create("bcmp_message_expiration",
                                      message_timer_expiry_period_ms, true, NULL,

@@ -48,7 +48,7 @@ TEST_F(ResourceDiscovery, resource_process_request) {
   };
 
   // Initialize callbacks
-  bm_semaphore_create_fake.return_val = (uint64_t *)RND.rnd_int(UINT64_MAX, 1);
+  bm_mutex_create_fake.return_val = (uint64_t *)RND.rnd_int(UINT64_MAX, 1);
   bm_semaphore_take_fake.return_val = BmOK;
   bm_semaphore_give_fake.return_val = BmOK;
   ASSERT_EQ(bcmp_resource_discovery_init(), BmOK);
@@ -141,7 +141,7 @@ TEST_F(ResourceDiscovery, resource_process_reply) {
   data.payload = (uint8_t *)reply;
 
   // Initialize callbacks
-  bm_semaphore_create_fake.return_val = (uint64_t *)RND.rnd_int(UINT64_MAX, 1);
+  bm_mutex_create_fake.return_val = (uint64_t *)RND.rnd_int(UINT64_MAX, 1);
   bm_semaphore_take_fake.return_val = BmOK;
   bm_semaphore_give_fake.return_val = BmOK;
   ASSERT_EQ(bcmp_resource_discovery_init(), BmOK);

@@ -39,15 +39,14 @@ protected:
 };
 
 TEST_F(BmService, init) {
-  bm_semaphore_create_fake.return_val =
-      (void *)RND.rnd_int(UINT64_MAX, UINT32_MAX);
+  bm_mutex_create_fake.return_val = (void *)RND.rnd_int(UINT64_MAX, UINT32_MAX);
   bm_service_request_init_fake.return_val = BmOK;
   ASSERT_EQ(bm_service_init(), BmOK);
 
   bm_service_request_init_fake.return_val = BmENOMEM;
   ASSERT_NE(bm_service_init(), BmOK);
 
-  bm_semaphore_create_fake.return_val = 0;
+  bm_mutex_create_fake.return_val = 0;
   ASSERT_NE(bm_service_init(), BmOK);
 }
 

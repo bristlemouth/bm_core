@@ -85,7 +85,9 @@ BmErr bm_stream_buffer_receive(BmBuffer buf, uint8_t *data, uint32_t *size,
   return err;
 }
 
-BmSemaphore bm_semaphore_create(void) { return xSemaphoreCreateMutex(); }
+BmSemaphore bm_mutex_create(void) { return xSemaphoreCreateMutex(); }
+
+BmSemaphore bm_semaphore_create(void) { return xSemaphoreCreateBinary(); }
 
 void bm_semaphore_delete(BmSemaphore semaphore) {
   vSemaphoreDelete((SemaphoreHandle_t)semaphore);
