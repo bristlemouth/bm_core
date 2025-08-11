@@ -17,6 +17,7 @@ typedef void (*BmTaskCb)(void *);
 
 DECLARE_FAKE_VALUE_FUNC(void *, bm_malloc, size_t);
 DECLARE_FAKE_VOID_FUNC(bm_free, void *);
+DECLARE_FAKE_VALUE_FUNC(BmSemaphore, bm_mutex_create);
 DECLARE_FAKE_VALUE_FUNC(BmSemaphore, bm_semaphore_create);
 DECLARE_FAKE_VOID_FUNC(bm_semaphore_delete, BmSemaphore);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_semaphore_give, BmSemaphore);

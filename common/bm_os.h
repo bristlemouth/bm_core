@@ -41,6 +41,9 @@ BmErr bm_stream_buffer_send(BmBuffer buf, uint8_t *data, uint32_t size,
 BmErr bm_stream_buffer_receive(BmBuffer buf, uint8_t *data, uint32_t *size,
                                uint32_t timeout_ms);
 
+// Mutex functions
+BmSemaphore bm_mutex_create(void);
+
 // Semaphore functions
 BmSemaphore bm_semaphore_create(void);
 void bm_semaphore_delete(BmSemaphore semaphore);

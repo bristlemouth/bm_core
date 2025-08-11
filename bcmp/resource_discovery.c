@@ -213,11 +213,11 @@ BmErr bcmp_resource_discovery_init(void) {
   PUB_LIST.start = NULL;
   PUB_LIST.end = NULL;
   PUB_LIST.num_resources = 0;
-  PUB_LIST.lock = bm_semaphore_create();
+  PUB_LIST.lock = bm_mutex_create();
   SUB_LIST.start = NULL;
   SUB_LIST.end = NULL;
   SUB_LIST.num_resources = 0;
-  SUB_LIST.lock = bm_semaphore_create();
+  SUB_LIST.lock = bm_mutex_create();
   if (PUB_LIST.lock && SUB_LIST.lock) {
     err = BmOK;
   }

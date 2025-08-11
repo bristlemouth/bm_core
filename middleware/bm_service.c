@@ -96,7 +96,7 @@ bool bm_service_unregister(size_t service_strlen, const char *service) {
  */
 BmErr bm_service_init(void) {
   BmErr err = BmENOMEM;
-  BM_SERVICE_CONTEXT.lock = bm_semaphore_create();
+  BM_SERVICE_CONTEXT.lock = bm_mutex_create();
   if (BM_SERVICE_CONTEXT.lock) {
     err = bm_service_request_init();
   }
