@@ -16,6 +16,13 @@ typedef enum {
   BmNetworkTypeCellularOnly = (1 << 1),
 } BmSerialNetworkType;
 
+typedef struct {
+  // Network type to send over.
+  BmSerialNetworkType type;
+  // Data
+  uint8_t data[0];
+} __attribute__((packed)) BmSerialNetworkDataHeader;
+
 BmErr spotter_log(uint64_t target_node_id, const char *file_name,
                   uint8_t print_time, const char *format, ...);
 BmErr spotter_tx_data(const void *data, uint16_t data_len,
