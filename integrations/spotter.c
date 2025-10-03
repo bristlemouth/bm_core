@@ -20,13 +20,6 @@ static const char *SPOTTER_PRINTF_TOPIC = "spotter/printf";
 static const char *SPOTTER_FPRINTF_TOPIC = "spotter/fprintf";
 static const uint8_t SPOTTER_TRANSMIT_TOPIC_TYPE = 1;
 
-typedef struct {
-  // Network type to send over.
-  BmSerialNetworkType type;
-  // Data
-  uint8_t data[0];
-} __attribute__((packed)) BmSerialNetworkDataHeader;
-
 /*!
  @brief Bristlemouth Generic fprintf Function
 
