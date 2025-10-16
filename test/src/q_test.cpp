@@ -9,7 +9,7 @@
 
 DEFINE_FFF_GLOBALS
 
-#include "queue.h"
+#include "q.h"
 
 class queue_test : public ::testing::Test {
 protected:

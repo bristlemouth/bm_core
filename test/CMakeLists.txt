@@ -90,15 +90,15 @@ set (LL_TEST_SRCS
 )
 create_gtest("ll" "${LL_TEST_SRCS}")
 
-# Linked List (LL) unit tests
+# Queue (Q) unit tests
 set (Q_TEST_SRCS
     # File we are testing
-    ${COMMON_DIR}/queue.c
+    ${COMMON_DIR}/q.c
 
     # Supporting files
     ${STUB_DIR}/bm_os_stub.c
 )
-create_gtest("queue" "${Q_TEST_SRCS}")
+create_gtest("q" "${Q_TEST_SRCS}")
 
 # State Machine unit tests
 set (LIB_STATE_MACHINE_TEST_SRCS
