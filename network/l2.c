@@ -555,6 +555,9 @@ void bm_l2_deinit(void) {
   if (CTX.task_handle) {
     bm_task_delete(CTX.task_handle);
   }
+  for (uint8_t port_num = 1; port_num <= CTX.num_ports; port_num++) {
+    bm_l2_stop_renegotiate_check(port_num);
+  }
   memset(&CTX, 0, sizeof(BmL2Ctx));
 }
 
@@ -575,8 +578,8 @@ BmErr bm_l2_init(NetworkDevice network_device) {
   CTX.all_ports_mask = (1U << CTX.num_ports) - 1;
   CTX.evt_queue = bm_queue_create(evt_queue_len, sizeof(L2QueueElement));
   if (CTX.evt_queue) {
-    err = bm_task_create(bm_l2_thread, "L2 TX Thread", 2048, NULL,
-                         bm_l2_tx_task_priority, CTX.task_handle);
+    err = bm_task_create(bm_l2_thread, "L2", 2048, NULL, bm_l2_tx_task_priority,
+                         &CTX.task_handle);
   } else {
     err = BmENOMEM;
   }

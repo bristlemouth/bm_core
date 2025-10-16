@@ -738,24 +738,21 @@ BmErr adin2111_init(void) {
 
   // Prevent allocating RX buffers more than once
   static bool initialized = false;
-  if (initialized) {
-    err = BmEALREADY;
-    goto end;
-  }
-  initialized = true;
-
-  for (int i = 0; i < RX_QUEUE_NUM_ENTRIES; i++) {
-    adi_eth_BufDesc_t *buffer_description = &RX_BUFFERS[i];
-    memset(buffer_description, 0, sizeof(adi_eth_BufDesc_t));
-    buffer_description->pBuf =
-        aligned_malloc(DMA_ALIGN_SIZE, MAX_FRAME_BUF_SIZE);
-    if (!buffer_description->pBuf) {
-      err = BmENOMEM;
-      goto end;
+  if (!initialized) {
+    for (int i = 0; i < RX_QUEUE_NUM_ENTRIES; i++) {
+      adi_eth_BufDesc_t *buffer_description = &RX_BUFFERS[i];
+      memset(buffer_description, 0, sizeof(adi_eth_BufDesc_t));
+      buffer_description->pBuf =
+          aligned_malloc(DMA_ALIGN_SIZE, MAX_FRAME_BUF_SIZE);
+      if (!buffer_description->pBuf) {
+        err = BmENOMEM;
+        goto end;
+      }
+      memset(buffer_description->pBuf, 0, MAX_FRAME_BUF_SIZE);
+      buffer_description->bufSize = MAX_FRAME_BUF_SIZE;
+      buffer_description->cbFunc = receive_callback;
     }
-    memset(buffer_description->pBuf, 0, MAX_FRAME_BUF_SIZE);
-    buffer_description->bufSize = MAX_FRAME_BUF_SIZE;
-    buffer_description->cbFunc = receive_callback;
+    initialized = true;
   }
 
   // set up the static memory
