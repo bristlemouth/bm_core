@@ -4,6 +4,7 @@ set(SOURCES
     device.c
     lib_state_machine.c
     ll.c
+    queue.c
     timer_callback_handler.c
     util.c
 )
