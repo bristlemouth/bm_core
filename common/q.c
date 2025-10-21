@@ -7,6 +7,16 @@ typedef struct {
   uint8_t buf[];
 } QItem;
 
+/*!
+ @brief Get Amount Of Free Space In Bytes In The Queue Buffer
+
+ @details Because this queue utilizes a circular buffer, this API obtains the
+          free space that has not been consumed by the head index.
+
+ @param queue queue to examine
+
+ @return Amount of free space in bytes in the queue buffer
+ */
 static uint32_t q_get_free_space(Q *queue) {
   if (queue->head >= queue->tail) {
     return (queue->size - queue->head) + queue->tail;
@@ -15,10 +25,30 @@ static uint32_t q_get_free_space(Q *queue) {
   }
 }
 
+/*!
+ @brief Increment An Index Of The Queue
+
+ @details This is intended to move the head or tail indices within the
+          queue by one element and wrap around once they have reached
+          the end of the queue's buffer size.
+
+ @param queue queue to increment index
+ @param idx pointer to head or tail element of the queue
+ */
 static inline void q_increment(Q *queue, uint32_t *idx) {
   *idx = (*idx + 1) % queue->size;
 }
 
+/*!
+ @brief Create A Dynamically Allocated Queue
+
+ @details Creates the queue struct and a buffer of size parameter.
+
+ @param size Size of buffer to store items on the queue
+
+ @return Pointer to created queue on success
+         NULL on failure
+ */
 Q *q_create(uint32_t size) {
   if (!size) {
     return NULL;
@@ -41,17 +71,41 @@ Q *q_create(uint32_t size) {
   return queue;
 }
 
-BmErr q_free(Q *queue) {
+/*!
+ @brief Free A Dynamically Allocated Queue
+
+ @param queue queue element to free
+
+ @return BmOK on success
+         BmEINVAL if queue is NULL
+ */
+BmErr q_delete(Q *queue) {
   if (!queue) {
     return BmEINVAL;
   }
 
   bm_free(queue->buf);
+  queue->buf = NULL;
   bm_free(queue);
+  queue = NULL;
 
   return BmOK;
 }
 
+/*!
+ @brief Create A Statically Allocated Queue
+
+ @details Initializes a queue with static elements. Both queue and buf must be
+          statically allocated to preserve the state of the queue during
+          runtime.
+
+ @param queue statically allocated queue to create
+ @param buf statically allocated buffer to hold queue elements
+ @param size size of buf
+
+ @return BmOK on success
+         BmEINVAL if invalid parameters
+ */
 BmErr q_create_static(Q *queue, uint8_t *buf, uint32_t size) {
   if (!queue || !buf || !size) {
     return BmEINVAL;
@@ -64,7 +118,23 @@ BmErr q_create_static(Q *queue, uint8_t *buf, uint32_t size) {
   return BmOK;
 }
 
-BmErr q_enqueue(Q *queue, void *data, uint32_t size) {
+/*!
+ @brief Enqueue Data To The Queue
+
+ @details A QItem is created to add metadata about the data being enqueued,
+          this is copied to the queue's buffer. Data is then copied to the
+          queue's buffer as well.
+           
+
+ @param queue queue to enqueue data to
+ @param data data to enqueue
+ @param size size of data
+
+ @return BmOK on success
+         BmEINVAL if invalid parameters
+         BmENOMEM if not enough space in the queue's buffer to enqueue data
+ */
+BmErr q_enqueue(Q *queue, const void *data, uint32_t size) {
   if (!queue || !data || !size) {
     return BmEINVAL;
   }
@@ -82,7 +152,7 @@ BmErr q_enqueue(Q *queue, void *data, uint32_t size) {
     q_increment(queue, &queue->head);
   }
 
-  // Copy buffer to queue
+  // Copy data to queue
   for (uint32_t i = 0; i < size; i++) {
     queue->buf[queue->head] = ((uint8_t *)data)[i];
     q_increment(queue, &queue->head);
@@ -93,6 +163,22 @@ BmErr q_enqueue(Q *queue, void *data, uint32_t size) {
   return BmOK;
 }
 
+/*!
+ @brief Dequeue Data From The Queue
+
+ @details Data is dequeued onto the data parameters. The size parameter must be
+          large enough to hold the queue element attempting to be dequeued.
+
+ @param queue queue to dequeue data from
+ @param data pointer to data buffer to hold dequeued element
+ @param size size of data buffer
+
+ @return BmOK on success
+         BmEINVAL if invalid parameters
+         BmENODATA if there are no elements in the queue to dequeue
+         BmENOMEM if size of data is smaller than the size of the element being
+                  dequeued
+ */
 BmErr q_dequeue(Q *queue, void *data, uint32_t size) {
   if (!queue || !data || !size) {
     return BmEINVAL;

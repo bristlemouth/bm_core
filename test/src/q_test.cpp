@@ -79,7 +79,7 @@ TEST_F(queue_test, dynamic_queue) {
 
   enqueue_dequeue_check(queue);
 
-  q_free(queue);
+  q_delete(queue);
 }
 
 TEST_F(queue_test, enqueue) {
@@ -143,7 +143,7 @@ TEST_F(queue_test, enqueue) {
   }
   EXPECT_LT(queue->head, queue->tail);
 
-  q_free(queue);
+  q_delete(queue);
 }
 
 TEST_F(queue_test, dequeue) {
@@ -204,5 +204,5 @@ TEST_F(queue_test, dequeue) {
 
   EXPECT_LT(queue->tail, queue->head);
 
-  q_free(queue);
+  q_delete(queue);
 }
