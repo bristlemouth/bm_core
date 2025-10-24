@@ -56,11 +56,11 @@ Q *q_create(uint32_t size) {
 
   Q *queue = (Q *)bm_malloc(sizeof(Q));
 
-  memset(queue, 0, sizeof(Q));
   if (!queue) {
     return NULL;
   }
 
+  memset(queue, 0, sizeof(Q));
   queue->size = size;
   queue->buf = bm_malloc(size);
   if (!queue->buf) {
@@ -205,6 +205,41 @@ BmErr q_dequeue(Q *queue, void *data, uint32_t size) {
   }
 
   queue->count--;
+
+  return BmOK;
+}
+
+/*!
+ @brief Obtain The Number Of Elements In The Queue
+
+ @param queue queue to obtain size from
+
+ @return Number of items in the queue or 0 if queue is NULL
+ */
+uint32_t q_size(Q *queue) {
+  if (!queue) {
+    return 0;
+  }
+
+  return queue->count;
+}
+
+/*!
+ @brief Clear Elements In The Queue
+
+ @param queue
+
+ @return BmOK on success
+         BmEINVAL if invalid parameters
+ */
+BmErr q_clear(Q *queue) {
+  if (!queue) {
+    return BmEINVAL;
+  }
+
+  queue->count = 0;
+  queue->head = 0;
+  queue->tail = 0;
 
   return BmOK;
 }
