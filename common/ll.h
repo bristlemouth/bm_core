@@ -1,6 +1,10 @@
 #include "util.h"
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct LLItem {
   struct LLItem *next;
   struct LLItem *previous;
@@ -24,3 +28,7 @@ BmErr ll_item_add(LL *ll, LLItem *item);
 BmErr ll_get_item(LL *ll, uint32_t id, void **data);
 BmErr ll_remove(LL *ll, uint32_t id);
 BmErr ll_traverse(LL *ll, LLTraverseCb cb, void *arg);
+
+#ifdef __cplusplus
+}
+#endif
