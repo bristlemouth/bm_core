@@ -46,7 +46,7 @@ protected:
     // Dequeue buffer and ensure it equals what was enqueued
     uint8_t comp_buf[queue_item_size] = {0};
 
-    for (size_t i = 0; i < num_queue_items - 1; i++) {
+    for (size_t i = 0; i < num_queue_items; i++) {
       EXPECT_EQ(q_dequeue(queue, comp_buf, queue_item_size), BmOK);
       size_t res = memcmp(comp_buf, queue_item_bufs[i], queue_item_size);
       EXPECT_EQ(res, 0);
