@@ -130,9 +130,7 @@ TEST_F(queue_test, enqueue) {
 
     // Ensure queue head does not past tail on wrap around
     uint32_t check_size = queue->head > queue->tail ? i : queue->head;
-    buf_size = check_size + buf_size < max_queue_filled
-                   ? buf_size
-                   : max_queue_filled - check_size;
+    buf_size = bm_min(buf_size, max_queue_filled - check_size);
 
     // Enqueue buffer
     uint8_t *buf = (uint8_t *)bm_malloc(buf_size);
