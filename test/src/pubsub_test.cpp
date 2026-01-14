@@ -281,6 +281,17 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_1, sub_callback_0), BmOK);
   ASSERT_EQ(bm_sub(test_topic_1, sub_callback_0), BmOK);
 
+  // Subscribing to "sensor" receives all sensor data as of the v0.13 line.
+  // As of January 2026 there is no way to ONLY receive the exact "sensor" topic.
+  // We may want to add that ability in the future, which would be a breaking change.
+  bm_sub("sensor", sub_callback_1);
+  bm_sub("sensor/*", sub_callback_2);
+  count_checks = {9, 10, 10};
+  sub_search_helper("sensor/abcdabcdabcdabcd/sofar/newthing", count_checks);
+  sub_search_helper("other/abcdabcdabcdabcd/sofar/newthing", count_checks);
+  count_checks = {9, 11, 11};
+  sub_search_helper("sensor", count_checks);
+
   RESET_FAKE(bcmp_resource_discovery_add_resource);
 }
 
