@@ -281,6 +281,12 @@ TEST_F(PubSub, subscribe) {
   ASSERT_EQ(bm_sub(test_topic_1, sub_callback_0), BmOK);
   ASSERT_EQ(bm_sub(test_topic_1, sub_callback_0), BmOK);
 
+  // Subscribing to "sensor" receives all sensor data
+  bm_sub("sensor", sub_callback_1);
+  count_checks = {9, 10, 9};
+  sub_search_helper("sensor/abcdabcdabcdabcd/sofar/newthing", count_checks);
+  sub_search_helper("other/abcdabcdabcdabcd/sofar/newthing", count_checks);
+
   RESET_FAKE(bcmp_resource_discovery_add_resource);
 }
 
