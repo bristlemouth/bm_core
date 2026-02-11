@@ -584,6 +584,7 @@ set(BRISTLEMOUTH_SRCS
     ${STUB_DIR}/bm_ip_stub.c
     ${STUB_DIR}/l2_stub.c
     ${STUB_DIR}/bm_service_stub.c
+    ${STUB_DIR}/pubsub_stub.c
     ${STUB_DIR}/topology_stub.c
 )
 create_gtest("bristlemouth" "${BRISTLEMOUTH_SRCS}")
