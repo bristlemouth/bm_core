@@ -11,6 +11,8 @@
 #define udp_header_size 8
 #define max_payload_len_udp (max_payload_len - udp_header_size)
 
+#define mavlink_port 14540
+
 typedef struct {
   void *pcb;
   uint16_t port;
