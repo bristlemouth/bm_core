@@ -8,6 +8,7 @@
 #include <string.h>
 
 #define max_sub_str_len 256
+#define resource_port 4321
 
 // Used for callback linked-list
 typedef struct BmPubSubNode {
@@ -30,11 +31,28 @@ typedef struct {
   BmSubNode subscription_list;
 } PubSubCtx;
 
+static void bm_handle_msg(uint64_t node_id, void *buf, uint32_t size);
 static BmSubNode *delete_sub(const char *topic, uint16_t topic_len);
 static BmSubNode *get_sub(const char *topic, uint16_t topic_len,
                           bool wildcard_search);
 static BmSubNode *get_last_sub(void);
+static BmErr bm_middleware_local_pub(void *buf, uint32_t size);
 static PubSubCtx CTX;
+
+/*!
+ @brief Initialize PubSub Module
+
+ @details Sets up middleware application to be used based on
+          resource_port.
+
+ @return BmOk on success
+         BmErr on failure
+ */
+BmErr bm_pubsub_init(void) {
+  // TODO - Do we always send global multicast or link local?
+  return bm_middleware_add_application(resource_port, multicast_global_addr,
+                                       bm_handle_msg);
+}
 
 /*!
   @brief Subscribe to a specific string topic with callback
@@ -267,7 +285,7 @@ BmErr bm_unsub_wl(const char *topic, uint16_t topic_len,
 }
 
 /*!
-  Publish data to specific string topic
+  @brief Publish data to specific string topic
 
   @param *topic topic string to unsubscribe from
   @param *data pointer to data to publish
@@ -372,7 +390,7 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
       } while (0);
     }
 
-    err = bm_middleware_net_tx(buf, message_size);
+    err = bm_middleware_net_tx(resource_port, buf, message_size);
     bm_udp_cleanup(buf);
   } while (0);
 
@@ -394,7 +412,7 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
   @param node_id node id for sender
   @param *buf buf with incoming data
 */
-void bm_handle_msg(uint64_t node_id, void *buf, uint32_t size) {
+static void bm_handle_msg(uint64_t node_id, void *buf, uint32_t size) {
   BmPubSubData *header = (BmPubSubData *)bm_udp_get_payload(buf);
   uint16_t data_len = size - sizeof(BmPubSubData) - header->topic_len;
 
@@ -555,4 +573,27 @@ static BmSubNode *get_last_sub(void) {
     node = node->next;
   }
   return last;
+}
+
+/*!
+  @brief Publish data to local device (self)
+
+  @param *buf buffer with pub data
+
+  @return BmOK on success
+  @return BmErr on failure
+*/
+static BmErr bm_middleware_local_pub(void *buf, uint32_t size) {
+  BmErr err = BmEINVAL;
+
+  // Add one to reference count since the publish is used twice
+  err = bm_udp_reference_update(buf);
+  if (err != BmOK) {
+    return err;
+  }
+
+  uint64_t local_node_id = ip_to_nodeid(bm_ip_get(1));
+  bm_middleware_rx(resource_port, buf, local_node_id, size);
+
+  return err;
 }

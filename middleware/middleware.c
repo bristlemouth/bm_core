@@ -3,6 +3,7 @@
 #include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
+#include "ll.h"
 #include "pubsub.h"
 #include <string.h>
 
@@ -11,9 +12,17 @@
 #define udp_header_size 8
 #define max_payload_len_udp (max_payload_len - udp_header_size)
 
+#define mavlink_port 14540
+
 typedef struct {
   void *pcb;
   uint16_t port;
+  BmMiddlewareRxCb rx_cb;
+  BmIpAddr dest;
+} MiddlewareApplication;
+
+typedef struct {
+  LL applications;
   BmQueue net_queue;
 } MiddlewareCtx;
 
@@ -21,9 +30,10 @@ typedef struct {
   void *buf;
   uint64_t node_id;
   uint32_t size;
+  uint16_t port;
 } NetQueueItem;
 
-static MiddlewareCtx CTX;
+static MiddlewareCtx CTX = {0};
 
 /*!
   @brief Middleware Receiving Callback Bound To UDP Interface
@@ -34,7 +44,8 @@ static MiddlewareCtx CTX;
   @return BmOK on success
   @return BmErr on failure
 */
-static BmErr middleware_net_rx_cb(void *buf, uint64_t node_id, uint32_t size) {
+BmErr bm_middleware_rx(uint16_t port, void *buf, uint64_t node_id,
+                       uint32_t size) {
   BmErr err = BmEINVAL;
   NetQueueItem queue_item;
 
@@ -42,6 +53,7 @@ static BmErr middleware_net_rx_cb(void *buf, uint64_t node_id, uint32_t size) {
     queue_item.buf = buf;
     queue_item.node_id = node_id;
     queue_item.size = size;
+    queue_item.port = port;
 
     if ((err = bm_queue_send(CTX.net_queue, &queue_item, 0)) != BmOK) {
       bm_udp_cleanup(buf);
@@ -65,17 +77,27 @@ static BmErr middleware_net_rx_cb(void *buf, uint64_t node_id, uint32_t size) {
 */
 static void middleware_net_task(void *arg) {
   (void)arg;
-  NetQueueItem item;
+  NetQueueItem item = {0};
   BmErr err = BmOK;
 
-  CTX.pcb = bm_udp_bind_port(CTX.port, middleware_net_rx_cb);
-
   for (;;) {
-    err = bm_queue_receive(CTX.net_queue, &item, UINT32_MAX);
-    if (err == BmOK && item.buf) {
-      bm_handle_msg(item.node_id, item.buf, item.size);
+    if (item.buf) {
       bm_udp_cleanup(item.buf);
+      item.buf = NULL;
     }
+
+    err = bm_queue_receive(CTX.net_queue, &item, UINT32_MAX);
+    if (err != BmOK || !item.buf) {
+      continue;
+    }
+
+    MiddlewareApplication *application = NULL;
+    err = ll_get_item(&CTX.applications, item.port, (void **)&application);
+    if (err != BmOK) {
+      continue;
+    }
+
+    application->rx_cb(item.node_id, item.buf, item.size);
   }
 }
 
@@ -84,23 +106,59 @@ static void middleware_net_task(void *arg) {
 
   @param port UDP port to use for middleware
 */
-BmErr bm_middleware_init(uint16_t port) {
+BmErr bm_middleware_init(void) {
   BmErr err = BmEINVAL;
 
-  if (port != 0) {
-    err = BmENOMEM;
-    CTX.port = port;
-    CTX.net_queue = bm_queue_create(net_queue_len, sizeof(NetQueueItem));
+  err = BmENOMEM;
+  CTX.net_queue = bm_queue_create(net_queue_len, sizeof(NetQueueItem));
 
-    if (CTX.net_queue) {
-      err = bm_task_create(middleware_net_task, "Middleware Task",
-                           // TODO - verify stack size
-                           middleware_task_size, NULL,
-                           middleware_net_task_priority, NULL);
-    }
+  if (CTX.net_queue) {
+    err = bm_task_create(middleware_net_task, "Middleware Task",
+                         // TODO - verify stack size
+                         middleware_task_size, NULL,
+                         middleware_net_task_priority, NULL);
   }
 
   return err;
+}
+
+/*!
+ @brief Add a middleware application
+
+ @details This function adds an application to a linked list, it
+          will bind the port to a UDP socket, set up the dest address 
+          to send messages to when required. Received messages invoke
+          the rx_cb. The port bound to the application is used as the
+          linked list's ID.
+
+ @param port UDP pot to bind to the application
+ @param dest Destination address to send messages and receive messages on
+ @param rx_cb Reception callback to handle received messages
+
+ @return BmOK on success
+         BmErr on failure
+ */
+BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
+                                    BmMiddlewareRxCb rx_cb) {
+  LLItem *item = NULL;
+
+  void *pcb = bm_udp_bind_port(port, bm_middleware_rx);
+  if (!pcb) {
+    return BmENOMEM;
+  }
+
+  MiddlewareApplication application = {
+      .port = port,
+      .dest = dest,
+      .rx_cb = rx_cb,
+      .pcb = pcb,
+  };
+  item = ll_create_item(item, &application, sizeof(application), port);
+  if (!item) {
+    return BmENOMEM;
+  }
+
+  return ll_item_add(&CTX.applications, item);
 }
 
 /*!
@@ -111,43 +169,21 @@ BmErr bm_middleware_init(uint16_t port) {
   @return BmOK on success
   @return BmErr on failure
 */
-BmErr bm_middleware_net_tx(void *buf, uint32_t size) {
-  BmErr err = BmEINVAL;
+BmErr bm_middleware_net_tx(uint16_t port, void *buf, uint32_t size) {
+  BmErr err;
+  MiddlewareApplication *application = NULL;
 
-  // Don't try to transmit if the payload is too big
-  if (buf && size <= max_payload_len_udp) {
-    // TODO - Do we always send global multicast or link local?
-    err = bm_udp_tx_perform(CTX.pcb, buf, size,
-                            (const void *)&multicast_global_addr, CTX.port);
+  err = ll_get_item(&CTX.applications, port, (void **)&application);
+  if (err != BmOK) {
+    return err;
   }
 
-  return err;
-}
-
-/*!
-  @brief Publish data to local device (self)
-
-  @param *buf buffer with pub data
-
-  @return BmOK on success
-  @return BmErr on failure
-*/
-BmErr bm_middleware_local_pub(void *buf, uint32_t size) {
-  BmErr err = BmEINVAL;
-  NetQueueItem queue_item;
-
-  if (buf) {
-    queue_item.buf = buf;
-    queue_item.node_id = ip_to_nodeid(bm_ip_get(1));
-    queue_item.size = size;
-
-    // add one to reference count since we'll be using it in two places
-    err = bm_udp_reference_update(buf);
-    if (bm_queue_send(CTX.net_queue, &queue_item, 0) != BmOK) {
-      bm_debug("Error sending to Queue\n");
-      bm_udp_cleanup(buf);
-      err = BmENODEV;
-    }
+  // Don't try to transmit if the payload is too big
+  err = BmEINVAL;
+  if (buf && size <= max_payload_len_udp) {
+    err =
+        bm_udp_tx_perform(application->pcb, buf, size,
+                          (const void *)&application->dest, application->port);
   }
 
   return err;
