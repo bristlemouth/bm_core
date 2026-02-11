@@ -4,3 +4,6 @@
 [submodule "bm_common_messages"]
 	path = bm_common_messages
 	url = https://github.com/bristlemouth/bm_common_messages.git
+[submodule "third_party/mavlink"]
+	path = third_party/mavlink
+	url = https://github.com/mavlink/c_library_v2.git
