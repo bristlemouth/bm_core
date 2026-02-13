@@ -420,6 +420,11 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
   // to prevent submitting the packet to upper layers if unnecessary,
   // as well as forwarding routed multicast data to interested neighbors.
 
+  // TODO: Implement routing for MAVLink messages here, currently the
+  // MAVLink message will only reach neighbor nodes
+  //if (!is_link_local_neighbor_multicast(dst_ip)) {
+  //}
+
   // Submit packet to IP stack.
   // Upper level RX Callback is responsible for freeing the packet
   if (bm_l2_submit(rx_evt->buf, rx_evt->length) != BmOK) {
