@@ -1,4 +1,5 @@
 set(SOURCES
+    bm_mavlink.c
     bm_service.c
     bm_service_request.c
     bristlemouth.c
