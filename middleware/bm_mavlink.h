@@ -7,7 +7,8 @@
 #include <mavlink/standard/mavlink.h>
 
 typedef struct {
-  void (*rx_cb)(mavlink_message_t *msg, mavlink_status_t *status);
+  void (*rx_cb)(uint64_t node_id, mavlink_message_t *msg,
+                mavlink_status_t *status);
   uint32_t msg_id;
 } BmMavLinkRxEntry;
 
