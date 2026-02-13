@@ -99,7 +99,19 @@ BmErr bm_mavlink_transmit(const mavlink_message_t *msg) {
     return BmEINVAL;
   }
 
-  return BmOK;
+  void *udp_buf = bm_udp_new(MAVLINK_MAX_PACKET_LEN);
+  if (!udp_buf) {
+    return BmENOMEM;
+  }
+
+  uint8_t *mavlink_buf = bm_udp_get_payload(udp_buf);
+  uint16_t mavlink_buf_len = mavlink_msg_to_send_buffer(mavlink_buf, msg);
+  // Shrink buffer so MAVLINK_MAX_PACKET_LEN is not sent onto the line
+  bm_ip_buf_shrink(udp_buf, mavlink_buf_len);
+  BmErr err = bm_middleware_net_tx(mavlink_port, udp_buf, mavlink_buf_len);
+  bm_udp_cleanup(udp_buf);
+
+  return err;
 }
 
 /*!
