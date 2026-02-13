@@ -8,6 +8,11 @@
 #define middleware_net_task_priority 4
 #endif
 
-BmErr bm_middleware_local_pub(void *buf, uint32_t size);
-BmErr bm_middleware_init(uint16_t port);
-BmErr bm_middleware_net_tx(void *buf, uint32_t size);
+typedef void (*BmMiddlewareRxCb)(uint64_t node_id, void *buf, uint32_t size);
+
+BmErr bm_middleware_rx(uint16_t port, void *buf, uint64_t node_id,
+                       uint32_t size);
+BmErr bm_middleware_init(void);
+BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
+                                    BmMiddlewareRxCb rx_cb);
+BmErr bm_middleware_net_tx(uint16_t port, void *buf, uint32_t size);

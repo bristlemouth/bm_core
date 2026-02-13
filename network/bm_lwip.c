@@ -33,7 +33,7 @@
 static struct netif netif;
 
 typedef struct {
-  BmErr (*udp_cb)(void *, uint64_t, uint32_t);
+  BmErr (*udp_cb)(uint16_t, void *, uint64_t, uint32_t);
 } UdpCb;
 
 struct LwipCtx {
@@ -194,11 +194,10 @@ static void udp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *pbuf,
                         const ip_addr_t *addr, u16_t port) {
 
   (void)arg;
-  (void)port;
   UdpCb *cb = NULL;
   if (ll_get_item(&CTX.udp_list, (uint32_t)pcb, (void **)&cb) == BmOK &&
       cb != NULL) {
-    cb->udp_cb(pbuf, ip_to_nodeid((void *)addr), pbuf->len);
+    cb->udp_cb(port, pbuf, ip_to_nodeid((void *)addr), pbuf->len);
   }
 }
 
@@ -572,7 +571,8 @@ void bm_ip_tx_cleanup(void *payload) {
   @return pointer to pcb if successful
   @return NULL if unsuccessful
 */
-void *bm_udp_bind_port(uint16_t port, BmErr (*cb)(void *, uint64_t, uint32_t)) {
+void *bm_udp_bind_port(uint16_t port,
+                       BmErr (*cb)(uint16_t, void *, uint64_t, uint32_t)) {
 
   struct udp_pcb *pcb = udp_new_ip_type(IPADDR_TYPE_V6);
   LLItem *item = NULL;
