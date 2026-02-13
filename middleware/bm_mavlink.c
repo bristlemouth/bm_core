@@ -36,13 +36,38 @@ static BmMavlinkCtx ctx = {0};
 
 static void mavlink_rx_cb(uint64_t node_id, void *buf, uint32_t size) {
   uint8_t *mavlink_buf = (uint8_t *)bm_udp_get_payload(buf);
-  bm_debug("MAVLink received message from: %" PRIx64 " size: %" PRIu32
-           " data: ",
-           node_id, size);
+  mavlink_status_t status;
+  mavlink_message_t msg;
+  int chan = MAVLINK_COMM_0;
+  uint8_t message_found = 0;
+
   for (uint32_t i = 0; i < size; i++) {
-    bm_debug("0x%" PRIx8 " ", ((uint8_t *)mavlink_buf)[i]);
+    message_found =
+        mavlink_parse_char(chan, ((uint8_t *)mavlink_buf)[i], &msg, &status);
+    if (message_found) {
+      bm_debug("Received MAVLink Message ID: %d\n", msg.msgid);
+      break;
+    }
   }
-  bm_debug("\n");
+
+  if (!message_found) {
+    mavlink_status_t *status = mavlink_get_channel_status(chan);
+
+    // Reset the parser state
+    memset(status, 0, sizeof(mavlink_status_t));
+    return;
+  }
+
+  for (uint32_t i = 0; i < ctx.rx_lut_len; i++) {
+    if (msg.msgid != ctx.rx_lut[i].msg_id) {
+      continue;
+    }
+
+    if (ctx.rx_lut[i].rx_cb) {
+      ctx.rx_lut[i].rx_cb(node_id, &msg, &status);
+    }
+    break;
+  }
 }
 
 /*!
