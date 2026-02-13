@@ -36,7 +36,7 @@ static BmSubNode *delete_sub(const char *topic, uint16_t topic_len);
 static BmSubNode *get_sub(const char *topic, uint16_t topic_len,
                           bool wildcard_search);
 static BmSubNode *get_last_sub(void);
-static BmErr bm_middleware_local_pub(void *buf, uint32_t size);
+static BmErr publish_data_locally(void *buf, uint32_t size);
 static PubSubCtx CTX;
 
 /*!
@@ -385,7 +385,7 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
                len);
         // The reason why we push back to the middleware queue instead of running the callbacks here
         // is so they don't run in the current task context, which will depend on the caller.
-        bm_middleware_local_pub(buf_local, message_size);
+        publish_data_locally(buf_local, message_size);
         bm_udp_cleanup(buf_local);
       } while (0);
     }
@@ -579,11 +579,12 @@ static BmSubNode *get_last_sub(void) {
   @brief Publish data to local device (self)
 
   @param *buf buffer with pub data
+  @param size size of the data to publish
 
   @return BmOK on success
   @return BmErr on failure
 */
-static BmErr bm_middleware_local_pub(void *buf, uint32_t size) {
+static BmErr publish_data_locally(void *buf, uint32_t size) {
   BmErr err = BmEINVAL;
 
   // Add one to reference count since the publish is used twice

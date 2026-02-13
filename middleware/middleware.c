@@ -35,8 +35,10 @@ static MiddlewareCtx CTX = {0};
 /*!
   @brief Middleware Receiving Callback Bound To UDP Interface
 
+  @param port the UDP port the message was received on
   @param buf buffer to interperet
   @param node_id node id to queue buffer for
+  @param size size of buf in bytes
 
   @return BmOK on success
   @return BmErr on failure
