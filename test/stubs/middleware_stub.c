@@ -9,8 +9,10 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, bm_middleware_net_tx, uint16_t, void *, uint32_t);
 static LL applications;
 
 BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
-                                    BmMiddlewareRxCb rx_cb) {
+                                    BmMiddlewareRxCb rx_cb,
+                                    BmMiddlewareRoutingCb routing_cb) {
   (void)dest;
+  (void)routing_cb;
 
   LLItem *item = NULL;
   item = ll_create_item(item, &rx_cb, sizeof(BmMiddlewareRxCb), port);
