@@ -187,3 +187,12 @@ TEST_F(L2, link_change) {
   ASSERT_EQ(link_change_count.down_count, 0);
   ASSERT_EQ(link_change_count.up_count, 3);
 }
+
+/*!
+ @brief Tset link local routing callback assignment
+ */
+TEST_F(L2, register_link_local_routing_callback) {
+
+  EXPECT_EQ(bm_l2_register_link_local_routing_callback(NULL), BmEINVAL);
+  EXPECT_EQ(bm_l2_register_link_local_routing_callback(), BmOK);
+}
