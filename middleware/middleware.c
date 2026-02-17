@@ -3,6 +3,7 @@
 #include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
+#include "l2.h"
 #include "ll.h"
 #include <string.h>
 
@@ -15,6 +16,7 @@ typedef struct {
   void *pcb;
   uint16_t port;
   BmMiddlewareRxCb rx_cb;
+  BmMiddlewareRoutingCb routing_cb;
   BmIpAddr dest;
 } MiddlewareApplication;
 
@@ -31,6 +33,30 @@ typedef struct {
 } NetQueueItem;
 
 static MiddlewareCtx CTX = {0};
+
+static bool handle_middleware_routing(uint8_t ingress_port,
+                                      uint16_t *egress_ports, BmIpAddr *src,
+                                      const BmIpAddr *dest) {
+  bool should_handle = true;
+
+  CTX.applications.cursor = CTX.applications.head;
+  while (CTX.applications.cursor) {
+    const MiddlewareApplication *application =
+        (MiddlewareApplication *)CTX.applications.cursor->data;
+
+    if (memcmp(&application->dest, dest, sizeof(BmIpAddr)) != 0) {
+      CTX.applications.cursor = CTX.applications.cursor->next;
+      continue;
+    }
+
+    if (application->routing_cb) {
+      should_handle = application->routing_cb(ingress_port, egress_ports, src);
+    }
+    break;
+  }
+
+  return should_handle;
+}
 
 /*!
   @brief Middleware Receiving Callback Bound To UDP Interface
@@ -108,6 +134,11 @@ static void middleware_net_task(void *arg) {
 BmErr bm_middleware_init(void) {
   BmErr err = BmEINVAL;
 
+  err = bm_l2_register_link_local_routing_callback(handle_middleware_routing);
+  if (err != BmOK) {
+    return err;
+  }
+
   err = BmENOMEM;
   CTX.net_queue = bm_queue_create(net_queue_len, sizeof(NetQueueItem));
 
@@ -138,7 +169,8 @@ BmErr bm_middleware_init(void) {
          BmErr on failure
  */
 BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
-                                    BmMiddlewareRxCb rx_cb) {
+                                    BmMiddlewareRxCb rx_cb,
+                                    BmMiddlewareRoutingCb routing_cb) {
   LLItem *item = NULL;
 
   void *pcb = bm_udp_bind_port(&dest, port, bm_middleware_rx);
@@ -150,6 +182,7 @@ BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
       .port = port,
       .dest = dest,
       .rx_cb = rx_cb,
+      .routing_cb = routing_cb,
       .pcb = pcb,
   };
   item = ll_create_item(item, &application, sizeof(application), port);

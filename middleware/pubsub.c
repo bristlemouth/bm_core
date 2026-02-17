@@ -49,9 +49,11 @@ static PubSubCtx CTX;
          BmErr on failure
  */
 BmErr bm_pubsub_init(void) {
-  // TODO - Do we always send global multicast or link local?
+  // TODO: Do we always send global multicast or link local?
+  // TODO: Add functionality for resource based routing as described in 5.4.4.3
+  // of the bristlemouth specification
   return bm_middleware_add_application(resource_port, multicast_global_addr,
-                                       bm_handle_msg);
+                                       bm_handle_msg, NULL);
 }
 
 /*!
