@@ -51,6 +51,7 @@ protected:
     CB1_CALLED = 0;
     CB2_CALLED = 0;
     CB_NON_WILDCARD_CALLED = 0;
+    bm_pubsub_init();
   }
   void TearDown() override {}
   static void sub_callback_non_wildcard(uint64_t node_id, const char *topic,
@@ -115,7 +116,8 @@ protected:
     data->topic_len = strlen(str);
     memcpy((void *)data->topic, str, strlen(str));
     bm_udp_get_payload_fake.return_val = data;
-    bm_handle_msg(RND.rnd_int(UINT64_MAX, UINT32_MAX), buf, array_size(buf));
+    bm_middleware_invoke_cb(4321, RND.rnd_int(UINT64_MAX, UINT32_MAX), buf,
+                            array_size(buf));
 
     bm_free(data);
   }
