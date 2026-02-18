@@ -33,7 +33,7 @@ protected:
 
     for (size_t i = 0; i < num_queue_items; i++) {
       RND.rnd_array(queue_item_bufs[i], queue_item_size);
-      EXPECT_EQ(q_enqueue(queue, queue_item_bufs[i], queue_item_size), BmOK);
+      ASSERT_EQ(q_enqueue(queue, queue_item_bufs[i], queue_item_size), BmOK);
     }
 
     // Ensure that failure occurs if queue item is larger than space available
@@ -47,9 +47,9 @@ protected:
     uint8_t comp_buf[queue_item_size] = {0};
 
     for (size_t i = 0; i < num_queue_items; i++) {
-      EXPECT_EQ(q_dequeue(queue, comp_buf, queue_item_size), BmOK);
+      ASSERT_EQ(q_dequeue(queue, comp_buf, queue_item_size), BmOK);
       size_t res = memcmp(comp_buf, queue_item_bufs[i], queue_item_size);
-      EXPECT_EQ(res, 0);
+      ASSERT_EQ(res, 0);
     }
   }
 };
@@ -106,7 +106,7 @@ TEST_F(queue_test, enqueue) {
 
     // Enqueue buffer
     uint8_t *buf = (uint8_t *)bm_malloc(buf_size);
-    EXPECT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
+    ASSERT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
     bm_free(buf);
 
     i += buf_size;
@@ -119,7 +119,7 @@ TEST_F(queue_test, enqueue) {
   //   - Assert that head < tail
   uint8_t *dequeue_buf = (uint8_t *)bm_malloc(queue_buf_size);
   for (size_t i = 0; i < queue_elements; i++) {
-    EXPECT_EQ(q_dequeue(queue, dequeue_buf, queue_buf_size), BmOK);
+    ASSERT_EQ(q_dequeue(queue, dequeue_buf, queue_buf_size), BmOK);
   }
   bm_free(dequeue_buf);
   EXPECT_EQ(queue->count, 0);
@@ -134,7 +134,7 @@ TEST_F(queue_test, enqueue) {
 
     // Enqueue buffer
     uint8_t *buf = (uint8_t *)bm_malloc(buf_size);
-    EXPECT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
+    ASSERT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
     bm_free(buf);
 
     i += buf_size;
@@ -167,11 +167,12 @@ TEST_F(queue_test, dequeue) {
 
   // Test dequeueing wrap around:
   //   - First dequeue the buffer so tail == head
-  //   - Then write about 1/2 of the size of the queue to wrap around 0 index
+  //   - Then write about 1/2 of the size of the queue to wrap head around 0 index
+  //   - Dequeue about 1/4 of the size of the queue
   //   - Assert that tail < head
   uint8_t *dequeue_buf = (uint8_t *)bm_malloc(queue_buf_size);
   for (size_t i = 0; i < queue_elements; i++) {
-    EXPECT_EQ(q_dequeue(queue, dequeue_buf, queue_buf_size), BmOK);
+    ASSERT_EQ(q_dequeue(queue, dequeue_buf, queue_buf_size), BmOK);
   }
   bm_free(dequeue_buf);
   EXPECT_EQ(queue->count, 0);
@@ -181,13 +182,12 @@ TEST_F(queue_test, dequeue) {
   for (size_t i = 0; i < max_queue_filled;) {
     uint8_t buf_size = RND.rnd_int(UINT8_MAX, 1);
 
-    buf_size = queue->head + buf_size < max_queue_filled
-                   ? buf_size
-                   : max_queue_filled - queue->head;
+    buf_size =
+        i + buf_size < max_queue_filled ? buf_size : max_queue_filled - i;
 
     // Enqueue buffer
     uint8_t *buf = (uint8_t *)bm_malloc(buf_size);
-    EXPECT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
+    ASSERT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
     bm_free(buf);
 
     i += buf_size;
@@ -196,7 +196,7 @@ TEST_F(queue_test, dequeue) {
 
   dequeue_buf = (uint8_t *)bm_malloc(queue_buf_size);
   for (size_t i = 0; i < queue_elements / 2; i++) {
-    EXPECT_EQ(q_dequeue(queue, dequeue_buf, queue_buf_size), BmOK);
+    ASSERT_EQ(q_dequeue(queue, dequeue_buf, queue_buf_size), BmOK);
   }
   bm_free(dequeue_buf);
 
@@ -216,7 +216,7 @@ TEST_F(queue_test, size_clear) {
   for (size_t i = 0; i < queue_elements; i++) {
     // Enqueue buffer
     uint8_t buf = RND.rnd_int(UINT8_MAX, 0);
-    EXPECT_EQ(q_enqueue(queue, &buf, sizeof(buf)), BmOK);
+    ASSERT_EQ(q_enqueue(queue, &buf, sizeof(buf)), BmOK);
   }
 
   EXPECT_EQ(q_size(queue), queue_elements);
