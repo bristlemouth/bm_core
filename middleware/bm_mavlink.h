@@ -12,12 +12,19 @@ typedef struct {
   uint32_t msg_id;
 } BmMavLinkRxEntry;
 
+typedef struct {
+  uint8_t sys_id;  //System ID assigned
+  uint8_t comp_id; //Component ID assigned
+  MAV_TYPE type;   //Type of MAVLink component
+} BmMavLinkInfo;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-BmErr bm_mavlink_init(uint8_t sys_id, uint8_t comp_id, BmMavLinkRxEntry *rx_lut,
-                      uint16_t rx_lut_len);
+BmErr bm_mavlink_init(BmMavLinkInfo info, MAV_STATE init_state,
+                      BmMavLinkRxEntry *rx_lut, uint16_t rx_lut_len);
+void bm_mavlink_set_state(MAV_STATE state);
 BmErr bm_mavlink_transmit(const mavlink_message_t *msg);
 
 uint8_t bm_mavlink_get_sys_id(void);
