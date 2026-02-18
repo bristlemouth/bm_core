@@ -141,7 +141,7 @@ BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
                                     BmMiddlewareRxCb rx_cb) {
   LLItem *item = NULL;
 
-  void *pcb = bm_udp_bind_port(port, bm_middleware_rx);
+  void *pcb = bm_udp_bind_port(&dest, port, bm_middleware_rx);
   if (!pcb) {
     return BmENOMEM;
   }

@@ -106,6 +106,7 @@ extern const BmIpAddr multicast_ll_addr;
 
 bool is_global_multicast(const BmIpAddr *dst_ip);
 bool is_link_local_multicast(const BmIpAddr *dst_ip);
+bool is_link_local_neighbor_multicast(const BmIpAddr *dst_ip);
 bool is_little_endian(void);
 void swap_16bit(void *x);
 void swap_32bit(void *x);
