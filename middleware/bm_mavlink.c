@@ -6,6 +6,7 @@
 #include "middleware.h"
 
 #define mavlink_port 14540
+#define mavlink_heartbeat_period_ms 1000
 
 static const BmIpAddr link_local_mavlink_addr = {{
     0xFF,
@@ -28,9 +29,12 @@ static const BmIpAddr link_local_mavlink_addr = {{
 
 typedef struct {
   BmMavLinkRxEntry *rx_lut;
+  BmTimer heartbeat_timer;
   uint16_t rx_lut_len;
   uint8_t sys_id;
   uint8_t comp_id;
+  uint8_t type;
+  uint8_t state;
 } BmMavlinkCtx;
 
 static BmMavlinkCtx ctx = {0};
@@ -85,6 +89,19 @@ static void mavlink_rx_cb(uint64_t node_id, void *buf, uint32_t size) {
   }
 }
 
+static void mavlink_heartbeat_cb(BmTimer timer) {
+  (void)timer;
+
+  mavlink_message_t msg;
+  MAV_AUTOPILOT autopilot = MAV_AUTOPILOT_INVALID;
+  uint8_t base_mode = 0;
+  uint32_t custom_mode = 0;
+
+  mavlink_msg_heartbeat_pack(ctx.sys_id, ctx.comp_id, &msg, ctx.type, autopilot,
+                             base_mode, custom_mode, ctx.state);
+  bm_mavlink_transmit(&msg);
+}
+
 /*!
  @brief Initialize Bristlemouth MAVLink Middleware
 
@@ -97,29 +114,56 @@ static void mavlink_rx_cb(uint64_t node_id, void *buf, uint32_t size) {
  @see mavlink_port
  @see link_local_mavlink_addr
 
- @param sys_id System ID assigned to this Bristlmouth node (MAVLink component)
- @param comp_id Component ID assigned to Bristlmouth node (MAVLink component)
+ @param info MAVLink component information
+ @param init_state Initial state of the MAVLink component 
  @param rx_lut Array of receive callbacks and correlated message IDs
  @param rx_lut_len Number of elements in the rx_lut
 
  @return BmOK on success
          BmEINVAL on invalid input arguments
+         BmENOMEM if heartbeat timer fails to be created
          BmErr on failure
  */
-BmErr bm_mavlink_init(uint8_t sys_id, uint8_t comp_id, BmMavLinkRxEntry *rx_lut,
-                      uint16_t rx_lut_len) {
-  if (!sys_id || !comp_id || !rx_lut || !rx_lut_len) {
+BmErr bm_mavlink_init(BmMavLinkInfo info, MAV_STATE init_state,
+                      BmMavLinkRxEntry *rx_lut, uint16_t rx_lut_len) {
+  if (!info.sys_id || !info.comp_id || !rx_lut || !rx_lut_len) {
     return BmEINVAL;
   }
 
   ctx.rx_lut = rx_lut;
   ctx.rx_lut_len = rx_lut_len;
-  ctx.sys_id = sys_id;
-  ctx.comp_id = comp_id;
+  ctx.sys_id = info.sys_id;
+  ctx.comp_id = info.comp_id;
+  ctx.type = info.type;
+  ctx.state = init_state;
+
+  ctx.heartbeat_timer =
+      bm_timer_create("mavlink_heartbeat", mavlink_heartbeat_period_ms, true,
+                      NULL, mavlink_heartbeat_cb);
+
+  if (!ctx.heartbeat_timer) {
+    return BmENOMEM;
+  }
+
+  BmErr err = bm_timer_start(ctx.heartbeat_timer, 0);
+  if (err != BmOK) {
+    return err;
+  }
 
   return bm_middleware_add_application(mavlink_port, link_local_mavlink_addr,
                                        mavlink_rx_cb, mavlink_routing_cb);
 }
+
+/*!
+ @brief Set The MAVLink State Of The Bristlemouth Node (MAVLink Component)
+
+ @details When initialized with bm_mavlink_init, the state will be set
+          to the init_state argument. This is intended to be used after
+          bm_mavlink_init.
+
+ @param state State to set the MAVLink device to
+ */
+void bm_mavlink_set_state(MAV_STATE state) { ctx.state = state; }
 
 /*!
  @brief Transmits MAVLink Message Over Bristlemouth
