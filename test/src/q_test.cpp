@@ -167,7 +167,8 @@ TEST_F(queue_test, dequeue) {
 
   // Test dequeueing wrap around:
   //   - First dequeue the buffer so tail == head
-  //   - Then write about 1/2 of the size of the queue to wrap around 0 index
+  //   - Then write about 1/2 of the size of the queue to wrap head around 0 index
+  //   - Dequeue about 1/4 of the size of the queue
   //   - Assert that tail < head
   uint8_t *dequeue_buf = (uint8_t *)bm_malloc(queue_buf_size);
   for (size_t i = 0; i < queue_elements; i++) {
