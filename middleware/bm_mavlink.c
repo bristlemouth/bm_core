@@ -51,10 +51,8 @@ static void mavlink_rx_cb(uint64_t node_id, void *buf, uint32_t size) {
   }
 
   if (!message_found) {
-    mavlink_status_t *status = mavlink_get_channel_status(chan);
-
     // Reset the parser state
-    memset(status, 0, sizeof(mavlink_status_t));
+    mavlink_reset_channel_status(chan);
     return;
   }
 
