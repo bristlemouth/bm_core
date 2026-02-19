@@ -76,6 +76,7 @@
   (addr[ipv6_ingress_egress_ports_offset] |= (port << 4))
 #define clear_ports(addr) (addr[ipv6_ingress_egress_ports_offset] = 0)
 #define clear_ingress_port(addr) (addr[ipv6_ingress_egress_ports_offset] &= 0xF)
+#define clear_egress_port(addr) (addr[ipv6_ingress_egress_ports_offset] &= 0xF0)
 
 #define evt_queue_len (32)
 #define device_all_ports (0)
@@ -101,6 +102,7 @@ typedef struct {
   uint16_t enabled_ports_mask;
   BmQueue evt_queue;
   BmTaskHandle task_handle;
+  L2LinkLocalRoutingCb routing_cb;
   LL link_change_callback_list;
   LL renegotiate_timer_list;
 } BmL2Ctx;
@@ -399,35 +401,41 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
     return;
   }
 
-  const BmIpAddr *dst_ip =
-      (BmIpAddr *)&payload[ipv6_destination_address_offset];
-  if (is_global_multicast(dst_ip)) {
-    clear_ingress_port(payload);
-    const uint16_t new_ports_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
-    void *buf = bm_l2_new(rx_evt->length);
-    memcpy(bm_l2_get_payload(buf), payload, rx_evt->length);
-    bm_l2_tx(buf, rx_evt->length, new_ports_mask);
-  }
-
   // Encode the ingress port (1-15) into the IPV6 source address passed up the stack
   // FFS means "Find First Set" bit
-  const uint8_t port_num = __builtin_ffs(rx_evt->port_mask);
-  add_ingress_port(payload, port_num);
+  const uint8_t ingress_port_num = __builtin_ffs(rx_evt->port_mask);
+  add_ingress_port(payload, ingress_port_num);
 
-  // TODO: When we implement Resource-Based Routing (RBR)
-  // described in section 5.4.4.3 of the Bristlemouth specification
-  // this is where routing and filtering functions would happen
-  // to prevent submitting the packet to upper layers if unnecessary,
-  // as well as forwarding routed multicast data to interested neighbors.
+  const BmIpAddr *dst_ip =
+      (BmIpAddr *)&payload[ipv6_destination_address_offset];
+  bool global_multicast = is_global_multicast(dst_ip);
+  bool should_submit = true;
+  uint16_t egress_mask = 0;
 
-  // TODO: Implement routing for MAVLink messages here, currently the
-  // MAVLink message will only reach neighbor nodes
-  //if (!is_link_local_neighbor_multicast(dst_ip)) {
-  //}
+  if (global_multicast) {
+    egress_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
+  } else if (CTX.routing_cb && !is_link_local_neighbor_multicast(dst_ip)) {
+    // Routing based functionality as first described in 5.4.4.3 of the
+    // Bristlemouth specification.
+    clear_egress_port(payload);
+    BmIpAddr *src_ip = (BmIpAddr *)&payload[ipv6_source_address_offset];
+    should_submit =
+        CTX.routing_cb(ingress_port_num, &egress_mask, src_ip, dst_ip);
+  }
+  if (egress_mask) {
+    clear_ingress_port(payload);
+    void *buf = bm_l2_new(rx_evt->length);
+    memcpy(bm_l2_get_payload(buf), payload, rx_evt->length);
+    bm_l2_tx(buf, rx_evt->length, egress_mask);
+  }
 
+  BmErr err = BmENODEV;
   // Submit packet to IP stack.
   // Upper level RX Callback is responsible for freeing the packet
-  if (bm_l2_submit(rx_evt->buf, rx_evt->length) != BmOK) {
+  if (should_submit) {
+    err = bm_l2_submit(rx_evt->buf, rx_evt->length);
+  }
+  if (err != BmOK) {
     bm_l2_free(rx_evt->buf);
   }
 }
@@ -711,4 +719,13 @@ BmErr bm_l2_netif_enable_disable_port(uint8_t port_num, bool enable) {
     link_change(port_num - 1, enable);
   }
   return err;
+}
+
+BmErr bm_l2_register_link_local_routing_callback(L2LinkLocalRoutingCb cb) {
+  if (!cb) {
+    return BmEINVAL;
+  }
+
+  CTX.routing_cb = cb;
+  return BmOK;
 }

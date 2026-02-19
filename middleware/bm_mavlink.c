@@ -2,6 +2,7 @@
 #include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
+#include "l2.h"
 #include "middleware.h"
 
 #define mavlink_port 14540
@@ -33,6 +34,22 @@ typedef struct {
 } BmMavlinkCtx;
 
 static BmMavlinkCtx ctx = {0};
+
+static bool mavlink_routing_cb(uint8_t ingress_port, uint16_t *egress_mask,
+                               BmIpAddr *src) {
+  (void)src;
+  // TODO: Implement actual MAVLink routing here, for now forward to other ports
+  // and handle every incoming message
+  uint8_t port_count = bm_l2_get_port_count();
+  for (uint8_t i = 0; i < port_count; i++) {
+    bool port_state = bm_l2_get_port_state(i);
+    if (port_state && i != (ingress_port - 1)) {
+      *egress_mask |= 1 << i;
+    }
+  }
+
+  return true;
+}
 
 static void mavlink_rx_cb(uint64_t node_id, void *buf, uint32_t size) {
   uint8_t *mavlink_buf = (uint8_t *)bm_udp_get_payload(buf);
@@ -101,7 +118,7 @@ BmErr bm_mavlink_init(uint8_t sys_id, uint8_t comp_id, BmMavLinkRxEntry *rx_lut,
   ctx.comp_id = comp_id;
 
   return bm_middleware_add_application(mavlink_port, link_local_mavlink_addr,
-                                       mavlink_rx_cb);
+                                       mavlink_rx_cb, mavlink_routing_cb);
 }
 
 /*!
