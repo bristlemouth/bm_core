@@ -412,16 +412,6 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
   bool should_submit = true;
   uint16_t egress_mask = 0;
 
-  bm_debug("%s - Dest IP Address: 0x", __func__);
-  for (uint8_t i = 0; i < sizeof(BmIpAddr); i++)
-    bm_debug("%02" PRIx8, dst_ip->addr[i]);
-  bm_debug("\n");
-  BmIpAddr *src_ip = (BmIpAddr *)&payload[ipv6_source_address_offset];
-  bm_debug("%s - Src IP Address: 0x", __func__);
-  for (uint8_t i = 0; i < sizeof(BmIpAddr); i++)
-    bm_debug("%02" PRIx8, src_ip->addr[i]);
-  bm_debug("\n");
-
   if (global_multicast) {
     egress_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
   } else if (CTX.routing_cb && !is_link_local_neighbor_multicast(dst_ip)) {
