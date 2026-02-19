@@ -400,33 +400,28 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
     return;
   }
 
-  const BmIpAddr *dst_ip =
-      (BmIpAddr *)&payload[ipv6_destination_address_offset];
-  bool global_multicast = is_global_multicast(dst_ip);
-  if (global_multicast) {
-    clear_ingress_port(payload);
-    const uint16_t new_ports_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
-    void *buf = bm_l2_new(rx_evt->length);
-    memcpy(bm_l2_get_payload(buf), payload, rx_evt->length);
-    bm_l2_tx(buf, rx_evt->length, new_ports_mask);
-  }
-
   // Encode the ingress port (1-15) into the IPV6 source address passed up the stack
   // FFS means "Find First Set" bit
   const uint8_t ingress_port_num = __builtin_ffs(rx_evt->port_mask);
   add_ingress_port(payload, ingress_port_num);
 
-  // Routing based functionality as first described in 5.4.4.3 of the
-  // Bristlemouth specification.
+  const BmIpAddr *dst_ip =
+      (BmIpAddr *)&payload[ipv6_destination_address_offset];
+  bool global_multicast = is_global_multicast(dst_ip);
   bool should_submit = true;
   uint16_t egress_mask = 0;
-  if (CTX.routing_cb && !is_link_local_neighbor_multicast(dst_ip) &&
-      !global_multicast) {
+
+  if (global_multicast) {
+    egress_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
+  } else if (CTX.routing_cb && !is_link_local_neighbor_multicast(dst_ip)) {
+    // Routing based functionality as first described in 5.4.4.3 of the
+    // Bristlemouth specification.
     BmIpAddr *src_ip = (BmIpAddr *)&payload[ipv6_source_address_offset];
     should_submit =
         CTX.routing_cb(ingress_port_num, &egress_mask, src_ip, dst_ip);
   }
   if (egress_mask) {
+    clear_ingress_port(payload);
     void *buf = bm_l2_new(rx_evt->length);
     memcpy(bm_l2_get_payload(buf), payload, rx_evt->length);
     bm_l2_tx(buf, rx_evt->length, egress_mask);
