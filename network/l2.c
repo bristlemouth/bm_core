@@ -76,6 +76,7 @@
   (addr[ipv6_ingress_egress_ports_offset] |= (port << 4))
 #define clear_ports(addr) (addr[ipv6_ingress_egress_ports_offset] = 0)
 #define clear_ingress_port(addr) (addr[ipv6_ingress_egress_ports_offset] &= 0xF)
+#define clear_egress_port(addr) (addr[ipv6_ingress_egress_ports_offset] &= 0xF0)
 
 #define evt_queue_len (32)
 #define device_all_ports (0)
@@ -411,11 +412,22 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
   bool should_submit = true;
   uint16_t egress_mask = 0;
 
+  bm_debug("%s - Dest IP Address: 0x", __func__);
+  for (uint8_t i = 0; i < sizeof(BmIpAddr); i++)
+    bm_debug("%02" PRIx8, dst_ip->addr[i]);
+  bm_debug("\n");
+  BmIpAddr *src_ip = (BmIpAddr *)&payload[ipv6_source_address_offset];
+  bm_debug("%s - Src IP Address: 0x", __func__);
+  for (uint8_t i = 0; i < sizeof(BmIpAddr); i++)
+    bm_debug("%02" PRIx8, src_ip->addr[i]);
+  bm_debug("\n");
+
   if (global_multicast) {
     egress_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
   } else if (CTX.routing_cb && !is_link_local_neighbor_multicast(dst_ip)) {
     // Routing based functionality as first described in 5.4.4.3 of the
     // Bristlemouth specification.
+    clear_egress_port(payload);
     BmIpAddr *src_ip = (BmIpAddr *)&payload[ipv6_source_address_offset];
     should_submit =
         CTX.routing_cb(ingress_port_num, &egress_mask, src_ip, dst_ip);
