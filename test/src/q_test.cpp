@@ -15,7 +15,7 @@ class queue_test : public ::testing::Test {
 protected:
   rnd_gen RND;
   static constexpr uint32_t queue_buf_size = 4096;
-  static constexpr size_t q_item_hdr_size = sizeof(uint32_t);
+  static constexpr size_t q_item_hdr_size = sizeof(QItem);
 
   queue_test() {}
 

@@ -2,11 +2,6 @@
 #include "bm_os.h"
 #include <string.h>
 
-typedef struct {
-  uint32_t size;
-  uint8_t buf[];
-} QItem;
-
 /*!
  @brief Get Amount Of Free Space In Bytes In The Queue Buffer
 
