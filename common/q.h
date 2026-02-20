@@ -5,6 +5,11 @@
 extern "C" {
 #endif
 
+typedef struct {
+  uint32_t size;
+  uint8_t buf[];
+} QItem;
+
 typedef struct Q {
   uint32_t size;
   uint32_t head;
