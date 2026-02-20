@@ -18,11 +18,15 @@ typedef struct {
  @return Amount of free space in bytes in the queue buffer
  */
 static uint32_t q_get_free_space(Q *queue) {
-  if (queue->head >= queue->tail) {
-    return (queue->size - queue->head) + queue->tail;
-  } else {
-    return queue->tail - queue->head;
+  if (queue->head == queue->tail) {
+    return queue->count ? 0 : queue->size;
   }
+
+  if (queue->head > queue->tail) {
+    return (queue->size - queue->head) + queue->tail;
+  }
+
+  return queue->tail - queue->head;
 }
 
 /*!
@@ -188,16 +192,23 @@ BmErr q_dequeue(Q *queue, void *data, uint32_t size) {
     return BmENODATA;
   }
 
-  QItem *p_item = (QItem *)&queue->buf[queue->tail];
+  QItem item;
+  QItem *p_item = &item;
+  uint32_t tail_local = queue->tail;
+
+  // Copy buffer to queue item, address wraparound
+  for (uint8_t i = 0; i < sizeof(QItem); i++) {
+    ((uint8_t *)p_item)[i] = queue->buf[tail_local];
+    q_increment(queue, &tail_local);
+  }
 
   if (p_item->size > size) {
     return BmENOMEM;
   }
 
-  // Consume the QItem struct
-  queue->tail += sizeof(QItem);
+  queue->tail = tail_local;
 
-  // Copy queue item to buffer
+  // Copy
   uint8_t *p_data = (uint8_t *)data;
   for (uint32_t i = 0; i < p_item->size; i++) {
     p_data[i] = queue->buf[queue->tail];
