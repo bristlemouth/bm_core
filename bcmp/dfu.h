@@ -93,12 +93,12 @@ typedef struct __attribute__((__packed__)) {
   uint32_t gitSHA;
 } ReboootClientUpdateInfo;
 
-#ifndef ENABLE_TESTING
+#if !defined(ENABLE_TESTING) && !defined(BM_HOSTED)
 extern ReboootClientUpdateInfo client_update_reboot_info
     __attribute__((section(".noinit")));
-#else  // ENABLE_TESTING
+#else
 extern ReboootClientUpdateInfo client_update_reboot_info;
-#endif // ENABLE_TESTING
+#endif
 
 BmQueue bm_dfu_get_event_queue(void);
 BmDfuEvent bm_dfu_get_current_event(void);

@@ -23,12 +23,12 @@ typedef struct dfu_core_ctx_t {
   bool internal;
 } dfu_core_ctx_t;
 
-#ifndef ENABLE_TESTING
+#if !defined(ENABLE_TESTING) && !defined(BM_HOSTED)
 ReboootClientUpdateInfo client_update_reboot_info
     __attribute__((section(".noinit")));
-#else  // ENABLE_TESTING
+#else
 ReboootClientUpdateInfo client_update_reboot_info;
-#endif // ENABLE_TESTING
+#endif
 
 static dfu_core_ctx_t dfu_ctx;
 
