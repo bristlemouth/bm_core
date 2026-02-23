@@ -151,9 +151,8 @@ static BmErr bm_l2_start_renegotiate_check(uint8_t port_num) {
   BmErr err = ll_get_item(&CTX.renegotiate_timer_list, port_num, &timer);
 
   if (CTX.network_device.trait->retry_negotiation && err == BmENODEV) {
-    uint32_t port_num_cast = port_num;
     timer = bm_timer_create("renegotiate_timer", renegotiate_wait_time_ms, true,
-                            (void *)port_num_cast, bm_l2_renegotiate);
+                            (void *)(uintptr_t)port_num, bm_l2_renegotiate);
     if (!timer) {
       return BmENOMEM;
     }
