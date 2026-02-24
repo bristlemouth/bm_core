@@ -15,6 +15,7 @@ class queue_test : public ::testing::Test {
 protected:
   rnd_gen RND;
   static constexpr uint32_t queue_buf_size = 4096;
+  static constexpr size_t q_item_hdr_size = sizeof(QItem);
 
   queue_test() {}
 
@@ -38,7 +39,8 @@ protected:
 
     // Ensure that failure occurs if queue item is larger than space available
     constexpr size_t queue_big_buf_size =
-        queue_buf_size - (num_queue_items * queue_item_size);
+        queue_buf_size -
+        (num_queue_items * (queue_item_size + q_item_hdr_size));
     uint8_t queue_big_buf[queue_big_buf_size] = {};
     RND.rnd_array(queue_big_buf, queue_big_buf_size);
     EXPECT_NE(q_enqueue(queue, queue_big_buf, queue_big_buf_size), BmOK);
@@ -51,6 +53,23 @@ protected:
       size_t res = memcmp(comp_buf, queue_item_bufs[i], queue_item_size);
       ASSERT_EQ(res, 0);
     }
+  }
+
+  bool q_overhead_too_large(uint32_t max_size, uint32_t current_size) {
+    // Account for per-item QItem header overhead in remaining space
+    size_t remaining = max_size - current_size;
+    if (remaining <= q_item_hdr_size) {
+      return true;
+    }
+
+    return false;
+  }
+
+  uint32_t q_get_max_buf_size(uint32_t max_size, uint32_t current_size) {
+    uint8_t buf_size = RND.rnd_int(UINT8_MAX, 1);
+    size_t remaining = max_size - current_size;
+    size_t max_data = remaining - q_item_hdr_size;
+    return bm_min(buf_size, max_data);
   }
 };
 
@@ -97,19 +116,17 @@ TEST_F(queue_test, enqueue) {
 
   // Test enqueueing of different sizes up until about max_queue_filled
   for (size_t i = 0; i < max_queue_filled;) {
-    uint8_t buf_size = RND.rnd_int(UINT8_MAX, 1);
-
-    // Ensure that head does not past max_queue_filled
-    buf_size = queue->head + buf_size < max_queue_filled
-                   ? buf_size
-                   : max_queue_filled - queue->head;
+    if (q_overhead_too_large(max_queue_filled, i)) {
+      break;
+    }
+    uint8_t buf_size = q_get_max_buf_size(max_queue_filled, i);
 
     // Enqueue buffer
     uint8_t *buf = (uint8_t *)bm_malloc(buf_size);
     ASSERT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
     bm_free(buf);
 
-    i += buf_size;
+    i += buf_size + q_item_hdr_size;
     queue_elements++;
   }
 
@@ -126,18 +143,17 @@ TEST_F(queue_test, enqueue) {
 
   max_queue_filled = 3 * queue_buf_size / 4;
   for (size_t i = 0; i < max_queue_filled;) {
-    uint8_t buf_size = RND.rnd_int(UINT8_MAX, 1);
-
-    // Ensure queue head does not past tail on wrap around
-    uint32_t check_size = queue->head > queue->tail ? i : queue->head;
-    buf_size = bm_min(buf_size, max_queue_filled - check_size);
+    if (q_overhead_too_large(max_queue_filled, i)) {
+      break;
+    }
+    uint8_t buf_size = q_get_max_buf_size(max_queue_filled, i);
 
     // Enqueue buffer
     uint8_t *buf = (uint8_t *)bm_malloc(buf_size);
     ASSERT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
     bm_free(buf);
 
-    i += buf_size;
+    i += buf_size + q_item_hdr_size;
   }
   EXPECT_LT(queue->head, queue->tail);
 
@@ -180,17 +196,17 @@ TEST_F(queue_test, dequeue) {
 
   size_t max_queue_filled = queue_buf_size / 2;
   for (size_t i = 0; i < max_queue_filled;) {
-    uint8_t buf_size = RND.rnd_int(UINT8_MAX, 1);
-
-    buf_size =
-        i + buf_size < max_queue_filled ? buf_size : max_queue_filled - i;
+    if (q_overhead_too_large(max_queue_filled, i)) {
+      break;
+    }
+    uint8_t buf_size = q_get_max_buf_size(max_queue_filled, i);
 
     // Enqueue buffer
     uint8_t *buf = (uint8_t *)bm_malloc(buf_size);
     ASSERT_EQ(q_enqueue(queue, buf, buf_size), BmOK);
     bm_free(buf);
 
-    i += buf_size;
+    i += buf_size + q_item_hdr_size;
     queue_elements++;
   }
 
@@ -224,4 +240,27 @@ TEST_F(queue_test, size_clear) {
   // Clear the queue and check the size
   EXPECT_EQ(q_clear(queue), BmOK);
   EXPECT_EQ(q_size(queue), 0);
+
+  q_delete(queue);
+}
+
+TEST_F(queue_test, buf_overflow) {
+  Q *queue = q_create(queue_buf_size);
+
+  // Test that tail cannot overflow
+  //   - First assign tail & head = size - sizeof(QItem)
+  //   - Enqueue data
+  //   - Validate head is greater than 0
+  //   - Call dequeue
+  //   - Validate tail is greater than 0
+  queue->tail = queue->size - q_item_hdr_size;
+  queue->head = queue->tail;
+
+  uint8_t buf = RND.rnd_int(UINT8_MAX, 0);
+  ASSERT_EQ(q_enqueue(queue, &buf, sizeof(buf)), BmOK);
+  ASSERT_TRUE(queue->head > 0);
+  ASSERT_EQ(q_dequeue(queue, &buf, sizeof(buf)), BmOK);
+  ASSERT_TRUE(queue->tail > 0);
+
+  q_delete(queue);
 }
