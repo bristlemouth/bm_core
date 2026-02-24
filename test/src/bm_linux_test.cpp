@@ -72,7 +72,12 @@ TEST_F(BmLinuxHelpers, nodeid_to_ip_fd00_prefix) {
 }
 
 TEST_F(BmLinuxHelpers, format_ipv6_link_local) {
-  uint64_t id = 0x0000000100000002ULL;
+  /* id = 0x0000000000010002 places 0x0001 at addr[12..13] and 0x0002 at
+     addr[14..15], so the 16-bit words are:
+       fe80 : 0 : 0 : 0 : 0 : 0 : 1 : 2
+     The longest zero run spans positions 1-5 (five groups), compressing to
+     "fe80::1:2". */
+  uint64_t id = 0x0000000000010002ULL;
   BmIpAddr addr;
   nodeid_to_ip(&addr, 0xFE800000, id);
   char buf[40] = {};
@@ -173,14 +178,14 @@ TEST_F(BmLinuxBuf, l2_ref_counting) {
   ASSERT_NE(buf, nullptr);
   /* ref starts at 1; tx_prep increments to 2 */
   bm_l2_tx_prep(buf, 0);
-  /* First free: ref goes to 1, not freed */
+  /* First free: ref goes to 1, buf is NOT freed yet */
   bm_l2_free(buf);
   /* Should still be accessible (ref=1) */
   void *p = bm_l2_get_payload(buf);
   EXPECT_NE(p, nullptr);
-  /* Second free: ref goes to 0, actually freed */
+  /* Second free: ref goes to 0, actually freed.
+     We can't safely dereference buf after this — just verify no crash. */
   bm_l2_free(buf);
-  EXPECT_EQ(p, nullptr);
 }
 
 TEST_F(BmLinuxBuf, l2_free_null_safe) {
@@ -227,3 +232,72 @@ TEST_F(BmLinuxBuf, set_netif) {
   EXPECT_EQ(bm_l2_set_netif(true), BmOK);
   EXPECT_EQ(bm_l2_set_netif(false), BmOK);
 }
+
+// ============================================================================
+// bm_ip_init / bm_ip_get / bm_ip_get_str tests
+// ============================================================================
+
+class BmLinuxInit : public ::testing::Test {
+protected:
+  /* id = 0x0000000000010002:
+       hi=0x00000000 → addr[8..11]  = 00 00 00 00
+       lo=0x00010002 → addr[12..15] = 00 01 00 02
+     16-bit words: fe80:0:0:0:0:0:1:2  →  "fe80::1:2"
+                   fd00:0:0:0:0:0:1:2  →  "fd00::1:2" */
+  static constexpr uint64_t kTestId = 0x0000000000010002ULL;
+
+  void SetUp() override {
+    RESET_FAKE(node_id);
+    RESET_FAKE(packet_init);
+    node_id_fake.return_val = kTestId;
+    bm_ip_init();
+  }
+};
+
+TEST_F(BmLinuxInit, ll_addr_has_fe80_prefix) {
+  const BmIpAddr *ll = bm_ip_get(0);
+  ASSERT_NE(ll, nullptr);
+  EXPECT_EQ(ll->addr[0], 0xFE);
+  EXPECT_EQ(ll->addr[1], 0x80);
+  /* Bytes 2-7: prefix bytes 2-3 are zero, bytes 4-7 are the unused middle */
+  for (int i = 2; i < 8; i++) {
+    EXPECT_EQ(ll->addr[i], 0x00) << "addr[" << i << "] should be zero";
+  }
+}
+
+TEST_F(BmLinuxInit, unicast_addr_has_fd00_prefix) {
+  const BmIpAddr *uc = bm_ip_get(1);
+  ASSERT_NE(uc, nullptr);
+  EXPECT_EQ(uc->addr[0], 0xFD);
+  EXPECT_EQ(uc->addr[1], 0x00);
+  for (int i = 2; i < 8; i++) {
+    EXPECT_EQ(uc->addr[i], 0x00) << "addr[" << i << "] should be zero";
+  }
+}
+
+TEST_F(BmLinuxInit, nodeid_roundtrip) {
+  /* Both addresses embed the same node_id in the low 64 bits */
+  EXPECT_EQ(ip_to_nodeid(bm_ip_get(0)), kTestId);
+  EXPECT_EQ(ip_to_nodeid(bm_ip_get(1)), kTestId);
+}
+
+TEST_F(BmLinuxInit, get_str_formatted) {
+  EXPECT_STREQ(bm_ip_get_str(0), "fe80::1:2");
+  EXPECT_STREQ(bm_ip_get_str(1), "fd00::1:2");
+}
+
+TEST_F(BmLinuxInit, get_out_of_range) {
+  EXPECT_EQ(bm_ip_get(2), nullptr);
+  EXPECT_STREQ(bm_ip_get_str(2), "::");
+}
+
+TEST_F(BmLinuxInit, registers_packet_callbacks) {
+  /* bm_ip_init() must call packet_init() exactly once with four non-null
+     accessor callbacks: get_src, get_dst, get_data, get_checksum. */
+  EXPECT_EQ(packet_init_fake.call_count, 1u);
+  EXPECT_NE(packet_init_fake.arg0_val, nullptr); /* get_src_ip   */
+  EXPECT_NE(packet_init_fake.arg1_val, nullptr); /* get_dst_ip   */
+  EXPECT_NE(packet_init_fake.arg2_val, nullptr); /* get_data     */
+  EXPECT_NE(packet_init_fake.arg3_val, nullptr); /* get_checksum */
+}
+
