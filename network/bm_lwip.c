@@ -701,4 +701,3 @@ BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
 void bm_ip_buf_shrink(void *buf, uint32_t size) {
   pbuf_realloc((struct pbuf *)buf, size);
 }
-
