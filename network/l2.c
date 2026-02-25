@@ -417,10 +417,10 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
   } else if (CTX.routing_cb && !is_link_local_neighbor_multicast(dst_ip)) {
     // Routing based functionality as first described in 5.4.4.3 of the
     // Bristlemouth specification.
-    clear_egress_port(payload);
     BmIpAddr *src_ip = (BmIpAddr *)&payload[ipv6_source_address_offset];
     should_submit =
         CTX.routing_cb(ingress_port_num, &egress_mask, src_ip, dst_ip);
+    clear_egress_port(payload);
   }
   if (egress_mask) {
     clear_ingress_port(payload);
