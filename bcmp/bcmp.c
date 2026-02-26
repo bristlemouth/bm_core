@@ -52,10 +52,6 @@ static void heartbeat_timer_handler(BmTimer tmr) {
 static void bcmp_thread(void *parameters) {
   (void)parameters;
 
-  CTX.heartbeat_timer =
-      bm_timer_create("bcmp_heartbeat", bcmp_heartbeat_s * 1000, true, NULL,
-                      heartbeat_timer_handler);
-
   // TODO - send out heartbeats on link change
   for (;;) {
     BcmpQueueItem item;
@@ -116,7 +112,12 @@ BmErr bcmp_init(NetworkDevice network_device) {
   CTX.queue = bm_queue_create(bcmp_evt_queue_len, sizeof(BcmpQueueItem));
   CTX.num_ports = network_device.trait->num_ports();
 
-  bm_err_check(err, bm_l2_register_link_change_callback(bcmp_link_change));
+  // Create the heartbeat timer before registering the link-change callback
+  // so that bcmp_link_change can start the timer immediately.
+  CTX.heartbeat_timer =
+      bm_timer_create("bcmp_heartbeat", bcmp_heartbeat_s * 1000, true, NULL,
+                      heartbeat_timer_handler);
+
   bm_err_check(err, bcmp_heartbeat_init());
   bm_err_check(err, ping_init());
   bm_err_check(err, time_init());
@@ -127,6 +128,12 @@ BmErr bcmp_init(NetworkDevice network_device) {
   bm_err_check(err, bcmp_resource_discovery_init());
   bm_err_check(err, bm_task_create(bcmp_thread, "BCMP", 1024, NULL,
                                    bcmp_task_priority, NULL));
+
+  // Register the link-change callback LAST so that when bm_l2 replays
+  // link-up events for already-enabled ports (e.g. the UART link), all
+  // packet types are registered and the heartbeat timer exists.
+  bm_err_check(err, bm_l2_register_link_change_callback(bcmp_link_change));
+
   return err;
 }
 

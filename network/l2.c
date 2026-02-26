@@ -325,8 +325,8 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port_num) {
       /* port_num sits in the low nibble of source-IP byte 2, which is the HIGH
        * byte of the 16-bit word at bytes 2-3.  Its delta to the one's-complement
        * sum is (port_num << 8).  Add with carry folding. */
-      uint32_t sum = (uint32_t)(header->checksum ^ 0xFFFFU) +
-                     ((uint32_t)port_num << 8);
+      uint32_t sum =
+          (uint32_t)(header->checksum ^ 0xFFFFU) + ((uint32_t)port_num << 8);
       sum = (sum & 0xFFFFU) + (sum >> 16);
       header->checksum = (uint16_t)(~sum);
     }
@@ -631,6 +631,16 @@ BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb) {
     item = ll_create_item(item, &cb, sizeof(&cb), cb_count);
     err = item != NULL ? BmOK : BmENOMEM;
     bm_err_check(err, ll_item_add(&CTX.link_change_callback_list, item));
+
+    // Replay link-up events for any ports that are already enabled so that
+    // late registrants learn about the current state.
+    if (err == BmOK) {
+      for (uint8_t port_idx = 0; port_idx < CTX.num_ports; port_idx++) {
+        if (CTX.enabled_ports_mask & (1U << port_idx)) {
+          cb(port_idx + 1, true);
+        }
+      }
+    }
   }
 
   return err;
