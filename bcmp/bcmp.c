@@ -23,6 +23,7 @@
 typedef struct {
   BmQueue queue;
   BmTimer heartbeat_timer;
+  uint8_t num_ports;
 } BcmpContext;
 
 static BcmpContext CTX;
@@ -113,6 +114,7 @@ void bcmp_link_change(uint8_t port, bool state) {
 BmErr bcmp_init(NetworkDevice network_device) {
   BmErr err = BmOK;
   CTX.queue = bm_queue_create(bcmp_evt_queue_len, sizeof(BcmpQueueItem));
+  CTX.num_ports = network_device.trait->num_ports();
 
   bm_err_check(err, bm_l2_register_link_change_callback(bcmp_link_change));
   bm_err_check(err, bcmp_heartbeat_init());
@@ -188,37 +190,50 @@ BmErr bcmp_tx(const BmIpAddr *dst, BcmpMessageType type, uint8_t *data,
 */
 BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
                       uint8_t ingress_port) {
-  uint8_t port_specific_dst[sizeof(multicast_ll_addr)];
-  BmErr err = BmEINVAL;
-  void *forward = NULL;
-  // TODO: Make more generic. This is specifically for a 2-port device.
-  uint8_t egress_port = ingress_port == 1 ? 2 : 1;
+  if (!header || !payload) {
+    return BmEINVAL;
+  }
 
-  if (header && payload) {
+  // Allocate and prepare the TX buffer once; bm_ip_tx_perform() creates a
+  // fresh L2 frame per call so the same layout can be reused for every port.
+  // L2 will clear the egress port from the destination address, so calculate
+  // the checksum against the plain link-local multicast address.
+  void *forward = bm_ip_tx_new(&multicast_ll_addr, size + sizeof(BcmpHeader));
+  if (!forward) {
+    return BmENOMEM;
+  }
+
+  header->checksum = 0;
+  bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
+  bm_ip_tx_copy(forward, payload, size, sizeof(BcmpHeader));
+  header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
+  bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
+
+  // Forward out every port except the one the packet arrived on.
+  uint8_t num_ports = CTX.num_ports;
+  BmErr err = BmEINVAL;
+  for (uint8_t egress_port = 1; egress_port <= num_ports; egress_port++) {
+    if (egress_port == ingress_port) {
+      continue;
+    }
+    uint8_t port_specific_dst[sizeof(multicast_ll_addr)];
     memcpy(port_specific_dst, &multicast_ll_addr, sizeof(multicast_ll_addr));
+    // Encode egress port into byte 13 of the IPv6 destination address so that
+    // bm_l2_link_output() routes the frame to the correct port.
     ((uint32_t *)port_specific_dst)[3] = 0x1000000 | (egress_port << 8);
 
-    // L2 will clear the egress port from the destination address,
-    // so calculate the checksum on the link-local multicast address.
-    forward = bm_ip_tx_new(&multicast_ll_addr, size + sizeof(BcmpHeader));
-    if (forward) {
-
-      // Copy data to be forwarded
-      header->checksum = 0;
-      bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
-      bm_ip_tx_copy(forward, payload, size, sizeof(BcmpHeader));
-
-      header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
-      bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
-
-      err = bm_ip_tx_perform(forward, (BmIpAddr *)&port_specific_dst);
+    BmErr tx_err = bm_ip_tx_perform(forward, (BmIpAddr *)port_specific_dst);
+    if (tx_err != BmOK) {
+      bm_debug("Error forwarding BCMP packet link-locally to port %u: %d\n",
+               egress_port, tx_err);
       if (err != BmOK) {
-        bm_debug("Error forwarding BMCP packet link-locally: %d\n", err);
+        err = tx_err;
       }
-      bm_ip_tx_cleanup(forward);
     } else {
-      err = BmENOMEM;
+      err = BmOK;
     }
   }
+
+  bm_ip_tx_cleanup(forward);
   return err;
 }

@@ -458,6 +458,7 @@ typedef struct {
   bool running;
   bool auto_reload;
   bool delete_requested;
+  bool self_delete;    // true when bm_timer_delete was called from this timer's own thread
   bool needs_reset;
   uint32_t period_ms;
   void *timer_id;
@@ -474,7 +475,13 @@ static void *posix_timer_thread(void *param) {
       pthread_cond_wait(&t->cond, &t->lock);
     }
     if (t->delete_requested) {
+      bool do_free = t->self_delete;
       pthread_mutex_unlock(&t->lock);
+      if (do_free) {
+        pthread_mutex_destroy(&t->lock);
+        pthread_cond_destroy(&t->cond);
+        free(t);
+      }
       return NULL;
     }
 
@@ -486,7 +493,13 @@ static void *posix_timer_thread(void *param) {
     while (t->running && !t->delete_requested) {
       int rc = pthread_cond_timedwait(&t->cond, &t->lock, &ts);
       if (t->delete_requested) {
+        bool do_free = t->self_delete;
         pthread_mutex_unlock(&t->lock);
+        if (do_free) {
+          pthread_mutex_destroy(&t->lock);
+          pthread_cond_destroy(&t->cond);
+          free(t);
+        }
         return NULL;
       }
       if (!t->running) {
@@ -548,12 +561,22 @@ void bm_timer_delete(BmTimer timer, uint32_t timeout_ms) {
   if (!t) {
     return;
   }
+  // If called from within this timer's own callback thread, destroying the
+  // mutex here would crash posix_timer_thread when it tries to relock after
+  // the callback returns.  Mark for deferred self-cleanup instead.
+  if (t->thread_created && pthread_equal(pthread_self(), t->thread)) {
+    pthread_mutex_lock(&t->lock);
+    t->delete_requested = true;
+    t->running = false;
+    t->self_delete = true;
+    pthread_mutex_unlock(&t->lock);
+    return; // posix_timer_thread will free memory after cb() returns
+  }
   pthread_mutex_lock(&t->lock);
   t->delete_requested = true;
   pthread_cond_signal(&t->cond);
   pthread_mutex_unlock(&t->lock);
-  // Thread is detached; it will free-run to exit.
-  // Give it a moment to notice the delete flag.
+  // Thread is detached; give it a moment to notice the delete flag and exit.
   usleep(1000);
   pthread_mutex_destroy(&t->lock);
   pthread_cond_destroy(&t->cond);
