@@ -1,5 +1,6 @@
 set(SOURCES
     l2.c
+    l2_policy.c
 )
 
 add_library(bmnetwork ${SOURCES})

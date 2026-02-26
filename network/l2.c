@@ -3,52 +3,16 @@
 #include "bm_config.h"
 #include "bm_ip.h"
 #include "bm_os.h"
+#include "l2_frames.h"
+#include "l2_policy.h"
 #include "ll.h"
 #include "util.h"
-
-// Ethernet Header Sizes
-#define ethernet_destination_size_bytes 6
-#define ethernet_src_size_bytes 6
-#define ethernet_type_size_bytes 2
-
-// IPV6 Header Sizes
-#define ipv6_version_traffic_class_flow_label_size_bytes 4
-#define ipv6_payload_length_size_bytes 2
-#define ipv6_next_header_size_bytes 1
-#define ipv6_hop_limit_size_bytes 1
-#define ipv6_source_address_size_bytes 16
-#define ipv6_destination_address_size_bytes 16
 
 // UDP Header Sizes
 #define udp_src_size_bytes 2
 #define udp_destination_size_bytes 2
 #define udp_length_size_bytes 2
 #define udp_checksum_size_bytes 2
-
-// Ethernet Offsets
-#define ethernet_destination_offset (0)
-#define ethernet_src_offset                                                    \
-  (ethernet_destination_offset + ethernet_destination_size_bytes)
-#define ethernet_type_offset (ethernet_src_offset + ethernet_src_size_bytes)
-
-// Ethernet Getters
-#define ethernet_get_type(buf) (uint8_to_uint16(&buf[ethernet_type_offset]))
-
-// IPV6 Offsets
-#define ipv6_version_traffic_class_flow_label_offset                           \
-  (ethernet_type_offset + ethernet_type_size_bytes)
-#define ipv6_payload_length_offset                                             \
-  (ipv6_version_traffic_class_flow_label_offset +                              \
-   ipv6_version_traffic_class_flow_label_size_bytes)
-#define ipv6_next_header_offset                                                \
-  (ipv6_payload_length_offset + ipv6_payload_length_size_bytes)
-#define ipv6_hop_limit_offset                                                  \
-  (ipv6_next_header_offset + ipv6_next_header_size_bytes)
-#define ipv6_source_address_offset                                             \
-  (ipv6_hop_limit_offset + ipv6_hop_limit_size_bytes)
-#define ipv6_destination_address_offset                                        \
-  (ipv6_source_address_offset + ipv6_source_address_size_bytes)
-#define ipv6_ingress_egress_ports_offset (ipv6_source_address_offset + 2)
 
 // IPV6 Getters
 #define ipv6_get_version_traffic_class_flow_label(buf)                         \
@@ -401,40 +365,37 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
     return;
   }
 
-  // Encode the ingress port (1-15) into the IPV6 source address passed up the stack
-  // FFS means "Find First Set" bit
-  const uint8_t ingress_port_num = __builtin_ffs(rx_evt->port_mask);
-  add_ingress_port(payload, ingress_port_num);
+  // Apply the stateless policy core: mutates payload in-place (ingress nibble set;
+  // possibly clears egress nibble after routing_cb) and returns routing decisions.
+  const BmL2PolicyRxResult r =
+      bm_l2_policy_rx_apply(payload, rx_evt->length, rx_evt->port_mask,
+                            CTX.all_ports_mask, CTX.routing_cb);
 
-  const BmIpAddr *dst_ip =
-      (BmIpAddr *)&payload[ipv6_destination_address_offset];
-  bool global_multicast = is_global_multicast(dst_ip);
-  bool should_submit = true;
-  uint16_t egress_mask = 0;
+  // Forwarding: create a copy and prepare it for on-wire transmission.
+  // NOTE: We do NOT clear ingress on the original payload before copying.
+  // Clearing first would remove ingress info from the buffer subsequently submitted upward.
+  if (r.egress_mask) {
+    void *fwd_buf = bm_l2_new(rx_evt->length);
+    if (fwd_buf != NULL) {
+      uint8_t *fwd_payload = (uint8_t *)bm_l2_get_payload(fwd_buf);
+      memcpy(fwd_payload, payload, rx_evt->length);
 
-  if (global_multicast) {
-    egress_mask = CTX.all_ports_mask & ~(rx_evt->port_mask);
-  } else if (CTX.routing_cb && !is_link_local_neighbor_multicast(dst_ip)) {
-    // Routing based functionality as first described in 5.4.4.3 of the
-    // Bristlemouth specification.
-    BmIpAddr *src_ip = (BmIpAddr *)&payload[ipv6_source_address_offset];
-    should_submit =
-        CTX.routing_cb(ingress_port_num, &egress_mask, src_ip, dst_ip);
-    clear_egress_port(payload);
-  }
-  if (egress_mask) {
-    clear_ingress_port(payload);
-    void *buf = bm_l2_new(rx_evt->length);
-    memcpy(bm_l2_get_payload(buf), payload, rx_evt->length);
-    bm_l2_tx(buf, rx_evt->length, egress_mask);
+      // Ensure forwarded copy has ingress nibble = 0 on-wire.
+      bm_l2_policy_prepare_forwarded_copy(fwd_payload, rx_evt->length);
+
+      bm_l2_tx(fwd_buf, rx_evt->length, r.egress_mask);
+    } else {
+      bm_debug("L2 dropped forward, no mem for buf\n");
+    }
   }
 
   BmErr err = BmENODEV;
-  // Submit packet to IP stack.
-  // Upper level RX Callback is responsible for freeing the packet
-  if (should_submit) {
+
+  // Submit packet to IP stack (upper level RX callback frees packet).
+  if (r.should_submit) {
     err = bm_l2_submit(rx_evt->buf, rx_evt->length);
   }
+
   if (err != BmOK) {
     bm_l2_free(rx_evt->buf);
   }
