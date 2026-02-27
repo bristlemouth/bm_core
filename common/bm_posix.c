@@ -461,7 +461,8 @@ typedef struct {
   bool running;
   bool auto_reload;
   bool delete_requested;
-  bool self_delete;    // true when bm_timer_delete was called from this timer's own thread
+  bool
+      self_delete; // true when bm_timer_delete was called from this timer's own thread
   bool needs_reset;
   uint32_t period_ms;
   void *timer_id;
@@ -661,4 +662,7 @@ uint32_t bm_get_tick_count(void) {
 uint32_t bm_get_tick_count_from_isr(void) { return bm_get_tick_count(); }
 uint32_t bm_ms_to_ticks(uint32_t ms) { return ms; }
 uint32_t bm_ticks_to_ms(uint32_t ticks) { return ticks; }
-void bm_delay(uint32_t ms) { usleep(ms * 1000); }
+void bm_delay(uint32_t ms) {
+  struct timespec delay = {ms / 1000, (ms % 1000) * 1000000L};
+  nanosleep(&delay, NULL);
+}
