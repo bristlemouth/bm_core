@@ -610,6 +610,7 @@ BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms) {
   }
   pthread_mutex_lock(&t->lock);
   t->running = true;
+  t->needs_reset = true;
   pthread_cond_signal(&t->cond);
   pthread_mutex_unlock(&t->lock);
   return BmOK;
