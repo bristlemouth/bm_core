@@ -1,6 +1,9 @@
 /// @file bm_posix.c
 /// @brief POSIX implementation of bm_os.h APIs for bm_sbc.
 
+// Request POSIX.1-2008 interfaces (clock_gettime, etc.) on Linux/glibc.
+#define _POSIX_C_SOURCE 200809L
+
 #include "bm_os.h"
 
 #include <errno.h>
@@ -577,7 +580,8 @@ void bm_timer_delete(BmTimer timer, uint32_t timeout_ms) {
   pthread_cond_signal(&t->cond);
   pthread_mutex_unlock(&t->lock);
   // Thread is detached; give it a moment to notice the delete flag and exit.
-  usleep(1000);
+  struct timespec delay = {0, 1000000L}; // 1 ms
+  nanosleep(&delay, NULL);
   pthread_mutex_destroy(&t->lock);
   pthread_cond_destroy(&t->cond);
   free(t);
