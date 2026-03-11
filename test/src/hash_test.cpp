@@ -117,6 +117,17 @@ TEST_F(hash_test, hash_remove) {
   hash_delete(hash);
 }
 
+TEST_F(hash_test, hash_get_load) {
+  Hash *hash = hash_create(sizeof(HashData), hash_buf_length);
+
+  // Test failure cases
+  ASSERT_EQ(hash_get_load(NULL), 0);
+  hash->length = 0;
+  ASSERT_EQ(hash_get_load(hash), 0);
+
+  hash_delete(hash);
+}
+
 TEST_F(hash_test, insert_one) {
   Hash *hash = hash_create(sizeof(HashData), hash_buf_length);
   HashData *insert_data = RND.create_rnd_array<HashData>();
@@ -168,6 +179,7 @@ TEST_F(hash_test, fill_unique) {
     RND.free_rnd_array(insert_data);
   }
   ASSERT_EQ(hash_get_count(hash), hash_buf_length);
+  ASSERT_EQ(hash_get_load(hash), 100);
 
   insert_data = RND.create_rnd_array<HashData>();
   ASSERT_EQ(hash_insert(hash, 0, insert_data), BmENOSPC);
@@ -269,6 +281,7 @@ TEST_F(hash_test, fill_collision) {
   }
 
   ASSERT_EQ(hash_get_count(hash), collision_buf_length);
+  ASSERT_EQ(hash_get_load(hash), 100);
   RND.free_rnd_array(insert_data);
 
   hash_delete(hash);
