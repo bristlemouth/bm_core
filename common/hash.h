@@ -30,6 +30,7 @@ BmErr hash_insert(Hash *hash, uint32_t key, const void *data);
 BmErr hash_look_up(Hash *hash, uint32_t key, void *data);
 BmErr hash_remove(Hash *hash, uint32_t key);
 uint16_t hash_get_count(Hash *hash);
+uint8_t hash_get_load(Hash *hash);
 
 #ifdef __cplusplus
 }

@@ -284,3 +284,21 @@ uint16_t hash_get_count(Hash *hash) {
 
   return hash->count;
 }
+
+/*!
+ @brief Returns Load Factor Of Hash Table
+
+ @details Load factor is calculated as a value between 0 and 100.
+
+ @param hash Hash instance to obtain load factor
+
+ @return Load factor from 0 - 100
+         0 if hash is invalid
+ */
+uint8_t hash_get_load(Hash *hash) {
+  if (!hash || !hash->length) {
+    return 0;
+  }
+
+  return hash->count * 100 / hash->length;
+}
