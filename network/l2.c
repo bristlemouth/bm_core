@@ -367,14 +367,14 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
 
   // Apply the stateless policy core: mutates payload in-place (ingress nibble set;
   // possibly clears egress nibble after routing_cb) and returns routing decisions.
-  const BmL2PolicyRxResult r =
+  const BmL2PolicyRxResult policy_result =
       bm_l2_policy_rx_apply(payload, rx_evt->length, rx_evt->port_mask,
                             CTX.all_ports_mask, CTX.routing_cb);
 
   // Forwarding: create a copy and prepare it for on-wire transmission.
   // NOTE: We do NOT clear ingress on the original payload before copying.
   // Clearing first would remove ingress info from the buffer subsequently submitted upward.
-  if (r.egress_mask) {
+  if (policy_result.egress_mask) {
     void *fwd_buf = bm_l2_new(rx_evt->length);
     if (fwd_buf != NULL) {
       uint8_t *fwd_payload = (uint8_t *)bm_l2_get_payload(fwd_buf);
@@ -383,7 +383,7 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
       // Ensure forwarded copy has ingress nibble = 0 on-wire.
       bm_l2_policy_prepare_forwarded_copy(fwd_payload, rx_evt->length);
 
-      bm_l2_tx(fwd_buf, rx_evt->length, r.egress_mask);
+      bm_l2_tx(fwd_buf, rx_evt->length, policy_result.egress_mask);
     } else {
       bm_debug("L2 dropped forward, no mem for buf\n");
     }
@@ -392,7 +392,7 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
   BmErr err = BmENODEV;
 
   // Submit packet to IP stack (upper level RX callback frees packet).
-  if (r.should_submit) {
+  if (policy_result.should_submit) {
     err = bm_l2_submit(rx_evt->buf, rx_evt->length);
   }
 

@@ -14,31 +14,31 @@ extern "C" {
 // --- Local frame layout helpers (mirror the offsets used by l2.c) ---
 // These offsets are derived from the same definitions present in l2.c
 // (Ethernet header + IPv6 header; src starts at 22, dst starts at 38; ports byte = src+2).
-static constexpr size_t kEthTypeOffset = 12;
-static constexpr size_t kIpv6HeaderOffset = 14;
-static constexpr size_t kIpv6SrcOffset =
-    kIpv6HeaderOffset + 4 + 2 + 1 + 1;                         // 14 + 8 = 22
-static constexpr size_t kIpv6DstOffset = kIpv6SrcOffset + 16;  // 38
-static constexpr size_t kPortsByteOffset = kIpv6SrcOffset + 2; // src + 2
+static constexpr size_t ETH_TYPE_OFFSET = 12;
+static constexpr size_t IPV6_HEADER_OFFSET = 14;
+static constexpr size_t IPV6_SRC_OFFSET =
+    IPV6_HEADER_OFFSET + 4 + 2 + 1 + 1;                          // 14 + 8 = 22
+static constexpr size_t IPV6_DST_OFFSET = IPV6_SRC_OFFSET + 16;  // 38
+static constexpr size_t PORTS_BYTE_OFFSET = IPV6_SRC_OFFSET + 2; // src + 2
 
-static constexpr size_t kMinFrameLen = kIpv6DstOffset + 16;
+static constexpr size_t MIN_FRAME_LEN = IPV6_DST_OFFSET + 16;
 
 static void write_ethertype_ipv6(uint8_t *frame) {
   // EtherType IPv6 = 0x86DD
-  frame[kEthTypeOffset + 0] = 0x86;
-  frame[kEthTypeOffset + 1] = 0xDD;
+  frame[ETH_TYPE_OFFSET + 0] = 0x86;
+  frame[ETH_TYPE_OFFSET + 1] = 0xDD;
 }
 
 static void write_ipv6_dst(uint8_t *frame, const uint8_t dst[16]) {
-  memcpy(&frame[kIpv6DstOffset], dst, 16);
+  memcpy(&frame[IPV6_DST_OFFSET], dst, 16);
 }
 
 static void write_ipv6_src(uint8_t *frame, const uint8_t src[16]) {
-  memcpy(&frame[kIpv6SrcOffset], src, 16);
+  memcpy(&frame[IPV6_SRC_OFFSET], src, 16);
 }
 
 static uint8_t ports_byte(const uint8_t *frame) {
-  return frame[kPortsByteOffset];
+  return frame[PORTS_BYTE_OFFSET];
 }
 static uint8_t ingress_nibble(const uint8_t *frame) {
   return (uint8_t)((ports_byte(frame) >> 4) & 0x0F);
@@ -87,7 +87,7 @@ protected:
 
 TEST_F(L2Policy,
        GlobalMulticast_setsIngress_preservesEgress_returnsForwardMask) {
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   uint8_t src[16] = {0};
@@ -99,7 +99,7 @@ TEST_F(L2Policy,
   write_ipv6_dst(frame, dst_ff03_1);
 
   // Simulate "on-wire": ingress=0, egress=0xE
-  frame[kPortsByteOffset] = 0x0E;
+  frame[PORTS_BYTE_OFFSET] = 0x0E;
 
   const uint16_t ingress_mask = (1U << (3 - 1)); // port 3
   const uint16_t all_ports_mask = 0x000F;        // ports 1..4
@@ -126,7 +126,7 @@ TEST_F(L2Policy,
 TEST_F(
     L2Policy,
     LinkLocalNonNeighbor_invokesRoutingCb_clearsEgressNibble_respectsSubmitFlag) {
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   // ff02::2 (link-local multicast, not neighbor multicast ff02::1)
@@ -139,7 +139,7 @@ TEST_F(
   write_ipv6_dst(frame, dst_ff02_2);
 
   // start with ingress junk + egress=0xE so we can see what changes
-  frame[kPortsByteOffset] = 0xAE;
+  frame[PORTS_BYTE_OFFSET] = 0xAE;
 
   const uint16_t ingress_mask = (1U << (4 - 1)); // port 4
   const uint16_t all_ports_mask = 0x000F;
@@ -163,7 +163,7 @@ TEST_F(
 
 TEST_F(L2Policy,
        LinkLocalNeighbor_ff02_1_bypassesRoutingCb_doesNotForward_submits) {
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   // ff02::1 (neighbor multicast / all-nodes)
@@ -175,7 +175,7 @@ TEST_F(L2Policy,
   write_ipv6_src(frame, src);
   write_ipv6_dst(frame, dst_ff02_1);
 
-  frame[kPortsByteOffset] = 0x0B; // ingress=0, egress=0xB
+  frame[PORTS_BYTE_OFFSET] = 0x0B; // ingress=0, egress=0xB
 
   const uint16_t ingress_mask = (1U << (1 - 1)); // port 1
   const uint16_t all_ports_mask = 0x000F;
@@ -198,7 +198,7 @@ TEST_F(L2Policy,
 }
 
 TEST_F(L2Policy, LinkLocalNonNeighbor_withNullCallback_doesNotForward_submits) {
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   uint8_t dst_ff02_2[16] = {
@@ -208,7 +208,7 @@ TEST_F(L2Policy, LinkLocalNonNeighbor_withNullCallback_doesNotForward_submits) {
   write_ipv6_src(frame, src);
   write_ipv6_dst(frame, dst_ff02_2);
 
-  frame[kPortsByteOffset] = 0x07; // ingress=0, egress=7
+  frame[PORTS_BYTE_OFFSET] = 0x07; // ingress=0, egress=7
 
   const uint16_t ingress_mask = (1U << (2 - 1)); // port 2
   const uint16_t all_ports_mask = 0x000F;
@@ -228,7 +228,7 @@ TEST_F(L2Policy, LinkLocalNonNeighbor_withNullCallback_doesNotForward_submits) {
 }
 
 TEST_F(L2Policy, IngressMaskZero_doesNotMutate_portsNibble_defaultsToSubmit) {
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   uint8_t dst_ff03_1[16] = {
@@ -238,7 +238,7 @@ TEST_F(L2Policy, IngressMaskZero_doesNotMutate_portsNibble_defaultsToSubmit) {
   write_ipv6_src(frame, src);
   write_ipv6_dst(frame, dst_ff03_1);
 
-  frame[kPortsByteOffset] = 0x9C; // ingress=9, egress=0xC (junk we can detect)
+  frame[PORTS_BYTE_OFFSET] = 0x9C; // ingress=9, egress=0xC (junk we can detect)
 
   const BmL2PolicyRxResult r = bm_l2_policy_rx_apply(
       frame, sizeof(frame), 0 /*ingress_mask*/, 0x000F, routing_cb);
@@ -247,7 +247,7 @@ TEST_F(L2Policy, IngressMaskZero_doesNotMutate_portsNibble_defaultsToSubmit) {
   EXPECT_EQ(r.ingress_port_num, 0);
 
   // Should not mutate ports byte
-  EXPECT_EQ(frame[kPortsByteOffset], 0x9C);
+  EXPECT_EQ(frame[PORTS_BYTE_OFFSET], 0x9C);
 
   // Default behavior is submit=true, no forwarding decision
   EXPECT_TRUE(r.should_submit);
@@ -258,17 +258,17 @@ TEST_F(L2Policy, IngressMaskZero_doesNotMutate_portsNibble_defaultsToSubmit) {
 }
 
 TEST_F(L2Policy, ShortFrameLen_doesNotCrash_orMutate_orCallCallback) {
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   // Put a recognizable value in ports byte so we can detect unintended changes
-  frame[kPortsByteOffset] = 0x55;
+  frame[PORTS_BYTE_OFFSET] = 0x55;
 
   const uint16_t ingress_mask = (1U << (1 - 1));
   const uint16_t all_ports_mask = 0x000F;
 
   // Pass a length smaller than required to contain IPv6 dst address
-  const size_t short_len = kIpv6DstOffset + 1;
+  const size_t short_len = IPV6_DST_OFFSET + 1;
 
   const BmL2PolicyRxResult r = bm_l2_policy_rx_apply(
       frame, short_len, ingress_mask, all_ports_mask, routing_cb);
@@ -278,17 +278,17 @@ TEST_F(L2Policy, ShortFrameLen_doesNotCrash_orMutate_orCallCallback) {
   EXPECT_EQ(r.ingress_port_num, 0);
 
   // Ports byte should be untouched
-  EXPECT_EQ(frame[kPortsByteOffset], 0x55);
+  EXPECT_EQ(frame[PORTS_BYTE_OFFSET], 0x55);
 
   EXPECT_EQ(routing_cb_fake.call_count, 0);
 }
 
 TEST_F(L2Policy, PrepareForwardedCopy_clearsIngressOnly_preservesEgress) {
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   // ingress=3, egress=9
-  frame[kPortsByteOffset] = (uint8_t)((3U << 4) | 9U);
+  frame[PORTS_BYTE_OFFSET] = (uint8_t)((3U << 4) | 9U);
 
   bm_l2_policy_prepare_forwarded_copy(frame, sizeof(frame));
 
@@ -297,14 +297,14 @@ TEST_F(L2Policy, PrepareForwardedCopy_clearsIngressOnly_preservesEgress) {
 }
 
 TEST_F(L2Policy, PrepareForwardedCopy_isNoopOnShortFrame) {
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
-  frame[kPortsByteOffset] = 0xAB;
+  frame[PORTS_BYTE_OFFSET] = 0xAB;
 
-  const size_t short_len = kIpv6SrcOffset + 1; // shorter than ports byte offset
+  const size_t short_len = IPV6_SRC_OFFSET + 1; // shorter than ports byte offset
   bm_l2_policy_prepare_forwarded_copy(frame, short_len);
 
-  EXPECT_EQ(frame[kPortsByteOffset], 0xAB);
+  EXPECT_EQ(frame[PORTS_BYTE_OFFSET], 0xAB);
 }
 
 TEST_F(L2Policy,
@@ -312,7 +312,7 @@ TEST_F(L2Policy,
   // Switch fake implementation for this test
   routing_cb_fake.custom_fake = routing_cb_impl_forward_and_submit;
 
-  uint8_t frame[kMinFrameLen] = {0};
+  uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   uint8_t dst_ff02_2[16] = {
@@ -322,7 +322,7 @@ TEST_F(L2Policy,
   write_ipv6_src(frame, src);
   write_ipv6_dst(frame, dst_ff02_2);
 
-  frame[kPortsByteOffset] = 0x0F;
+  frame[PORTS_BYTE_OFFSET] = 0x0F;
 
   const uint16_t ingress_mask = (1U << (3 - 1)); // port 3
 
