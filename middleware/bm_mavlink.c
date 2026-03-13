@@ -4,6 +4,7 @@
 #include "bm_os.h"
 #include "l2.h"
 #include "middleware.h"
+#include "timer_callback_handler.h"
 
 #define mavlink_port 14540
 #define mavlink_heartbeat_period_ms 1000
@@ -89,9 +90,8 @@ static void mavlink_rx_cb(uint64_t node_id, void *buf, uint32_t size) {
   }
 }
 
-static void mavlink_heartbeat_cb(BmTimer timer) {
-  (void)timer;
-
+static void mavlink_send_heartbeat(void *arg) {
+  (void)arg;
   mavlink_message_t msg;
   MAV_AUTOPILOT autopilot = MAV_AUTOPILOT_INVALID;
   uint8_t base_mode = 0;
@@ -100,6 +100,13 @@ static void mavlink_heartbeat_cb(BmTimer timer) {
   mavlink_msg_heartbeat_pack(ctx.sys_id, ctx.comp_id, &msg, ctx.type, autopilot,
                              base_mode, custom_mode, ctx.state);
   bm_mavlink_transmit(&msg);
+}
+
+static void mavlink_heartbeat_cb(BmTimer timer) {
+  (void)timer;
+
+  // Offload sending message to handling task to avoid potential lwip deadlock
+  timer_callback_handler_send_cb(mavlink_send_heartbeat, NULL, 0);
 }
 
 /*!
