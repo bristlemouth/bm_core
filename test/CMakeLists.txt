@@ -110,6 +110,19 @@ set (HASH_TEST_SRCS
 )
 create_gtest("hash" "${HASH_TEST_SRCS}")
 
+# Resource Trie unit tests
+set (RESOURCE_TRIE_TEST_SRCS
+    # File we are testing
+    ${MIDDLEWARE_DIR}/resource_trie.c
+
+    # Supporting files
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("resource_trie" "${RESOURCE_TRIE_TEST_SRCS}")
+
 # State Machine unit tests
 set (LIB_STATE_MACHINE_TEST_SRCS
     # File we are testing
