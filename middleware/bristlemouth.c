@@ -8,8 +8,6 @@
 #include "middleware.h"
 #include "topology.h"
 
-#define BM_MIDDLEWARE_PORT 4321
-
 BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb) {
   NetworkDevice network_device = adin2111_network_device();
   network_device.callbacks->power = net_power_cb;
@@ -21,7 +19,8 @@ BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb) {
   bm_err_check(err, bcmp_init(network_device));
   bm_err_check(err, topology_init(network_device.trait->num_ports()));
   bm_err_check(err, bm_service_init());
-  bm_err_check(err, bm_middleware_init(BM_MIDDLEWARE_PORT));
+  bm_err_check(err, bm_pubsub_init());
+  bm_err_check(err, bm_middleware_init());
   return err;
 }
 

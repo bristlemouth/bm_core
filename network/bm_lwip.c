@@ -33,7 +33,7 @@
 static struct netif netif;
 
 typedef struct {
-  BmErr (*udp_cb)(void *, uint64_t, uint32_t);
+  BmErr (*udp_cb)(uint16_t, void *, uint64_t, uint32_t);
 } UdpCb;
 
 struct LwipCtx {
@@ -194,11 +194,10 @@ static void udp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *pbuf,
                         const ip_addr_t *addr, u16_t port) {
 
   (void)arg;
-  (void)port;
   UdpCb *cb = NULL;
   if (ll_get_item(&CTX.udp_list, (uint32_t)pcb, (void **)&cb) == BmOK &&
       cb != NULL) {
-    cb->udp_cb(pbuf, ip_to_nodeid((void *)addr), pbuf->len);
+    cb->udp_cb(port, pbuf, ip_to_nodeid((void *)addr), pbuf->len);
   }
 }
 
@@ -566,13 +565,15 @@ void bm_ip_tx_cleanup(void *payload) {
   @details This API should allow for multiple callbacks to be invoked from
            different modules that utilize UDP communication
 
+  @param addr address to bind port to (adds to MLD6 multicast group)
   @param port port number to bind to pcb
   @param cb callback of specified pcb
 
   @return pointer to pcb if successful
   @return NULL if unsuccessful
 */
-void *bm_udp_bind_port(uint16_t port, BmErr (*cb)(void *, uint64_t, uint32_t)) {
+void *bm_udp_bind_port(const BmIpAddr *addr, uint16_t port,
+                       BmErr (*cb)(uint16_t, void *, uint64_t, uint32_t)) {
 
   struct udp_pcb *pcb = udp_new_ip_type(IPADDR_TYPE_V6);
   LLItem *item = NULL;
@@ -583,6 +584,12 @@ void *bm_udp_bind_port(uint16_t port, BmErr (*cb)(void *, uint64_t, uint32_t)) {
   if (pcb && item && ll_item_add(&CTX.udp_list, item) == BmOK) {
     // Bind UDP layer to created pcb
     udp_bind(pcb, IP_ANY_TYPE, port);
+
+    const ip_addr_t *multicast_addr = bm_ip_to_lwip_ip(addr);
+    if (!mld6_lookfor_group(CTX.netif, multicast_addr)) {
+      mld6_joingroup_netif(CTX.netif, multicast_addr);
+    }
+
     udp_recv(pcb, udp_recv_cb, NULL);
   } else {
     if (pcb) {
@@ -680,4 +687,17 @@ BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
   }
 
   return err;
+}
+
+/*!
+ @brief Shrink The Size Of A Payload For Buffer
+
+ @details Due to restrictions in lwip, pbuf_realloc can only shrink the size
+          of a buffer.
+
+ @param buf buffer to shrink
+ @param size new size of payload for the buffer
+ */
+void bm_ip_buf_shrink(void *buf, uint32_t size) {
+  pbuf_realloc((struct pbuf *)buf, size);
 }

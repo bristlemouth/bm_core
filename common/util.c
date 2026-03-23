@@ -62,12 +62,22 @@ bool is_global_multicast(const BmIpAddr *dst_ip) {
 bool is_link_local_multicast(const BmIpAddr *dst_ip) {
   bool is_ll_multi = false;
   if (dst_ip != NULL) {
-    // Link-local multicast address is FF02::1
+    // Link-local multicast address is FF02::x
     is_ll_multi = dst_ip->addr[0] == multicast_ll_addr.addr[0] && // FF
-                  dst_ip->addr[1] == multicast_ll_addr.addr[1] && // 02
-                  dst_ip->addr[15] == multicast_ll_addr.addr[15]; // 01
+                  dst_ip->addr[1] == multicast_ll_addr.addr[1];   // 02
   }
   return is_ll_multi;
+}
+
+bool is_link_local_neighbor_multicast(const BmIpAddr *dst_ip) {
+  bool is_ll_neighbor = false;
+  if (dst_ip != NULL) {
+    // Link-local neighbor multicast address (5.4.4.2) is FF02::1
+    is_ll_neighbor = dst_ip->addr[0] == multicast_ll_addr.addr[0] && // FF
+                     dst_ip->addr[1] == multicast_ll_addr.addr[1] && // 02
+                     dst_ip->addr[15] == multicast_ll_addr.addr[15]; // 01
+  }
+  return is_ll_neighbor;
 }
 
 bool is_little_endian(void) {

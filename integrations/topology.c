@@ -11,6 +11,7 @@
 #include <inttypes.h>
 #include <string.h>
 
+#define topology_retries 3
 #define bcmp_topo_evt_queue_len 32
 
 typedef enum {
@@ -41,6 +42,7 @@ static void *BCMP_TOPOLOGY_TASK = NULL;
 
 static bool SENT_REQUEST = false;
 static bool INSERT_BEFORE = false;
+static uint8_t RETRY_COUNT = 0;
 
 static void bcmp_topology_thread(void *parameters);
 static void free_neighbor_table_entry(NeighborTableEntry **entry);
@@ -112,6 +114,8 @@ static BmErr neighbor_request_cb(BcmpNeighborTableReply *reply) {
 
       memcpy(neighbor_entry->neighbor_table_reply, reply, neighbor_table_len);
 
+      RETRY_COUNT = 0;
+      network_topology_increment_port_count(CTX.network_topology);
       BcmpTopoQueueItem item = {.type = BcmpTopoEvtAddNode,
                                 .neighbor_entry = neighbor_entry,
                                 .callback = NULL};
@@ -198,7 +202,6 @@ static void process_check_node_event(void) {
     }
     uint64_t new_node =
         network_topology_check_neighbor_node_ids(CTX.network_topology);
-    network_topology_increment_port_count(CTX.network_topology);
     if (new_node) {
       bcmp_request_neighbor_table(new_node, &multicast_global_addr,
                                   neighbor_request_cb, topology_timer_handler);
@@ -280,16 +283,20 @@ static void bcmp_topology_thread(void *parameters) {
       // Free the network topology now that we are done
       free_network_topology(&CTX.network_topology);
       INSERT_BEFORE = false;
+      RETRY_COUNT = 0;
       SENT_REQUEST = false;
       CTX.in_progress = false;
       break;
     }
 
     case BcmpTopoEvtTimeout: {
-      if (INSERT_BEFORE) {
-        network_topology_move_next(CTX.network_topology);
-      } else {
-        network_topology_move_prev(CTX.network_topology);
+      if (++RETRY_COUNT >= topology_retries) {
+        network_topology_increment_port_count(CTX.network_topology);
+        if (INSERT_BEFORE) {
+          network_topology_move_next(CTX.network_topology);
+        } else {
+          network_topology_move_prev(CTX.network_topology);
+        }
       }
       BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
