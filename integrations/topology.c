@@ -63,7 +63,7 @@ static void network_topology_insert_before(NetworkTopology *network_topology,
 static void network_topology_delete_back(NetworkTopology *network_topology);
 static void
 network_topology_increment_port_count(NetworkTopology *network_topology);
-static uint8_t
+static int8_t
 network_topology_get_port_count(NetworkTopology *network_topology);
 static bool network_topology_is_root(NetworkTopology *network_topology);
 static bool
@@ -73,6 +73,11 @@ static uint64_t
 network_topology_check_neighbor_node_ids(NetworkTopology *network_topology);
 static bool
 network_topology_check_all_ports_explored(NetworkTopology *network_topology);
+
+static inline void topology_end(void) {
+  BcmpTopoQueueItem end_item = {BcmpTopoEvtEnd, NULL, NULL};
+  bm_queue_send(CTX.evt_queue, &end_item, 0);
+}
 
 /*!
   @brief Timer handler for timeouts while waiting for neigbor tables
@@ -111,6 +116,11 @@ static BmErr neighbor_request_cb(BcmpNeighborTableReply *reply) {
           sizeof(BcmpNeighborInfo) * reply->neighbor_len;
       neighbor_entry->neighbor_table_reply =
           (BcmpNeighborTableReply *)bm_malloc(neighbor_table_len);
+      if (!neighbor_entry->neighbor_table_reply) {
+        bm_free(neighbor_entry_buff);
+        topology_end();
+        return err;
+      }
 
       memcpy(neighbor_entry->neighbor_table_reply, reply, neighbor_table_len);
 
@@ -121,15 +131,20 @@ static BmErr neighbor_request_cb(BcmpNeighborTableReply *reply) {
                                 .callback = NULL};
 
       err = bm_queue_send(CTX.evt_queue, &item, 0);
+    } else {
+      topology_end();
     }
   }
 
   return err;
 }
 
-static void process_start_topology_event(void) {
+static bool process_start_topology_event(void) {
   // here we will need to kick off the topo process by looking at our own neighbors and then sending out a request
   CTX.network_topology = new_network_topology();
+  if (!CTX.network_topology) {
+    return false;
+  }
 
   const uint8_t num_ports = CTX.num_ports;
 
@@ -140,52 +155,59 @@ static void process_start_topology_event(void) {
   // here we will assemble the entry for the SM
   uint8_t *neighbor_entry_buff =
       (uint8_t *)bm_malloc(sizeof(NeighborTableEntry));
-
-  if (neighbor_entry_buff) {
-    memset(neighbor_entry_buff, 0, sizeof(NeighborTableEntry));
-
-    NeighborTableEntry *neighbor_entry =
-        (NeighborTableEntry *)(neighbor_entry_buff);
-
-    uint32_t neighbor_table_len = sizeof(BcmpNeighborTableReply) +
-                                  sizeof(BcmpPortInfo) * num_ports +
-                                  sizeof(BcmpNeighborInfo) * num_neighbors;
-    neighbor_entry->neighbor_table_reply =
-        (BcmpNeighborTableReply *)bm_malloc(neighbor_table_len);
-
-    neighbor_entry->neighbor_table_reply->node_id = node_id();
-
-    // set the other vars
-    neighbor_entry->neighbor_table_reply->port_len = num_ports;
-    neighbor_entry->neighbor_table_reply->neighbor_len = num_neighbors;
-
-    // assemble the port list here
-    for (uint8_t port = 0; port < num_ports; port++) {
-      neighbor_entry->neighbor_table_reply->port_list[port].state =
-          bm_l2_get_port_state(port);
-    }
-
-    assemble_neighbor_info_list(
-        (BcmpNeighborInfo *)&neighbor_entry->neighbor_table_reply
-            ->port_list[num_ports],
-        neighbor, num_neighbors);
-
-    // this is the root
-    neighbor_entry->is_root = true;
-
-    network_topology_append(CTX.network_topology, neighbor_entry);
-    network_topology_move_to_front(CTX.network_topology);
-
-    BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
-    bm_queue_send(CTX.evt_queue, &check_item, 0);
+  if (!neighbor_entry_buff) {
+    free_network_topology(&CTX.network_topology);
+    return false;
   }
+
+  memset(neighbor_entry_buff, 0, sizeof(NeighborTableEntry));
+
+  NeighborTableEntry *neighbor_entry =
+      (NeighborTableEntry *)(neighbor_entry_buff);
+
+  uint32_t neighbor_table_len = sizeof(BcmpNeighborTableReply) +
+                                sizeof(BcmpPortInfo) * num_ports +
+                                sizeof(BcmpNeighborInfo) * num_neighbors;
+  neighbor_entry->neighbor_table_reply =
+      (BcmpNeighborTableReply *)bm_malloc(neighbor_table_len);
+  if (!neighbor_entry->neighbor_table_reply) {
+    bm_free(neighbor_entry_buff);
+    free_network_topology(&CTX.network_topology);
+    return false;
+  }
+
+  neighbor_entry->neighbor_table_reply->node_id = node_id();
+
+  // set the other vars
+  neighbor_entry->neighbor_table_reply->port_len = num_ports;
+  neighbor_entry->neighbor_table_reply->neighbor_len = num_neighbors;
+
+  // assemble the port list here
+  for (uint8_t port = 0; port < num_ports; port++) {
+    neighbor_entry->neighbor_table_reply->port_list[port].state =
+        bm_l2_get_port_state(port);
+  }
+
+  assemble_neighbor_info_list((BcmpNeighborInfo *)&neighbor_entry
+                                  ->neighbor_table_reply->port_list[num_ports],
+                              neighbor, num_neighbors);
+
+  // this is the root
+  neighbor_entry->is_root = true;
+
+  network_topology_append(CTX.network_topology, neighbor_entry);
+  network_topology_move_to_front(CTX.network_topology);
+
+  BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
+  bm_queue_send(CTX.evt_queue, &check_item, 0);
+
+  return true;
 }
 
 static void process_check_node_event(void) {
   if (network_topology_check_all_ports_explored(CTX.network_topology)) {
     if (network_topology_is_root(CTX.network_topology)) {
-      BcmpTopoQueueItem end_item = {BcmpTopoEvtEnd, NULL, NULL};
-      bm_queue_send(CTX.evt_queue, &end_item, 0);
+      topology_end();
     } else {
       if (INSERT_BEFORE) {
         network_topology_move_next(CTX.network_topology);
@@ -203,8 +225,13 @@ static void process_check_node_event(void) {
     uint64_t new_node =
         network_topology_check_neighbor_node_ids(CTX.network_topology);
     if (new_node) {
-      bcmp_request_neighbor_table(new_node, &multicast_global_addr,
-                                  neighbor_request_cb, topology_timer_handler);
+      BmErr err = bcmp_request_neighbor_table(new_node, &multicast_global_addr,
+                                              neighbor_request_cb,
+                                              topology_timer_handler);
+      // If neighbor table request cannot send, no timeout will occur
+      if (err != BmOK) {
+        topology_end();
+      }
     } else {
       if (INSERT_BEFORE) {
         network_topology_move_next(CTX.network_topology);
@@ -237,11 +264,10 @@ static void bcmp_topology_thread(void *parameters) {
 
     switch (item.type) {
     case BcmpTopoEvtStart: {
-      if (!CTX.in_progress) {
+      if (!CTX.in_progress && process_start_topology_event()) {
         CTX.in_progress = true;
         SENT_REQUEST = true;
         CTX.callback = item.callback;
-        process_start_topology_event();
       } else {
         item.callback(NULL);
       }
@@ -264,6 +290,9 @@ static void bcmp_topology_thread(void *parameters) {
           }
           network_topology_increment_port_count(
               CTX.network_topology); // we have come from one of the ports so it must have been checked
+        } else {
+          // If neighbor already exist, make sure it gets freed
+          free_neighbor_table_entry(&item.neighbor_entry);
         }
       }
       BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
@@ -357,6 +386,9 @@ static void free_neighbor_table_entry(NeighborTableEntry **entry) {
 static NetworkTopology *new_network_topology(void) {
   NetworkTopology *network_topology =
       (NetworkTopology *)bm_malloc(sizeof(NetworkTopology));
+  if (!network_topology) {
+    return NULL;
+  }
   memset(network_topology, 0, sizeof(NetworkTopology));
   network_topology->index = -1;
   return network_topology;
@@ -511,7 +543,7 @@ network_topology_increment_port_count(NetworkTopology *network_topology) {
   }
 }
 
-static uint8_t
+static int8_t
 network_topology_get_port_count(NetworkTopology *network_topology) {
   if (network_topology && network_topology->cursor) {
     return network_topology->cursor->ports_explored;
