@@ -198,12 +198,9 @@ static BmErr bm_l2_stop_renegotiate_check(uint8_t port_num) {
       return BmENODATA;
     }
 
-    // Save the handle before ll_remove, which calls ll_delete_item and frees
-    // item->data — the very buffer that `timer` points into.
-    BmTimer timer_val = *timer;
     ll_remove(&CTX.renegotiate_timer_list, port_num);
-    bm_timer_stop(timer_val, 0);
-    bm_timer_delete(timer_val, 0);
+    bm_timer_stop(*timer, 0);
+    bm_timer_delete(*timer, 0);
     bm_debug("Deleting negotiation timer on port: %u\n", port_num);
     return BmOK;
   }
@@ -283,14 +280,9 @@ static inline void network_revert_checksum(uint8_t *payload, uint8_t port_num) {
       payload[udp_checksum_offset] ^= 0xFFFF;
     } else if (ipv6_get_next_header(payload) == ip_proto_bcmp) {
       BcmpHeader *header = (BcmpHeader *)&payload[bcmp_packet_offset];
-      /* port_num sits in the low nibble of source-IP byte 2, which is the HIGH
-       * byte of the 16-bit word at bytes 2-3.  Its delta to the one's-complement
-       * sum is (port_num << 8).  Subtract by adding the one's-complement negation
-       * (~X = 0xFFFF - X) and folding any end-around carry. */
-      uint32_t sum = (uint32_t)(header->checksum ^ 0xFFFFU) +
-                     (0xFFFFU - ((uint32_t)port_num << 8));
-      sum = (sum & 0xFFFFU) + (sum >> 16);
-      header->checksum = (uint16_t)(~sum);
+      header->checksum ^= 0xFFFF;
+      header->checksum -= port_num;
+      header->checksum ^= 0xFFFF;
     }
   }
 }
@@ -322,13 +314,9 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port_num) {
       payload[udp_checksum_offset] ^= 0xFFFF;
     } else if (ipv6_get_next_header(payload) == ip_proto_bcmp) {
       BcmpHeader *header = (BcmpHeader *)&payload[bcmp_packet_offset];
-      /* port_num sits in the low nibble of source-IP byte 2, which is the HIGH
-       * byte of the 16-bit word at bytes 2-3.  Its delta to the one's-complement
-       * sum is (port_num << 8).  Add with carry folding. */
-      uint32_t sum =
-          (uint32_t)(header->checksum ^ 0xFFFFU) + ((uint32_t)port_num << 8);
-      sum = (sum & 0xFFFFU) + (sum >> 16);
-      header->checksum = (uint16_t)(~sum);
+      header->checksum ^= 0xFFFF;
+      header->checksum += port_num;
+      header->checksum ^= 0xFFFF;
     }
   }
 }
