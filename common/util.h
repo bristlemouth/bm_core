@@ -20,6 +20,7 @@ typedef enum {
   BmENODEV = 19,
   BmEINVAL = 22,
   BmENODATA = 61,
+  BmETIME = 62,
   BmENONET = 64,
   BmEBADMSG = 74,
   BmEMSGSIZE = 90,
