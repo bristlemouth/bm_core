@@ -46,7 +46,7 @@ TEST_F(resource_trie_test, match_exact_simple) {
   };
   err = resource_trie_match(&root, topic, &result);
   ASSERT_EQ(err, BmOK);
-  EXPECT_EQ(result.count, 1);
+  ASSERT_EQ(result.count, 1);
   ResourceTrieElement *match = matches[0];
   EXPECT_EQ(match->local_interest, local_interest);
   EXPECT_EQ(match->resource_id, resource_id);
@@ -85,7 +85,7 @@ TEST_F(resource_trie_test, match_exact_split) {
 
   err = resource_trie_match(&root, topic_1, &result);
   ASSERT_EQ(err, BmOK);
-  EXPECT_EQ(result.count, 1);
+  ASSERT_EQ(result.count, 1);
   match = matches[0];
   EXPECT_EQ(match->local_interest, local_interest);
   EXPECT_EQ(match->resource_id, resource_id[0]);
@@ -93,7 +93,7 @@ TEST_F(resource_trie_test, match_exact_split) {
 
   err = resource_trie_match(&root, topic_2, &result);
   ASSERT_EQ(err, BmOK);
-  EXPECT_EQ(result.count, 1);
+  ASSERT_EQ(result.count, 1);
   match = matches[0];
   EXPECT_EQ(match->local_interest, local_interest);
   EXPECT_EQ(match->resource_id, resource_id[1]);
@@ -113,6 +113,42 @@ TEST_F(resource_trie_test, match_wildcard_simple) {
                                 local_interest);
   ASSERT_EQ(err, BmOK);
 
+  ResourceTrieElement *matches[1] = {};
+  ResourceTrieMatchResult result = {
+      .matches = matches,
+      .capacity = array_size(matches),
+      .count = 0,
+  };
+  err = resource_trie_match(&root, topic, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 1);
+  ResourceTrieElement *match = matches[0];
+  EXPECT_EQ(match->local_interest, local_interest);
+  EXPECT_EQ(match->resource_id, resource_id);
+  EXPECT_EQ(match->port_mask, port_mask);
+}
+
+TEST_F(resource_trie_test, match_wildcard_element) {
+  ResourceTrieRoot root = {};
+
+  const char *topic = "/sensor/temperature/raw";
+  const char *wildcard = "/sensor/*/raw";
+  uint32_t resource_id[] = {
+      static_cast<uint32_t>(RND.rnd_int(max_resource_id, 0)),
+      static_cast<uint32_t>(RND.rnd_int(max_resource_id, 0))};
+  uint16_t port_mask[] = {
+      static_cast<uint16_t>(RND.rnd_int(UINT16_MAX, 1)),
+      static_cast<uint16_t>(RND.rnd_int(UINT16_MAX, 1)),
+  };
+  bool local_interest = true;
+
+  BmErr err = resource_trie_add(&root, topic, resource_id[0], port_mask[0],
+                                local_interest);
+  ASSERT_EQ(err, BmOK);
+  err = resource_trie_add(&root, wildcard, resource_id[1], port_mask[1],
+                          local_interest);
+  ASSERT_EQ(err, BmOK);
+
   ResourceTrieElement *matches[2] = {};
   ResourceTrieMatchResult result = {
       .matches = matches,
@@ -121,9 +157,36 @@ TEST_F(resource_trie_test, match_wildcard_simple) {
   };
   err = resource_trie_match(&root, topic, &result);
   ASSERT_EQ(err, BmOK);
-  EXPECT_EQ(result.count, 1);
+  ASSERT_EQ(result.count, 2);
   ResourceTrieElement *match = matches[0];
   EXPECT_EQ(match->local_interest, local_interest);
-  EXPECT_EQ(match->resource_id, resource_id);
-  EXPECT_EQ(match->port_mask, port_mask);
+  EXPECT_EQ(match->resource_id, resource_id[1]);
+  EXPECT_EQ(match->port_mask, port_mask[1]);
+  match = match->match;
+  printf("match topic %s\n", match->segment);
+  match = matches[1];
+  EXPECT_EQ(match->local_interest, local_interest);
+  EXPECT_EQ(match->resource_id, resource_id[0]);
+  EXPECT_EQ(match->port_mask, port_mask[0]);
+  match = match->match;
+  printf("match topic %s\n", match->segment);
+
+  // Test that the wildcard matches the same results
+  err = resource_trie_match(&root, wildcard, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 2);
+  match = matches[0];
+  EXPECT_EQ(match->local_interest, local_interest);
+  EXPECT_EQ(match->resource_id, resource_id[1]);
+  EXPECT_EQ(match->port_mask, port_mask[1]);
+  printf("topic %s\n", match->segment);
+  match = match->match;
+  printf("match topic %s\n", match->segment);
+  match = matches[1];
+  EXPECT_EQ(match->local_interest, local_interest);
+  EXPECT_EQ(match->resource_id, resource_id[0]);
+  EXPECT_EQ(match->port_mask, port_mask[0]);
+  printf("topic %s\n", match->segment);
+  match = match->match;
+  printf("match topic %s\n", match->segment);
 }
