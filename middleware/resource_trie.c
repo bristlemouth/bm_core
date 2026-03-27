@@ -4,6 +4,12 @@
 
 #define increment_past_separator(t) (*t == '/' ? t + 1 : t)
 
+typedef bool (*ResourceTrieMatchCb)(ResourceTrieElement *current, void *arg);
+
+static inline bool topic_has_wildcard(const char *topic) {
+  return (strchr(topic, '*') != NULL) || (strchr(topic, '?') != NULL);
+}
+
 static ResourceTrieElement *alloc_element(const char *segment,
                                           BmTopicLength segment_length) {
   ResourceTrieElement *element = bm_malloc(sizeof(ResourceTrieElement));
@@ -23,6 +29,9 @@ static ResourceTrieElement *alloc_element(const char *segment,
   }
   memcpy((void *)element->segment, segment, segment_length);
   element->resource_id = invalid_resource_id;
+
+  // Element match must initially point to itself
+  element->match = element;
 
   return element;
 }
@@ -64,6 +73,89 @@ static BmTopicLength common_prefix_length(const char *topic,
   return length;
 }
 
+static void stack_push(ResourceTrieStack *stack, BmTopicLength *sp,
+                       ResourceTrieElement *element, const char *remaining) {
+  stack[*sp].element = element;
+  stack[*sp].remaining = remaining;
+  (*sp)++;
+}
+
+static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
+                      ResourceTrieElement **element, const char **remaining) {
+  (*sp)--;
+  *element = stack[*sp].element;
+  *remaining = stack[*sp].remaining;
+}
+
+static BmErr match_element(ResourceTrieRoot *root, const char *topic,
+                           ResourceTrieMatchCb cb, void *arg) {
+
+  topic = increment_past_separator(topic);
+  bool is_wildcard = topic_has_wildcard(topic);
+
+  // Add root to stack
+  BmTopicLength sp = 0;
+  ResourceTrieStack *stack = root->stack;
+  stack_push(stack, &sp, &root->element, topic);
+
+  ResourceTrieElement *current;
+  const char *remaining;
+
+  while (sp > 0) {
+    stack_pop(stack, &sp, &current, &remaining);
+
+    // If no string is remaining, this is a match
+    if (*remaining == '\0') {
+      if (cb(current, arg)) {
+        break;
+      }
+      continue;
+    }
+
+    ResourceTrieElement *child = current->children;
+    while (child) {
+      if (sp >= resource_trie_max_depth) {
+        return BmENOMEM;
+      }
+
+      const char *segment = child->segment;
+      const char *child_remaining = remaining;
+
+      bool found = true;
+
+      // Perform wildcard match per topic segment if an element is compressed
+      while (*segment) {
+        BmTopicLength seg_len = (BmTopicLength)strcspn(segment, "/");
+        BmTopicLength rem_len = (BmTopicLength)strcspn(child_remaining, "/");
+
+        // Determine how to invoke the wildcard match in accordance to the topic
+        const char *pattern = is_wildcard ? segment : child_remaining;
+        BmTopicLength pat_len = is_wildcard ? seg_len : rem_len;
+        const char *text = is_wildcard ? child_remaining : segment;
+        BmTopicLength text_len = is_wildcard ? rem_len : seg_len;
+        if (!bm_wildcard_match(pattern, pat_len, text, text_len)) {
+          found = false;
+          break;
+        }
+
+        segment += seg_len;
+        segment = increment_past_separator(segment);
+
+        child_remaining += rem_len;
+        child_remaining = increment_past_separator(child_remaining);
+      }
+
+      if (found) {
+        stack_push(stack, &sp, child, child_remaining);
+      }
+
+      child = child->sibling;
+    }
+  }
+
+  return BmOK;
+}
+
 static ResourceTrieElement *split_element(ResourceTrieElement *parent,
                                           ResourceTrieElement *child,
                                           BmTopicLength split_length) {
@@ -97,6 +189,20 @@ static ResourceTrieElement *split_element(ResourceTrieElement *parent,
   return split;
 }
 
+static bool match_topic_add(ResourceTrieElement *current, void *arg) {
+  ResourceTrieElement *new = (ResourceTrieElement *)arg;
+
+  if (!current || !new || current == new) {
+    return false;
+  }
+
+  ResourceTrieElement *tmp = current->match;
+  tmp->match = new->match;
+  new->match = tmp;
+
+  return false;
+}
+
 BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
                         uint32_t resource_id, uint16_t port_mask,
                         bool local_interest) {
@@ -104,6 +210,7 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
     return BmEINVAL;
   }
 
+  const char *topic_start = topic;
   ResourceTrieElement *current = &root->element;
   bool found = false;
 
@@ -163,6 +270,7 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   // - create a new element
   // - add it as a child to the current element
   // - assign associated variables
+  // - determine if it matches any other elements
   ResourceTrieElement *new = alloc_element(topic, 0);
   if (!new) {
     return BmENOMEM;
@@ -174,22 +282,21 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   new->port_mask = port_mask;
   new->local_interest = local_interest;
 
-  return BmOK;
-  ;
+  return match_element(root, topic_start, match_topic_add, new);
 }
 
-static void stack_push(ResourceTrieStack *stack, BmTopicLength *sp,
-                       ResourceTrieElement *element, const char *remaining) {
-  stack[*sp].element = element;
-  stack[*sp].remaining = remaining;
-  (*sp)++;
-}
+static bool match_result_update(ResourceTrieElement *current, void *arg) {
+  ResourceTrieMatchResult *result = (ResourceTrieMatchResult *)arg;
 
-static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
-                      ResourceTrieElement **element, const char **remaining) {
-  (*sp)--;
-  *element = stack[*sp].element;
-  *remaining = stack[*sp].remaining;
+  if (current->resource_id != invalid_resource_id) {
+    result->matches[result->count++] = current;
+  }
+
+  if (result->count >= result->capacity) {
+    return true;
+  }
+
+  return false;
 }
 
 BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
@@ -199,70 +306,8 @@ BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
   }
 
   result->count = 0;
-  topic = increment_past_separator(topic);
 
-  // Add root to stack
-  BmTopicLength sp = 0;
-  ResourceTrieStack *stack = root->stack;
-  stack_push(stack, &sp, &root->element, topic);
-
-  ResourceTrieElement *current;
-  const char *remaining;
-
-  while (sp > 0 && result->count < result->capacity) {
-    stack_pop(stack, &sp, &current, &remaining);
-
-    // If no string is remaining, this is a match
-    if (*remaining == '\0') {
-      if (current->resource_id != invalid_resource_id) {
-        result->matches[result->count++] = current;
-      }
-      continue;
-    }
-
-    ResourceTrieElement *child = current->children;
-    while (child) {
-      if (sp >= resource_trie_max_depth) {
-        return BmENOMEM;
-      }
-
-      const char *segment = child->segment;
-
-      bool found = true;
-      const char *rest = remaining;
-      BmTopicLength rem_len = (BmTopicLength)strnlen(rest, BM_TOPIC_MAX_LEN);
-
-      // Perform wildcard match per topic segment if an element is compressed
-      while (*segment) {
-        BmTopicLength seg_len = (BmTopicLength)strcspn(segment, "/");
-
-        if (!bm_wildcard_match(rest, rem_len, segment, seg_len)) {
-          found = false;
-          break;
-        }
-
-        segment += seg_len;
-        segment = increment_past_separator(segment);
-
-        BmTopicLength rest_len = (BmTopicLength)strcspn(rest, "/");
-        rest += rest_len;
-        rem_len -= rest_len;
-        if (*rest == '/') {
-          rest++;
-          rem_len--;
-        }
-      }
-
-      if (found) {
-        stack_push(stack, &sp, child, rest);
-        break;
-      }
-
-      child = child->sibling;
-    }
-  }
-
-  return BmOK;
+  return match_element(root, topic, match_result_update, result);
 }
 
 BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic);
