@@ -34,6 +34,7 @@ DECLARE_FAKE_VALUE_FUNC(BmErr, bm_timer_start, BmTimer, uint32_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_timer_stop, BmTimer, uint32_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_timer_change_period, BmTimer, uint32_t,
                         uint32_t);
+DECLARE_FAKE_VALUE_FUNC(BmErr, bm_timer_is_timer_active, BmTimer);
 DECLARE_FAKE_VALUE_FUNC(uint32_t, bm_timer_get_id, BmTimer);
 DECLARE_FAKE_VALUE_FUNC(BmQueue, bm_queue_create, uint32_t, uint32_t);
 DECLARE_FAKE_VOID_FUNC(bm_queue_delete, BmQueue);

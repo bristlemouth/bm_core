@@ -65,6 +65,7 @@ BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_stop(BmTimer timer, uint32_t timeout_ms);
 BmErr bm_timer_change_period(BmTimer timer, uint32_t period_ms,
                              uint32_t timeout_ms);
+BmErr bm_timer_is_timer_active(BmTimer timer);
 uint32_t bm_timer_get_id(BmTimer timer);
 uint32_t bm_get_tick_count(void);
 uint32_t bm_get_tick_count_from_isr(void);

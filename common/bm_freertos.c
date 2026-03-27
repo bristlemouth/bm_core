@@ -171,6 +171,16 @@ BmErr bm_timer_change_period(BmTimer timer, uint32_t period_ms,
   }
 }
 
+BmErr bm_timer_is_timer_active(BmTimer timer) {
+  if (xTimerIsTimerActive(timer) == pdFALSE) {
+    // Timer is dormant
+    return BmETIME;
+  } else {
+    // Timer is active
+    return BmOK;
+  }
+}
+
 uint32_t bm_timer_get_id(BmTimer timer) {
   return (uint32_t)(uintptr_t)pvTimerGetTimerID(timer);
 }
