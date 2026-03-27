@@ -11,13 +11,14 @@
 #define invalid_resource_id UINT32_MAX
 
 typedef struct ResourceTrieElement {
-  struct ResourceTrieElement **children; // Children from this pattern
-  const char *segment;                   // String segment key
-  uint32_t resource_id;                  // Local resource ID
+  struct ResourceTrieElement *children; // Children from this pattern
+  struct ResourceTrieElement *sibling;  // Next sibling under same parent
+  struct ResourceTrieElement *match;    // Next in circular match ring
+  const char *segment;                  // String segment key
+  uint32_t resource_id;                 // Local resource ID
   uint16_t port_mask; // Mask of ports which expressed interest in this resource
-  uint8_t children_count;     // Number of children
-  uint8_t local_interest : 1; // Does the node subscribe to this resource
-  uint8_t reserved : 7;       // Maintains alignment
+  uint16_t local_interest : 1; // Does the node subscribe to this resource
+  uint16_t reserved : 15;      // Maintains alignment
 } ResourceTrieElement;
 
 typedef struct {
