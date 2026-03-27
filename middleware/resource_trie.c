@@ -14,16 +14,14 @@ static ResourceTrieElement *alloc_element(const char *segment,
   if (!segment_length) {
     segment_length = strlen(segment) + 1;
   }
+
+  *element = (ResourceTrieElement){0};
   element->segment = (const char *)bm_malloc(segment_length);
   if (!element->segment) {
     bm_free(element);
     return NULL;
   }
-
   memcpy((void *)element->segment, segment, segment_length);
-  element->children_count = 0;
-  element->children = NULL;
-  element->local_interest = 0;
   element->resource_id = invalid_resource_id;
 
   return element;
@@ -34,23 +32,21 @@ static void free_element(ResourceTrieElement *element) {
   bm_free(element);
 }
 
-static BmErr add_child(ResourceTrieElement *parent,
-                       ResourceTrieElement *child) {
-  uint8_t count = parent->children_count;
-  uint16_t new_count = count + 1;
-
-  ResourceTrieElement **new = (ResourceTrieElement **)bm_malloc(new_count);
-  if (!new) {
-    return BmENOMEM;
+static void add_child(ResourceTrieElement *parent, ResourceTrieElement *child,
+                      ResourceTrieElement *check) {
+  // If child is direct ll pointer set to split
+  if (parent->children == check) {
+    parent->children = child;
+    return;
   }
 
-  memcpy(*new, parent->children, count);
-  new[count] = child;
-  bm_free(parent->children);
-  parent->children = new;
-  parent->children_count = new_count;
+  // Iterate through childrent and set new sibling
+  ResourceTrieElement *tmp = parent->children;
+  while (tmp->sibling != check) {
+    tmp = tmp->sibling;
+  }
 
-  return BmOK;
+  tmp->sibling = child;
 }
 
 static BmTopicLength common_prefix_length(const char *topic,
@@ -70,7 +66,6 @@ static BmTopicLength common_prefix_length(const char *topic,
 
 static ResourceTrieElement *split_element(ResourceTrieElement *parent,
                                           ResourceTrieElement *child,
-                                          uint8_t child_idx,
                                           BmTopicLength split_length) {
   // Allocate new element and assign prefix string
   ResourceTrieElement *split = alloc_element(child->segment, split_length);
@@ -79,10 +74,7 @@ static ResourceTrieElement *split_element(ResourceTrieElement *parent,
   }
 
   // Set split to point to original child
-  if (add_child(split, child) != BmOK) {
-    bm_free(split);
-    return NULL;
-  }
+  add_child(split, child, NULL);
 
   // Assign suffix to original segment
   const char *suffix = &child->segment[split_length];
@@ -100,8 +92,7 @@ static ResourceTrieElement *split_element(ResourceTrieElement *parent,
   bm_free((void *)child->segment);
   child->segment = tmp_segment;
 
-  // Set the parents child to now point to the split
-  parent->children[child_idx] = split;
+  add_child(parent, split, child);
 
   return split;
 }
@@ -121,14 +112,15 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   while (*topic) {
     found = false;
 
-    for (uint8_t i = 0; i < current->children_count; i++) {
-      ResourceTrieElement *child = current->children[i];
+    ResourceTrieElement *child = current->children;
+    while (child) {
 
       BmTopicLength seg_len =
           (BmTopicLength)strnlen(child->segment, BM_TOPIC_MAX_LEN);
       BmTopicLength shared_len = common_prefix_length(topic, child->segment);
 
       if (!shared_len) {
+        child = child->sibling;
         continue;
       }
 
@@ -142,7 +134,7 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
       }
 
       // Partial segment consumed split topic
-      ResourceTrieElement *split = split_element(current, child, i, shared_len);
+      ResourceTrieElement *split = split_element(current, child, shared_len);
       if (!split) {
         return BmENOMEM;
       }
@@ -151,6 +143,7 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
       topic = increment_past_separator(topic);
       current = split;
       found = true;
+      break;
     }
 
     if (!found) {
@@ -175,10 +168,7 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
     return BmENOMEM;
   }
 
-  if (add_child(current, new) != BmOK) {
-    free_element(new);
-    return BmENOMEM;
-  }
+  add_child(current, new, NULL);
 
   new->resource_id = resource_id;
   new->port_mask = port_mask;
@@ -230,12 +220,12 @@ BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
       continue;
     }
 
-    for (uint8_t i = 0; i < current->children_count; i++) {
+    ResourceTrieElement *child = current->children;
+    while (child) {
       if (sp >= resource_trie_max_depth) {
         return BmENOMEM;
       }
 
-      ResourceTrieElement *child = current->children[i];
       const char *segment = child->segment;
 
       bool found = true;
@@ -254,10 +244,9 @@ BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
         segment += seg_len;
         segment = increment_past_separator(segment);
 
-        while (*rest != '/' && *rest) {
-          rest++;
-          rem_len--;
-        }
+        BmTopicLength rest_len = (BmTopicLength)strcspn(rest, "/");
+        rest += rest_len;
+        rem_len -= rest_len;
         if (*rest == '/') {
           rest++;
           rem_len--;
@@ -266,7 +255,10 @@ BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
 
       if (found) {
         stack_push(stack, &sp, child, rest);
+        break;
       }
+
+      child = child->sibling;
     }
   }
 
