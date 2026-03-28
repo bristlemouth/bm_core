@@ -258,26 +258,8 @@ BM_LINUX_STATIC BmIpAddr *message_get_dst_ip(void *payload) {
 
 BM_LINUX_STATIC uint16_t message_get_checksum(void *payload, uint32_t size) {
   LinuxLayout *layout = (LinuxLayout *)payload;
-  uint16_t cksum = ipv6_pseudo_checksum(layout->src, layout->dst, ip_proto_bcmp,
-                                        size, layout->data);
-
-  /* Debug: print inputs and result so real packets can be captured for tests. */
-  printf("[checksum] size=%u cksum=0x%04X\n", size, cksum);
-  printf("[checksum] src=");
-  for (int i = 0; i < 16; i++) {
-    printf("0x%02X%s", layout->src->addr[i], i < 15 ? "," : "\n");
-  }
-  printf("[checksum] dst=");
-  for (int i = 0; i < 16; i++) {
-    printf("0x%02X%s", layout->dst->addr[i], i < 15 ? "," : "\n");
-  }
-  printf("[checksum] data=");
-  const uint8_t *d = (const uint8_t *)layout->data;
-  for (uint32_t i = 0; i < size; i++) {
-    printf("0x%02X%s", d[i], i < size - 1 ? "," : "\n");
-  }
-
-  return cksum;
+  return ipv6_pseudo_checksum(layout->src, layout->dst, ip_proto_bcmp, size,
+                              layout->data);
 }
 
 // ---------------------------------------------------------------------------
