@@ -15,6 +15,7 @@
 #include "packet.h"
 #include "util.h"
 
+#include <arpa/inet.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -188,13 +189,13 @@ BM_LINUX_STATIC uint16_t ipv6_pseudo_checksum(const BmIpAddr *src, const BmIpAdd
     sum += ((uint16_t)p[i] << 8) | p[i + 1];
   }
   if (length & 1) {
-    sum += (uint16_t)p[length - 1] << 8;
+    sum += (uint16_t)p[length - 1];
   }
   /* Fold carry bits and return one's complement. */
   while (sum >> 16) {
     sum = (sum & 0xFFFF) + (sum >> 16);
   }
-  return (uint16_t)~sum;
+  return ntohs((uint16_t)~sum);
 }
 
 /// Derive a 6-byte locally-administered MAC address from node_id.
@@ -257,8 +258,26 @@ BM_LINUX_STATIC BmIpAddr *message_get_dst_ip(void *payload) {
 
 BM_LINUX_STATIC uint16_t message_get_checksum(void *payload, uint32_t size) {
   LinuxLayout *layout = (LinuxLayout *)payload;
-  return ipv6_pseudo_checksum(layout->src, layout->dst, ip_proto_bcmp, size,
-                              layout->data);
+  uint16_t cksum = ipv6_pseudo_checksum(layout->src, layout->dst, ip_proto_bcmp,
+                                        size, layout->data);
+
+  /* Debug: print inputs and result so real packets can be captured for tests. */
+  printf("[checksum] size=%u cksum=0x%04X\n", size, cksum);
+  printf("[checksum] src=");
+  for (int i = 0; i < 16; i++) {
+    printf("0x%02X%s", layout->src->addr[i], i < 15 ? "," : "\n");
+  }
+  printf("[checksum] dst=");
+  for (int i = 0; i < 16; i++) {
+    printf("0x%02X%s", layout->dst->addr[i], i < 15 ? "," : "\n");
+  }
+  printf("[checksum] data=");
+  const uint8_t *d = (const uint8_t *)layout->data;
+  for (uint32_t i = 0; i < size; i++) {
+    printf("0x%02X%s", d[i], i < size - 1 ? "," : "\n");
+  }
+
+  return cksum;
 }
 
 // ---------------------------------------------------------------------------
