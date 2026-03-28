@@ -163,9 +163,11 @@ BM_LINUX_STATIC void format_ipv6(char *out, const BmIpAddr *addr) {
 ///   next_header) + upper-layer data.  Returns one's complement of the sum.
 /// Must produce the same value as lwIP's ip6_chksum_pseudo for BCMP
 /// checksum validation to work.
-BM_LINUX_STATIC uint16_t ipv6_pseudo_checksum(const BmIpAddr *src, const BmIpAddr *dst,
-                                     uint8_t next_header, uint32_t length,
-                                     const void *data) {
+BM_LINUX_STATIC uint16_t ipv6_pseudo_checksum(const BmIpAddr *src,
+                                              const BmIpAddr *dst,
+                                              uint8_t next_header,
+                                              uint32_t length,
+                                              const void *data) {
   uint32_t sum = 0;
   const uint8_t *p;
   /* Source address (16 bytes). */
@@ -212,7 +214,8 @@ BM_LINUX_STATIC void mac_from_nodeid(uint8_t *mac, uint64_t id) {
 
 /// Build an IPv6 multicast-mapped MAC: 33:33 followed by the last 4 bytes
 /// of the IPv6 destination address.
-BM_LINUX_STATIC void multicast_mac_from_ipv6(uint8_t *mac, const BmIpAddr *dst) {
+BM_LINUX_STATIC void multicast_mac_from_ipv6(uint8_t *mac,
+                                             const BmIpAddr *dst) {
   mac[0] = 0x33;
   mac[1] = 0x33;
   mac[2] = dst->addr[12];
@@ -287,8 +290,8 @@ BmErr bm_ip_init(void) {
   memset(&CTX.udp_list, 0, sizeof(CTX.udp_list));
 
   /* Register BCMP packet accessor callbacks. */
-  return packet_init(message_get_src_ip, message_get_dst_ip,
-                     message_get_data, message_get_checksum);
+  return packet_init(message_get_src_ip, message_get_dst_ip, message_get_data,
+                     message_get_checksum);
 }
 
 void *bm_l2_new(uint32_t size) {
@@ -351,8 +354,7 @@ BmErr bm_l2_submit(void *buf, uint32_t size) {
     BmIpAddr *src_copy = (BmIpAddr *)bm_malloc(sizeof(BmIpAddr));
     BmIpAddr *dst_copy = (BmIpAddr *)bm_malloc(sizeof(BmIpAddr));
     void *data_copy = bm_malloc(payload_length);
-    LinuxLayout *layout =
-        (LinuxLayout *)bm_malloc(sizeof(LinuxLayout));
+    LinuxLayout *layout = (LinuxLayout *)bm_malloc(sizeof(LinuxLayout));
 
     if (!src_copy || !dst_copy || !data_copy || !layout) {
       bm_free(src_copy);
@@ -408,11 +410,9 @@ BmErr bm_l2_submit(void *buf, uint32_t size) {
     }
 
     UdpCb *cb = NULL;
-    if (ll_get_item(&CTX.udp_list, (uint32_t)dst_port, (void **)&cb) ==
-            BmOK &&
+    if (ll_get_item(&CTX.udp_list, (uint32_t)dst_port, (void **)&cb) == BmOK &&
         cb != NULL) {
-      cb->udp_cb(src_port, udp_buf, ip_to_nodeid(&src_addr),
-                 udp_payload_len);
+      cb->udp_cb(src_port, udp_buf, ip_to_nodeid(&src_addr), udp_payload_len);
     } else {
       /* No listener — discard the copied payload. */
       bm_l2_free(udp_buf);
@@ -531,9 +531,9 @@ BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
   ip[2] = 0x00;
   ip[3] = 0x00; /* flow label 0 */
   ip[4] = (uint8_t)(data_size >> 8);
-  ip[5] = (uint8_t)(data_size);      /* payload length */
-  ip[6] = ip_proto_bcmp;             /* next header */
-  ip[7] = 64;                        /* hop limit */
+  ip[5] = (uint8_t)(data_size); /* payload length */
+  ip[6] = ip_proto_bcmp;        /* next header */
+  ip[7] = 64;                   /* hop limit */
   memcpy(ip + 8, layout->src->addr, 16);
   memcpy(ip + 24, effective_dst->addr, 16);
 
@@ -643,16 +643,15 @@ BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
   udp[0] = (uint8_t)(udp_pcb->port >> 8);
   udp[1] = (uint8_t)(udp_pcb->port); /* src port */
   udp[2] = (uint8_t)(port >> 8);
-  udp[3] = (uint8_t)(port);          /* dst port */
+  udp[3] = (uint8_t)(port); /* dst port */
   udp[4] = (uint8_t)(udp_total >> 8);
-  udp[5] = (uint8_t)(udp_total);     /* length */
+  udp[5] = (uint8_t)(udp_total); /* length */
   udp[6] = 0;
-  udp[7] = 0;                        /* checksum = 0 */
+  udp[7] = 0; /* checksum = 0 */
 
   /* --- UDP payload (at offset 62) --- */
   if (size > 0) {
-    memcpy(frame + FRAME_HDR_LEN + UDP_HDR_LEN, bm_udp_get_payload(buf),
-           size);
+    memcpy(frame + FRAME_HDR_LEN + UDP_HDR_LEN, bm_udp_get_payload(buf), size);
   }
 
   err = bm_l2_link_output(l2_buf, frame_size);
