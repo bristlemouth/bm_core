@@ -189,18 +189,21 @@ static BmErr bm_l2_start_renegotiate_check(uint8_t port_num) {
  */
 static BmErr bm_l2_stop_renegotiate_check(uint8_t port_num) {
   if (CTX.network_device.trait->retry_negotiation) {
-    BmTimer *timer = NULL;
+    BmTimer *timer_ptr = NULL;
     BmErr err =
-        ll_get_item(&CTX.renegotiate_timer_list, port_num, (void **)&timer);
+        ll_get_item(&CTX.renegotiate_timer_list, port_num, (void **)&timer_ptr);
 
-    if (err != BmOK || !timer) {
+    if (err != BmOK || !timer_ptr) {
       bm_debug("Could not find negotiation timer on port: %u\n", port_num);
       return BmENODATA;
     }
 
+    // Save the timer handle before ll_remove frees the linked-list node
+    // (and its data block) preventing a use-after-free in bm_timer_stop.
+    BmTimer timer = *timer_ptr;
     ll_remove(&CTX.renegotiate_timer_list, port_num);
-    bm_timer_stop(*timer, 0);
-    bm_timer_delete(*timer, 0);
+    bm_timer_stop(timer, 0);
+    bm_timer_delete(timer, 0);
     bm_debug("Deleting negotiation timer on port: %u\n", port_num);
     return BmOK;
   }
