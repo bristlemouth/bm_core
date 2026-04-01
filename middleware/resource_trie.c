@@ -4,7 +4,20 @@
 
 #define increment_past_separator(t) (*t == '/' ? t + 1 : t)
 
-typedef bool (*ResourceTrieMatchCb)(ResourceTrieElement *current, void *arg);
+typedef bool (*MatchCb)(ResourceTrieElement *current, void *arg);
+
+struct ExactMatchCtx;
+
+typedef BmErr (*PartialMatchCb)(struct ExactMatchCtx *ctx,
+                                ResourceTrieElement *child,
+                                BmTopicLength shared_len);
+
+typedef struct ExactMatchCtx {
+  ResourceTrieElement *current;
+  ResourceTrieElement *previous;
+  const PartialMatchCb cb;
+  bool found;
+} ExactMatchCtx;
 
 static inline bool topic_has_wildcard(const char *topic) {
   return (strchr(topic, '*') != NULL) || (strchr(topic, '?') != NULL);
@@ -40,7 +53,7 @@ static void free_element(ResourceTrieElement *element) {
 
 static void add_child(ResourceTrieElement *parent, ResourceTrieElement *child,
                       ResourceTrieElement *check) {
-  // If child is direct ll pointer set to split
+  // If child is direct ll pointer set to child
   if (parent->children == check) {
     parent->children = child;
     return;
@@ -53,6 +66,67 @@ static void add_child(ResourceTrieElement *parent, ResourceTrieElement *child,
   }
 
   tmp->sibling = child;
+}
+
+static inline void copy_and_increment_segment(char **new, const char *old) {
+  BmTopicLength segment_len = strnlen(old, BM_TOPIC_MAX_LEN);
+  BmTopicLength max_copy = bm_min(segment_len, BM_TOPIC_MAX_LEN);
+  strncpy(*new, old, max_copy);
+  *new += max_copy;
+}
+
+static bool check_and_compress(ResourceTrieElement *parent) {
+  // Compress if possible
+  ResourceTrieElement *child = parent->children;
+
+  // If there are multiple children or this is not a leaf node
+  if (!child || child->sibling || child->children) {
+    return false;
+  }
+
+  // Update the segment topic
+  char *new_segment = (char *)bm_malloc(BM_TOPIC_MAX_LEN);
+  const char *segment_begin = new_segment;
+  copy_and_increment_segment(&new_segment, parent->segment);
+  *new_segment = '/';
+  new_segment++;
+  copy_and_increment_segment(&new_segment, child->segment);
+
+  *parent = *child;
+  // child segment will be freed in free_element
+  parent->segment = segment_begin;
+  free_element(child);
+
+  return true;
+}
+
+static void remove_child(ResourceTrieElement *previous,
+                         ResourceTrieElement *current) {
+
+  // If there are children under this element see if element can be compressed
+  if (current->children) {
+    bool compressed = check_and_compress(current);
+
+    // Could not compress, but resource is now invalid
+    if (!compressed) {
+      current->resource_id = invalid_resource_id;
+      current->port_mask = 0;
+      current->local_interest = 0;
+      current->is_wildcard = 0;
+    }
+    return;
+  }
+
+  // If current is child set to sibling
+  if (previous->children == current) {
+    previous->children = current->sibling;
+    free_element(current);
+    return;
+  }
+
+  // Current must be a sibling
+  previous->sibling = current->sibling;
+  free_element(current);
 }
 
 static BmTopicLength common_prefix_length(const char *topic,
@@ -85,7 +159,7 @@ static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
 }
 
 static BmErr match_element(ResourceTrieRoot *root, const char *topic,
-                           ResourceTrieMatchCb cb, void *arg) {
+                           MatchCb cb, void *arg) {
 
   topic = increment_past_separator(topic);
   bool is_wildcard = topic_has_wildcard(topic);
@@ -153,33 +227,94 @@ static BmErr match_element(ResourceTrieRoot *root, const char *topic,
   return BmOK;
 }
 
+static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
+                         ExactMatchCtx *ctx) {
+  ctx->current = &root->element;
+  const char *topic_local = *topic;
+  ctx->found = false;
+
+  topic_local = increment_past_separator(topic_local);
+  while (*topic_local) {
+    ctx->found = false;
+
+    ResourceTrieElement *child = ctx->current->children;
+    while (child) {
+
+      BmTopicLength seg_len =
+          (BmTopicLength)strnlen(child->segment, BM_TOPIC_MAX_LEN);
+      BmTopicLength shared_len =
+          common_prefix_length(topic_local, child->segment);
+
+      if (!shared_len) {
+        child = child->sibling;
+        continue;
+      }
+
+      // Full segment consumed
+      if (shared_len == seg_len) {
+        topic_local += seg_len;
+        topic_local = increment_past_separator(topic_local);
+        ctx->previous = ctx->current;
+        ctx->current = child;
+        ctx->found = true;
+        break;
+      }
+
+      if (!ctx->cb) {
+        break;
+      }
+
+      BmErr err = ctx->cb(ctx, child, shared_len);
+      if (err != BmOK) {
+        return err;
+      }
+      topic_local += shared_len;
+      topic_local = increment_past_separator(topic_local);
+      ctx->found = true;
+      break;
+    }
+
+    if (!ctx->found) {
+      break;
+    }
+  }
+
+  *topic = topic_local;
+  return BmOK;
+}
+
 static ResourceTrieElement *split_element(ResourceTrieElement *parent,
                                           ResourceTrieElement *child,
                                           BmTopicLength split_length) {
-  // Allocate new element and assign prefix string
-  ResourceTrieElement *split = alloc_element(child->segment, split_length);
-  if (!split) {
-    return NULL;
-  }
-
-  // Set split to point to original child
-  add_child(split, child, NULL);
+  const char *prefix = child->segment;
 
   // Assign suffix to original segment
-  const char *suffix = &child->segment[split_length];
+  const char *suffix = &prefix[split_length];
   suffix = increment_past_separator(suffix);
   BmTopicLength suffix_len = strlen(suffix) + 1;
 
   char *tmp_segment = (char *)bm_malloc(suffix_len);
   if (!tmp_segment) {
-    free_element(split);
     return NULL;
   }
 
-  memcpy((void *)tmp_segment, suffix, suffix_len);
-  tmp_segment[suffix_len - 1] = '\0';
+  strncpy((void *)tmp_segment, suffix, suffix_len);
+
+  // Get rid of separator if it is the last match lengthed item
+  if (prefix[split_length - 1] == '/') {
+    split_length--;
+  }
+  // Create the split element which will have the prefix
+  ResourceTrieElement *split = alloc_element(prefix, split_length);
+  if (!split) {
+    return NULL;
+  }
+
   bm_free((void *)child->segment);
   child->segment = tmp_segment;
+
+  // Set split to point to original child
+  add_child(split, child, NULL);
 
   add_child(parent, split, child);
 
@@ -202,7 +337,8 @@ static bool concrete_topic_update(ResourceTrieElement *current, void *arg) {
 static bool match_topic_update(ResourceTrieElement *current, void *arg) {
   ResourceTrieElement *new = (ResourceTrieElement *)arg;
 
-  if (current == new) {
+  // Only non-wildcard topics should be updated
+  if (current == new || current->is_wildcard) {
     return false;
   }
 
@@ -210,6 +346,19 @@ static bool match_topic_update(ResourceTrieElement *current, void *arg) {
   current->local_interest |= new->local_interest;
 
   return false;
+}
+
+static BmErr split_topic(ExactMatchCtx *ctx, ResourceTrieElement *child,
+                         BmTopicLength shared_len) {
+  // Partial segment consumed split topic
+  ResourceTrieElement *split = split_element(ctx->current, child, shared_len);
+  if (!split) {
+    return BmENOMEM;
+  }
+  ctx->previous = ctx->current;
+  ctx->current = split;
+
+  return BmOK;
 }
 
 BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
@@ -220,53 +369,19 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   }
 
   const char *topic_start = topic;
-  ResourceTrieElement *current = &root->element;
-  bool found = false;
-
-  topic = increment_past_separator(topic);
-
-  while (*topic) {
-    found = false;
-
-    ResourceTrieElement *child = current->children;
-    while (child) {
-
-      BmTopicLength seg_len =
-          (BmTopicLength)strnlen(child->segment, BM_TOPIC_MAX_LEN);
-      BmTopicLength shared_len = common_prefix_length(topic, child->segment);
-
-      if (!shared_len) {
-        child = child->sibling;
-        continue;
-      }
-
-      // Full segment consumed
-      if (shared_len == seg_len) {
-        topic += seg_len;
-        topic = increment_past_separator(topic);
-        current = child;
-        found = true;
-        break;
-      }
-
-      // Partial segment consumed split topic
-      ResourceTrieElement *split = split_element(current, child, shared_len);
-      if (!split) {
-        return BmENOMEM;
-      }
-
-      topic += shared_len;
-      topic = increment_past_separator(topic);
-      current = split;
-      found = true;
-      break;
-    }
-
-    if (!found) {
-      break;
-    }
+  ExactMatchCtx ctx = {
+      .current = NULL,
+      .previous = NULL,
+      .cb = split_topic,
+      .found = false,
+  };
+  BmErr err = exact_match(root, &topic, &ctx);
+  if (err != BmOK) {
+    return err;
   }
 
+  bool found = ctx.found;
+  ResourceTrieElement *current = ctx.current;
   // Update variables if found
   if (found) {
     current->resource_id = resource_id;
@@ -291,9 +406,9 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   new->local_interest = local_interest;
 
   // Update elements in the resource trie based on the topic type
-  bool is_wildcard = topic_has_wildcard(topic_start);
-  ResourceTrieMatchCb cb = concrete_topic_update;
-  if (is_wildcard) {
+  new->is_wildcard = topic_has_wildcard(topic_start);
+  MatchCb cb = concrete_topic_update;
+  if (new->is_wildcard) {
     cb = match_topic_update;
   }
 
@@ -325,4 +440,33 @@ BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
   return match_element(root, topic, match_result_update, result);
 }
 
-BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic);
+BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
+  if (!root || !topic) {
+    return BmEINVAL;
+  }
+
+  ExactMatchCtx ctx = {
+      .current = NULL,
+      .previous = NULL,
+      .cb = NULL,
+      .found = false,
+  };
+  BmErr err = exact_match(root, &topic, &ctx);
+  if (err != BmOK) {
+    return err;
+  }
+
+  bool found = ctx.found;
+  ResourceTrieElement *current = ctx.current;
+  ResourceTrieElement *previous = ctx.previous;
+
+  // Remove and delete the element if found
+  if (found) {
+    remove_child(previous, current);
+    check_and_compress(previous);
+
+    return BmOK;
+  }
+
+  return BmENODATA;
+}
