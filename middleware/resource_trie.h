@@ -13,7 +13,6 @@
 typedef struct ResourceTrieElement {
   struct ResourceTrieElement *children; // Children from this pattern
   struct ResourceTrieElement *sibling;  // Next sibling under same parent
-  struct ResourceTrieElement *match;    // Next in circular match ring
   const char *segment;                  // String segment key
   uint32_t resource_id;                 // Local resource ID
   uint16_t port_mask; // Mask of ports which expressed interest in this resource

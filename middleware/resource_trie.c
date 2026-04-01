@@ -30,9 +30,6 @@ static ResourceTrieElement *alloc_element(const char *segment,
   memcpy((void *)element->segment, segment, segment_length);
   element->resource_id = invalid_resource_id;
 
-  // Element match must initially point to itself
-  element->match = element;
-
   return element;
 }
 
@@ -189,16 +186,28 @@ static ResourceTrieElement *split_element(ResourceTrieElement *parent,
   return split;
 }
 
-static bool match_topic_add(ResourceTrieElement *current, void *arg) {
+static bool concrete_topic_update(ResourceTrieElement *current, void *arg) {
   ResourceTrieElement *new = (ResourceTrieElement *)arg;
 
-  if (!current || !new || current == new) {
+  if (current == new) {
     return false;
   }
 
-  ResourceTrieElement *tmp = current->match;
-  tmp->match = new->match;
-  new->match = tmp;
+  new->port_mask |= current->port_mask;
+  new->local_interest |= current->local_interest;
+
+  return false;
+}
+
+static bool match_topic_update(ResourceTrieElement *current, void *arg) {
+  ResourceTrieElement *new = (ResourceTrieElement *)arg;
+
+  if (current == new) {
+    return false;
+  }
+
+  current->port_mask |= new->port_mask;
+  current->local_interest |= new->local_interest;
 
   return false;
 }
@@ -270,7 +279,6 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   // - create a new element
   // - add it as a child to the current element
   // - assign associated variables
-  // - determine if it matches any other elements
   ResourceTrieElement *new = alloc_element(topic, 0);
   if (!new) {
     return BmENOMEM;
@@ -282,7 +290,14 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   new->port_mask = port_mask;
   new->local_interest = local_interest;
 
-  return match_element(root, topic_start, match_topic_add, new);
+  // Update elements in the resource trie based on the topic type
+  bool is_wildcard = topic_has_wildcard(topic_start);
+  ResourceTrieMatchCb cb = concrete_topic_update;
+  if (is_wildcard) {
+    cb = match_topic_update;
+  }
+
+  return match_element(root, topic_start, cb, new);
 }
 
 static bool match_result_update(ResourceTrieElement *current, void *arg) {
