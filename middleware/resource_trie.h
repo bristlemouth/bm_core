@@ -17,6 +17,7 @@ typedef struct ResourceTrieElement {
   uint32_t resource_id;                 // Local resource ID
   uint16_t port_mask; // Mask of ports which expressed interest in this resource
   uint16_t local_interest : 1; // Does the node subscribe to this resource
+  uint16_t is_wildcard;        // Is a wildcard topic
   uint16_t reserved : 15;      // Maintains alignment
 } ResourceTrieElement;
 

@@ -53,9 +53,10 @@ TEST_F(resource_trie_test, match_concrete_simple) {
   EXPECT_EQ(match->port_mask, port_mask);
 }
 
-TEST_F(resource_trie_test, match_concrete_split) {
+TEST_F(resource_trie_test, match_concrete_split_substring) {
   ResourceTrieRoot root = {};
 
+  // Second topic is a substring of the first added topic
   const char *topic_1 = "/sensor/temperature/raw";
   const char *topic_2 = "/sensor/temperature";
   uint32_t resource_id[2] = {
@@ -87,6 +88,7 @@ TEST_F(resource_trie_test, match_concrete_split) {
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result.count, 1);
   match = matches[0];
+  EXPECT_STREQ(match->segment, "raw");
   EXPECT_EQ(match->local_interest, local_interest);
   EXPECT_EQ(match->resource_id, resource_id[0]);
   EXPECT_EQ(match->port_mask, port_mask[0]);
@@ -95,9 +97,52 @@ TEST_F(resource_trie_test, match_concrete_split) {
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result.count, 1);
   match = matches[0];
+  EXPECT_STREQ(match->segment, "sensor/temperature");
   EXPECT_EQ(match->local_interest, local_interest);
   EXPECT_EQ(match->resource_id, resource_id[1]);
   EXPECT_EQ(match->port_mask, port_mask[1]);
+}
+
+TEST_F(resource_trie_test, match_split_unique) {
+  ResourceTrieRoot root = {};
+
+  // Split performed on a unique string of the first added topic
+  const char *topic_1 = "/sensor/temperature";
+  const char *topic_2 = "/sensor/pressure/*";
+  uint32_t id_1 = 100;
+  uint16_t port_1 = 0x0080;
+  bool local_interest_1 = false;
+  uint32_t id_2 = 200;
+  uint16_t port_2 = 0x0002;
+  bool local_interest_2 = true;
+
+  BmErr err = resource_trie_add(&root, topic_1, id_1, port_1, local_interest_1);
+  ASSERT_EQ(err, BmOK);
+  err = resource_trie_add(&root, topic_2, id_2, port_2, local_interest_2);
+  ASSERT_EQ(err, BmOK);
+
+  ResourceTrieElement *matches[1] = {};
+  ResourceTrieMatchResult result = {
+      .matches = matches,
+      .capacity = array_size(matches),
+      .count = 0,
+  };
+
+  err = resource_trie_match(&root, topic_1, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 1);
+  EXPECT_STREQ(matches[0]->segment, "temperature");
+  EXPECT_EQ(matches[0]->local_interest, local_interest_1);
+  EXPECT_EQ(matches[0]->resource_id, id_1);
+  EXPECT_EQ(matches[0]->port_mask, port_1);
+
+  err = resource_trie_match(&root, topic_2, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 1);
+  EXPECT_STREQ(matches[0]->segment, "pressure/*");
+  EXPECT_EQ(matches[0]->local_interest, local_interest_2);
+  EXPECT_EQ(matches[0]->resource_id, id_2);
+  EXPECT_EQ(matches[0]->port_mask, port_2);
 }
 
 TEST_F(resource_trie_test, match_wildcard_simple) {
@@ -128,7 +173,7 @@ TEST_F(resource_trie_test, match_wildcard_simple) {
   EXPECT_EQ(match->port_mask, port_mask);
 }
 
-TEST_F(resource_trie_test, wildcard_concrete_first_update_outputs) {
+TEST_F(resource_trie_test, wildcard_add_to_concrete) {
   ResourceTrieRoot root = {};
 
   const char *concrete_topic = "/sensor/temperature/raw";
@@ -184,7 +229,7 @@ TEST_F(resource_trie_test, wildcard_concrete_first_update_outputs) {
   EXPECT_EQ(matches[1]->local_interest, true);
 }
 
-TEST_F(resource_trie_test, wildcard_first_update_outputs) {
+TEST_F(resource_trie_test, concrete_add_to_wildcard) {
   ResourceTrieRoot root = {};
 
   const char *concrete_topic = "/sensor/temperature/raw";
@@ -227,4 +272,114 @@ TEST_F(resource_trie_test, wildcard_first_update_outputs) {
   EXPECT_EQ(matches[1]->resource_id, wildcard_id);
   EXPECT_EQ(matches[1]->port_mask, wildcard_port);
   EXPECT_EQ(matches[1]->local_interest, true); // promoted from false
+}
+
+TEST_F(resource_trie_test, multiple_wildcards_validate_unique) {
+  ResourceTrieRoot root = {};
+
+  uint32_t id_1 = 100;
+  uint16_t port_1 = 0x0080;
+  bool local_interest_1 = false;
+  uint32_t id_2 = 200;
+  uint16_t port_2 = 0x0002;
+  bool local_interest_2 = true;
+  const char *wildcard_1 = "/sensor/*/raw";
+  const char *wildcard_2 = "/sensor/*";
+
+  BmErr err =
+      resource_trie_add(&root, wildcard_1, id_1, port_1, local_interest_1);
+  ASSERT_EQ(err, BmOK);
+  err = resource_trie_add(&root, wildcard_2, id_2, port_2, local_interest_2);
+  ASSERT_EQ(err, BmOK);
+
+  ResourceTrieElement *matches[1] = {};
+  ResourceTrieMatchResult result = {
+      .matches = matches,
+      .capacity = array_size(matches),
+      .count = 0,
+  };
+
+  // Validate that each wildcard still has unique data
+  // (they have not been OR'd together)
+  err = resource_trie_match(&root, wildcard_1, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 1);
+  EXPECT_EQ(matches[0]->resource_id, id_1);
+  EXPECT_EQ(matches[0]->port_mask, port_1);
+  EXPECT_EQ(matches[0]->local_interest, local_interest_1);
+  err = resource_trie_match(&root, wildcard_2, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 1);
+  EXPECT_EQ(matches[0]->resource_id, id_2);
+  EXPECT_EQ(matches[0]->port_mask, port_2);
+  EXPECT_EQ(matches[0]->local_interest, local_interest_2);
+}
+
+TEST_F(resource_trie_test, simple_remove) {
+  ResourceTrieRoot root = {};
+
+  const char *topic = "/sensor/temperature/raw";
+  uint32_t resource_id = (uint32_t)RND.rnd_int(max_resource_id, 0);
+  uint16_t port_mask = (uint16_t)RND.rnd_int(UINT16_MAX, 1);
+  bool local_interest = true;
+
+  BmErr err =
+      resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+  ASSERT_EQ(err, BmOK);
+  err = resource_trie_remove(&root, topic);
+  ASSERT_EQ(err, BmOK);
+
+  ResourceTrieElement *matches[1] = {};
+  ResourceTrieMatchResult result = {
+      .matches = matches,
+      .capacity = array_size(matches),
+      .count = 0,
+  };
+  err = resource_trie_match(&root, topic, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 0);
+}
+
+TEST_F(resource_trie_test, simple_remove_compression) {
+  ResourceTrieRoot root = {};
+
+  uint32_t id_1 = 100;
+  uint16_t port_1 = 0x0080;
+  bool local_interest_1 = false;
+  uint32_t id_2 = 200;
+  uint16_t port_2 = 0x0002;
+  bool local_interest_2 = true;
+  const char *topic_1 = "/sensor/temperature";
+  const char *topic_2 = "/sensor/pressure";
+
+  BmErr err = resource_trie_add(&root, topic_1, id_1, port_1, local_interest_1);
+  ASSERT_EQ(err, BmOK);
+  err = resource_trie_add(&root, topic_2, id_2, port_2, local_interest_2);
+  ASSERT_EQ(err, BmOK);
+
+  ResourceTrieElement *matches[1] = {};
+  ResourceTrieMatchResult result = {
+      .matches = matches,
+      .capacity = array_size(matches),
+      .count = 0,
+  };
+
+  // Before removal, topic_2 segment will be split at pressure
+  err = resource_trie_match(&root, topic_2, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 1);
+  EXPECT_STREQ(matches[0]->segment, "pressure");
+
+  // Remove first element, topic_2 segment will compress to sensor/pressure
+  err = resource_trie_remove(&root, topic_1);
+  ASSERT_EQ(err, BmOK);
+
+  // Validate topic_2 matches all expected values after compression
+  err = resource_trie_match(&root, topic_2, &result);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result.count, 1);
+  EXPECT_STREQ(matches[0]->segment, "sensor/pressure");
+  EXPECT_EQ(matches[0]->resource_id, id_2);
+  EXPECT_EQ(matches[0]->port_mask, port_2);
+  EXPECT_EQ(matches[0]->local_interest, local_interest_2);
 }
