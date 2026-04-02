@@ -647,11 +647,21 @@ BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
   udp[4] = (uint8_t)(udp_total >> 8);
   udp[5] = (uint8_t)(udp_total); /* length */
   udp[6] = 0;
-  udp[7] = 0; /* checksum = 0 */
+  udp[7] = 0; /* zeroed before checksum computation */
 
   /* --- UDP payload (at offset 62) --- */
   if (size > 0) {
     memcpy(frame + FRAME_HDR_LEN + UDP_HDR_LEN, bm_udp_get_payload(buf), size);
+  }
+
+  /* --- UDP checksum (mandatory for IPv6, RFC 2460 §8.1) --- */
+  {
+    BmIpAddr src_addr;
+    memcpy(src_addr.addr, ip + 8, 16);
+    uint16_t cksum =
+        ipv6_pseudo_checksum(&src_addr, dest_addr, ip_proto_udp, udp_total, udp);
+    udp[6] = (uint8_t)(cksum >> 8);
+    udp[7] = (uint8_t)(cksum);
   }
 
   err = bm_l2_link_output(l2_buf, frame_size);
