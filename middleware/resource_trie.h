@@ -6,6 +6,9 @@
 //                     x/x/x/x/x......./x
 #define resource_trie_max_depth (BM_TOPIC_MAX_LEN >> 1)
 
+// Arbitrary number that will account for the max number matches on a network
+#define max_trie_matches (64)
+
 // Max resource key is 20 bit
 #define max_resource_id (0xFFFFF)
 #define invalid_resource_id UINT32_MAX
@@ -17,14 +20,13 @@ typedef struct ResourceTrieElement {
   uint32_t resource_id;                 // Local resource ID
   uint16_t port_mask; // Mask of ports which expressed interest in this resource
   uint16_t local_interest : 1; // Does the node subscribe to this resource
-  uint16_t is_wildcard;        // Is a wildcard topic
-  uint16_t reserved : 15;      // Maintains alignment
+  uint16_t is_wildcard : 1;    // Is a wildcard topic
+  uint16_t reserved : 14;      // Maintains alignment
 } ResourceTrieElement;
 
 typedef struct {
-  ResourceTrieElement **matches; // Caller-supplied array.
-  uint16_t capacity;             // Maximum results to record.
-  uint16_t count;                // Number of results recorded.
+  ResourceTrieElement *matches[max_trie_matches]; // Caller-supplied array.
+  uint16_t count;                                 // Number of results recorded.
 } ResourceTrieMatchResult;
 
 typedef struct {
@@ -35,11 +37,11 @@ typedef struct {
 typedef struct {
   ResourceTrieElement element;
   ResourceTrieStack stack[resource_trie_max_depth];
+  ResourceTrieMatchResult result;
 } ResourceTrieRoot;
 
 BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
                         uint32_t resource_id, uint16_t port_mask,
                         bool local_interest);
-BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
-                          ResourceTrieMatchResult *result);
+BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic);
 BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic);
