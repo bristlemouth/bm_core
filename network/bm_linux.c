@@ -261,6 +261,25 @@ BM_LINUX_STATIC BmIpAddr *message_get_dst_ip(void *payload) {
 
 BM_LINUX_STATIC uint16_t message_get_checksum(void *payload, uint32_t size) {
   LinuxLayout *layout = (LinuxLayout *)payload;
+
+  /* --- diagnostic: hex-dump every checksum input for comparison with
+     the on-wire packet capture.  Remove once the mismatch is resolved. --- */
+  bm_debug("CKSUM DIAG: size=%u\n", (unsigned)size);
+  bm_debug("  src:");
+  for (int i = 0; i < 16; i++) {
+    bm_debug(" %02X", layout->src->addr[i]);
+  }
+  bm_debug("\n  dst:");
+  for (int i = 0; i < 16; i++) {
+    bm_debug(" %02X", layout->dst->addr[i]);
+  }
+  bm_debug("\n  data[0..%u]:", size < 20 ? size : 20);
+  for (uint32_t i = 0; i < (size < 20 ? size : 20); i++) {
+    bm_debug(" %02X", ((const uint8_t *)layout->data)[i]);
+  }
+  bm_debug("\n");
+  /* --- end diagnostic --- */
+
   return ipv6_pseudo_checksum(layout->src, layout->dst, ip_proto_bcmp, size,
                               layout->data);
 }
