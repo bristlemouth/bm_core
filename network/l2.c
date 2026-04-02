@@ -103,6 +103,7 @@ typedef struct {
   BmQueue evt_queue;
   BmTaskHandle task_handle;
   L2LinkLocalRoutingCb routing_cb;
+  L2PcapCb pcap_cb;
   LL link_change_callback_list;
   LL renegotiate_timer_list;
 } BmL2Ctx;
@@ -253,6 +254,9 @@ static void bm_l2_rx(uint8_t port_num, uint8_t *data, size_t length) {
       .type = L2Rx, .length = length, .buf = NULL, .port_mask = port_mask};
 
   if (data) {
+    if (CTX.pcap_cb) {
+      CTX.pcap_cb(data, length);
+    }
     rx_evt.buf = bm_l2_new(length);
     if (rx_evt.buf == NULL) {
       bm_debug("No mem for buf in RX pathway\n");
@@ -325,6 +329,9 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port_num) {
 }
 
 static void send_to_port(uint8_t port_num, uint8_t *payload, size_t length) {
+  if (CTX.pcap_cb) {
+    CTX.pcap_cb(payload, length);
+  }
   BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
                                              length, port_num);
   if (err != BmOK) {
@@ -335,6 +342,9 @@ static void send_to_port(uint8_t port_num, uint8_t *payload, size_t length) {
 static void send_global_multicast_packet(uint8_t *payload, size_t length,
                                          uint16_t port_mask) {
   if (port_mask == CTX.all_ports_mask) {
+    if (CTX.pcap_cb) {
+      CTX.pcap_cb(payload, length);
+    }
     BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
                                                length, device_all_ports);
     if (err != BmOK) {
@@ -739,5 +749,14 @@ BmErr bm_l2_register_link_local_routing_callback(L2LinkLocalRoutingCb cb) {
   }
 
   CTX.routing_cb = cb;
+  return BmOK;
+}
+
+BmErr bm_l2_register_pcap_callback(L2PcapCb cb) {
+  if (!cb) {
+    return BmEINVAL;
+  }
+
+  CTX.pcap_cb = cb;
   return BmOK;
 }

@@ -80,6 +80,16 @@ function(create_gtest test_name  srcs)
     endforeach()
 endfunction()
 
+# PCAP unit tests
+set (PCAP_TEST_SRCS
+    # File we are testing
+    ${COMMON_DIR}/pcap.c
+
+    # Supporting files
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("pcap" "${PCAP_TEST_SRCS}")
+
 # Linked List (LL) unit tests
 set (LL_TEST_SRCS
     # File we are testing
