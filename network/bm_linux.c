@@ -191,7 +191,7 @@ BM_LINUX_STATIC uint16_t ipv6_pseudo_checksum(const BmIpAddr *src,
     sum += ((uint16_t)p[i] << 8) | p[i + 1];
   }
   if (length & 1) {
-    sum += (uint16_t)p[length - 1];
+    sum += (uint16_t)p[length - 1] << 8;
   }
   /* Fold carry bits and return one's complement. */
   while (sum >> 16) {
