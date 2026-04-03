@@ -472,19 +472,18 @@ TEST_F(resource_trie_test, remove_wildcard_complex) {
   const char *concrete_topic = "/sensor/temperature/raw";
   const char *wildcard_topics[] = {
       "/sensor/*/raw", "/sensor/temperature/*", "/sensor/*", "/se*", "/se*raw",
+      "/se*/raw",
   };
 
   constexpr uint8_t arr_size = array_size(wildcard_topics);
   uint32_t concrete_id = 100;
   uint16_t concrete_port = 0x0001;
-  uint32_t wildcard_ids[arr_size] = {
-      150, 200, 300, 400, 500,
-  };
+  uint32_t wildcard_ids[arr_size] = {150, 200, 300, 400, 500, 600};
   uint16_t wildcard_ports[arr_size] = {
-      0x0002, 0x0020, 0x0200, 0x8888, 0x2222,
+      0x0002, 0x0020, 0x0200, 0x8888, 0x2222, 0x123,
   };
   bool wildcard_interests[arr_size] = {
-      true, true, true, true, false,
+      true, true, true, true, true, false,
   };
 
   BmErr err = resource_trie_add(&root, concrete_topic, concrete_id,
@@ -503,28 +502,35 @@ TEST_F(resource_trie_test, remove_wildcard_complex) {
   ResourceTrieElement **matches = root.result.matches;
 
   // Should all be matched
-  err = resource_trie_match(&root, concrete_topic);
-  ASSERT_EQ(err, BmOK);
-  for (uint8_t i = 0; i < result->count; i++) {
-    printf("Segment: %s\n", matches[i]->segment);
-    printf("Resource ID: %d\n", matches[i]->resource_id);
+
+  for (uint8_t i = 0; i < arr_size; i++) {
+    err = resource_trie_match(&root, concrete_topic);
+    ASSERT_EQ(err, BmOK);
+
+    // Make sure all bits are OR'd
+    uint16_t mask_check = 0;
+    bool local_interest_check = false;
+    for (uint8_t i = 0; i < result->count; i++) {
+      mask_check |= matches[i]->port_mask;
+      local_interest_check |= matches[i]->local_interest;
+    }
+
+    for (uint8_t i = 0; i < result->count; i++) {
+      printf("count: %d\n", i);
+      printf("Segment: %s\n", matches[i]->segment);
+      printf("Resource ID: %d\n", matches[i]->resource_id);
+      printf("Mask: %X\n", matches[i]->port_mask);
+      printf("Check: 0x%X\n", mask_check);
+      printf("Interest: %d\n", matches[i]->local_interest);
+      if (matches[i]->resource_id == concrete_id) {
+        EXPECT_EQ(matches[i]->port_mask, mask_check);
+        EXPECT_EQ(matches[i]->local_interest, local_interest_check);
+      }
+    }
+
+    ASSERT_EQ(result->count, arr_size + 1 - i);
+
+    err = resource_trie_remove(&root, wildcard_topics[i]);
+    ASSERT_EQ(err, BmOK);
   }
-  ASSERT_EQ(result->count, arr_size + 1);
-
-  err = resource_trie_remove(&root, wildcard_topics[0]);
-  ASSERT_EQ(err, BmOK);
-
-  err = resource_trie_match(&root, concrete_topic);
-  ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(result->count, arr_size);
-
-  // The concrete entry will have the OR'd elements of the remaining wildcard topics
-  //EXPECT_EQ(matches[0]->port_mask,
-  //          concrete_port | wildcard_ports[1] | wildcard_ports[2]);
-  //EXPECT_EQ(matches[0]->local_interest, true);
-
-  // The concrete entry (unchanged), when removing the final wildcard, the wild
-  // card port_mask and local interest should be lost
-  //EXPECT_EQ(matches[0]->port_mask, concrete_port);
-  //EXPECT_EQ(matches[0]->local_interest, false);
 }

@@ -19,9 +19,10 @@ typedef struct ResourceTrieElement {
   const char *segment;                  // String segment key
   uint32_t resource_id;                 // Local resource ID
   uint16_t port_mask; // Mask of ports which expressed interest in this resource
-  uint16_t local_interest : 1; // Does the node subscribe to this resource
-  uint16_t is_wildcard : 1;    // Is a wildcard topic
-  uint16_t reserved : 14;      // Maintains alignment
+  uint8_t segment_length; // Length of segment in bytes (not including nil byte)
+  uint8_t local_interest : 1; // Does the node subscribe to this resource
+  uint8_t is_wildcard : 1;    // Is a wildcard topic
+  uint8_t reserved : 6;       // Maintains alignment
 } ResourceTrieElement;
 
 typedef struct {
@@ -31,7 +32,7 @@ typedef struct {
 
 typedef struct {
   ResourceTrieElement *element;
-  const char *remaining;
+  BmTopicLength path_len; // offset into match_str where parent's full path ends
 } ResourceTrieStack;
 
 typedef struct {

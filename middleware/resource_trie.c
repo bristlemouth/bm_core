@@ -21,7 +21,6 @@ typedef struct ExactMatchCtx {
 } ExactMatchCtx;
 
 typedef struct {
-  BmTopicLength segment_length;
   BmTopicLength shared_segments;
   BmTopicLength shared_length;
 } SegmentConsumedCtx;
@@ -38,17 +37,19 @@ static ResourceTrieElement *alloc_element(const char *segment,
   }
 
   if (!segment_length) {
-    segment_length = strlen(segment) + 1;
+    segment_length = strlen(segment);
   }
 
+  uint32_t segment_size = segment_length + 1;
   *element = (ResourceTrieElement){0};
-  element->segment = (const char *)bm_malloc(segment_length);
+  element->segment = (const char *)bm_malloc(segment_size);
   if (!element->segment) {
     bm_free(element);
     return NULL;
   }
-  memcpy((void *)element->segment, segment, segment_length);
+  strncpy((void *)element->segment, segment, segment_length);
   element->resource_id = invalid_resource_id;
+  element->segment_length = segment_length;
 
   return element;
 }
@@ -75,9 +76,9 @@ static void add_child(ResourceTrieElement *parent, ResourceTrieElement *child,
   tmp->sibling = child;
 }
 
-static inline void copy_and_increment_segment(char **new, const char *old) {
-  BmTopicLength segment_len = strnlen(old, BM_TOPIC_MAX_LEN);
-  BmTopicLength max_copy = bm_min(segment_len, BM_TOPIC_MAX_LEN);
+static inline void copy_and_increment_segment(char **new, const char *old,
+                                              BmTopicLength length) {
+  BmTopicLength max_copy = bm_min(length, BM_TOPIC_MAX_LEN);
   strncpy(*new, old, max_copy);
   *new += max_copy;
 }
@@ -94,16 +95,26 @@ static bool check_and_compress(ResourceTrieRoot *root,
   }
 
   // Update the segment topic
-  char *new_segment = (char *)bm_malloc(BM_TOPIC_MAX_LEN);
+  BmTopicLength child_length = child->segment_length;
+  BmTopicLength parent_length = parent->segment_length;
+
+  // Add 1 for separator
+  uint32_t combined_length = child_length + parent_length + 1;
+  char *new_segment = (char *)bm_malloc(combined_length + 1);
   const char *segment_begin = new_segment;
-  copy_and_increment_segment(&new_segment, parent->segment);
+
+  copy_and_increment_segment(&new_segment, parent->segment, parent_length);
   *new_segment = '/';
   new_segment++;
-  copy_and_increment_segment(&new_segment, child->segment);
+  copy_and_increment_segment(&new_segment, child->segment, child_length);
 
+  ResourceTrieElement *sibling = parent->sibling;
   *parent = *child;
-  // child segment will be freed in free_element
+  // Child segment will be freed in free_element
   parent->segment = segment_begin;
+  parent->segment_length = combined_length;
+  parent->sibling = sibling;
+
   free_element(child);
 
   return true;
@@ -164,23 +175,25 @@ static BmTopicLength calculate_shared_segments(const char *topic,
   return segments;
 }
 
-static bool segment_consumed(const char *topic, const char *segment,
+static bool segment_consumed(const char *topic,
+                             const ResourceTrieElement *current,
                              SegmentConsumedCtx *ctx) {
-  ctx->segment_length = (BmTopicLength)strnlen(segment, BM_TOPIC_MAX_LEN);
+  BmTopicLength segment_length = current->segment_length;
+  const char *segment = current->segment;
+
   ctx->shared_segments =
       calculate_shared_segments(topic, segment, &ctx->shared_length);
   BmTopicLength topic_span = (BmTopicLength)strcspn(topic, "/");
 
   // Full segment consumed
-  if (ctx->segment_length >= topic_span &&
-      ctx->shared_length == ctx->segment_length) {
+  if (segment_length >= topic_span && ctx->shared_length == segment_length) {
     return true;
   }
 
   // If the length does not span to the next separator
   bool topic_separator = is_separator(&topic[ctx->shared_length]);
   bool segment_separator = is_separator(&segment[ctx->shared_length]);
-  if (!topic_separator && !segment_separator) {
+  if (!topic_separator && !segment_separator && ctx->shared_segments) {
     // Walk back to the next separator
     while (ctx->shared_length > 0 && topic[ctx->shared_length] != '/') {
       ctx->shared_length--;
@@ -191,94 +204,89 @@ static bool segment_consumed(const char *topic, const char *segment,
 }
 
 static void stack_push(ResourceTrieStack *stack, BmTopicLength *sp,
-                       ResourceTrieElement *element, const char *remaining) {
+                       ResourceTrieElement *element, BmTopicLength path_len) {
   stack[*sp].element = element;
-  stack[*sp].remaining = remaining;
+  stack[*sp].path_len = path_len;
   (*sp)++;
 }
 
 static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
-                      ResourceTrieElement **element, const char **remaining) {
+                      ResourceTrieElement **element, BmTopicLength *path_len) {
   (*sp)--;
   *element = stack[*sp].element;
-  *remaining = stack[*sp].remaining;
+  *path_len = stack[*sp].path_len;
 }
 
 static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
                             MatchCb cb, void *arg) {
 
   topic = increment_past_separator(topic);
+  BmTopicLength topic_length = (BmTopicLength)strnlen(topic, BM_TOPIC_MAX_LEN);
+  bool topic_wildcard = topic_has_wildcard(topic);
 
-  // Add root to stack
+  // Push all root children onto stack
   BmTopicLength sp = 0;
   ResourceTrieStack *stack = root->stack;
-  stack_push(stack, &sp, &root->element, topic);
+  ResourceTrieElement *child = root->element.children;
+  while (child) {
+    if (sp >= resource_trie_max_depth) {
+      return BmENOMEM;
+    }
+    stack_push(stack, &sp, child, 0);
+    child = child->sibling;
+  }
 
   ResourceTrieElement *current;
-  const char *remaining;
+  BmTopicLength parent_path_length;
 
   while (sp > 0) {
-    stack_pop(stack, &sp, &current, &remaining);
+    stack_pop(stack, &sp, &current, &parent_path_length);
 
-    // If no string is remaining, this is a match
-    if (*remaining == '\0') {
-      if (cb(current, arg)) {
-        break;
+    // Copy segment into match_str at parent offset
+    BmTopicLength segment_length = current->segment_length;
+    BmTopicLength offset = parent_path_length;
+
+    // Add separator between segments
+    if (offset > 0) {
+      if (offset >= BM_TOPIC_MAX_LEN) {
+        continue;
       }
-      continue;
+      root->match_str[offset++] = '/';
     }
 
-    ResourceTrieElement *child = current->children;
+    // Skip if segment would overflow buffer
+    if (offset + segment_length >= BM_TOPIC_MAX_LEN) {
+      continue;
+    }
+    memcpy(&root->match_str[offset], current->segment, segment_length);
+    BmTopicLength path_len = offset + segment_length;
+    root->match_str[path_len] = '\0';
+
+    // Check match at entries with valid resource_id
+    if (current->resource_id != invalid_resource_id) {
+      bool matched;
+      if (current->is_wildcard) {
+        matched =
+            bm_wildcard_match(topic, topic_length, root->match_str, path_len);
+      } else if (topic_wildcard) {
+        matched =
+            bm_wildcard_match(root->match_str, path_len, topic, topic_length);
+      } else {
+        matched = !strncmp(root->match_str, topic, BM_TOPIC_MAX_LEN);
+      }
+
+      if (matched && cb(current, arg)) {
+        break;
+      }
+    }
+
+    // Push all children
+    child = current->children;
     while (child) {
       if (sp >= resource_trie_max_depth) {
         return BmENOMEM;
       }
-
-      const char *segment = child->segment;
-      const char *child_remaining = remaining;
-
-      bool found = false;
-
-      // Match as much of the segment as possible first
-      SegmentConsumedCtx ctx = {0};
-      found = segment_consumed(remaining, segment, &ctx);
-
-      child_remaining += ctx.shared_length;
-      child_remaining = increment_past_separator(child_remaining);
-
-      segment += ctx.shared_length;
-      ctx.segment_length = is_separator(segment)
-                               ? uint_safe_decrement(ctx.segment_length)
-                               : ctx.segment_length;
-      segment = increment_past_separator(segment);
-      ctx.segment_length -= ctx.shared_length;
-      bool remaining_wildcard = *child_remaining == '*';
-      bool segment_wildcard = *segment == '*';
-      bool is_wildcard = remaining_wildcard || segment_wildcard;
-
-      if (!found && is_wildcard) {
-        // Perform full wildcard match first
-        BmTopicLength rem_len = strnlen(child_remaining, BM_TOPIC_MAX_LEN);
-        const char *pattern = remaining_wildcard ? child_remaining : segment;
-        BmTopicLength pat_len =
-            remaining_wildcard ? rem_len : ctx.segment_length;
-        const char *text = remaining_wildcard ? segment : child_remaining;
-        BmTopicLength text_len =
-            remaining_wildcard ? ctx.segment_length : rem_len;
-        found = bm_wildcard_match(text, text_len, pattern, pat_len);
-
-        if (found) {
-          child_remaining += rem_len;
-        } else if (remaining_wildcard && child->children) {
-          // If potential glob match continue until full children consumed
-          found = true;
-        }
-      }
-
-      if (found) {
-        stack_push(stack, &sp, child, child_remaining);
-      }
-
+      stack_push(stack, &sp, child, path_len);
       child = child->sibling;
     }
   }
@@ -300,8 +308,8 @@ static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
     while (child) {
 
       SegmentConsumedCtx consumed = {0};
-      if (segment_consumed(topic_local, child->segment, &consumed)) {
-        topic_local += consumed.segment_length;
+      if (segment_consumed(topic_local, child, &consumed)) {
+        topic_local += child->segment_length;
         topic_local = increment_past_separator(topic_local);
         ctx->parent = ctx->current;
         ctx->current = child;
@@ -366,6 +374,11 @@ static ResourceTrieElement *split_element(ResourceTrieElement *parent,
 
   bm_free((void *)child->segment);
   child->segment = tmp_segment;
+  child->segment_length = suffix_len - 1;
+
+  // Preserve child's sibling chain at the parent level
+  split->sibling = child->sibling;
+  child->sibling = NULL;
 
   // Set split to point to original child
   add_child(split, child, NULL);
