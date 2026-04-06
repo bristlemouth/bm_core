@@ -212,9 +212,35 @@ static void stack_push(ResourceTrieStack *stack, BmTopicLength *sp,
 
 static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
                       ResourceTrieElement **element, BmTopicLength *path_len) {
-  (*sp)--;
+  *sp = uint_safe_decrement(*sp);
   *element = stack[*sp].element;
   *path_len = stack[*sp].path_len;
+}
+
+static bool process(ResourceTrieRoot *root, const char *topic, MatchCb cb,
+                    void *arg, bool topic_wildcard, BmTopicLength offset,
+                    BmTopicLength topic_length, ResourceTrieElement *current) {
+  if (!current) {
+    return false;
+  }
+
+  // Check match at entries with valid resource_id
+  if (current->resource_id != invalid_resource_id) {
+    bool matched;
+    if (current->is_wildcard) {
+      matched = bm_wildcard_match(topic, topic_length, root->match_str, offset);
+    } else if (topic_wildcard) {
+      matched = bm_wildcard_match(root->match_str, offset, topic, topic_length);
+    } else {
+      matched = !strncmp(root->match_str, topic, BM_TOPIC_MAX_LEN);
+    }
+
+    if (matched && cb(current, arg)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
@@ -224,70 +250,61 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
   BmTopicLength topic_length = (BmTopicLength)strnlen(topic, BM_TOPIC_MAX_LEN);
   bool topic_wildcard = topic_has_wildcard(topic);
 
-  // Push all root children onto stack
+  // Push root onto stack
   BmTopicLength sp = 0;
   ResourceTrieStack *stack = root->stack;
-  ResourceTrieElement *child = root->element.children;
-  while (child) {
-    if (sp >= resource_trie_max_depth) {
-      return BmENOMEM;
-    }
-    stack_push(stack, &sp, child, 0);
-    child = child->sibling;
-  }
+  ResourceTrieElement *current = root->element.children;
+  BmTopicLength path_length = 0;
 
-  ResourceTrieElement *current;
-  BmTopicLength parent_path_length;
+  while (current || sp) {
+    while (current != NULL) {
+      BmTopicLength segment_length = current->segment_length;
+      // Add separator between segments
+      if (path_length > 0) {
+        if (path_length >= BM_TOPIC_MAX_LEN) {
+          continue;
+        }
+        root->match_str[path_length++] = '/';
+      }
 
-  while (sp > 0) {
-    stack_pop(stack, &sp, &current, &parent_path_length);
-
-    // Copy segment into match_str at parent offset
-    BmTopicLength segment_length = current->segment_length;
-    BmTopicLength offset = parent_path_length;
-
-    // Add separator between segments
-    if (offset > 0) {
-      if (offset >= BM_TOPIC_MAX_LEN) {
+      // Skip if segment would overflow buffer
+      if (path_length + segment_length >= BM_TOPIC_MAX_LEN) {
         continue;
       }
-      root->match_str[offset++] = '/';
-    }
+      // Copy segment into match_str at parent offset
+      memcpy(&root->match_str[path_length], current->segment, segment_length);
+      path_length += segment_length;
+      root->match_str[path_length] = '\0';
 
-    // Skip if segment would overflow buffer
-    if (offset + segment_length >= BM_TOPIC_MAX_LEN) {
-      continue;
-    }
-    memcpy(&root->match_str[offset], current->segment, segment_length);
-    BmTopicLength path_len = offset + segment_length;
-    root->match_str[path_len] = '\0';
+      if (current->children) {
+        stack_push(stack, &sp, current, path_length);
 
-    // Check match at entries with valid resource_id
-    if (current->resource_id != invalid_resource_id) {
-      bool matched;
-      if (current->is_wildcard) {
-        matched =
-            bm_wildcard_match(topic, topic_length, root->match_str, path_len);
-      } else if (topic_wildcard) {
-        matched =
-            bm_wildcard_match(root->match_str, path_len, topic, topic_length);
+        current = current->children;
       } else {
-        matched = !strncmp(root->match_str, topic, BM_TOPIC_MAX_LEN);
-      }
+        // Process leaf node
+        if (process(root, topic, cb, arg, topic_wildcard, path_length,
+                    topic_length, current)) {
+          return BmOK;
+        }
 
-      if (matched && cb(current, arg)) {
-        break;
+        // Remove the added segment from the path
+        path_length -= segment_length;
+        path_length = uint_safe_decrement(path_length);
+        memset(&root->match_str[path_length], 0, segment_length);
+        current = current->sibling;
       }
     }
 
-    // Push all children
-    child = current->children;
-    while (child) {
-      if (sp >= resource_trie_max_depth) {
-        return BmENOMEM;
+    if (sp > 0) {
+      stack_pop(stack, &sp, &current, &path_length);
+
+      // Clear separator and segment
+      memset(&root->match_str[path_length], 0, current->segment_length + 1);
+      if (process(root, topic, cb, arg, topic_wildcard, path_length,
+                  topic_length, current)) {
+        return BmOK;
       }
-      stack_push(stack, &sp, child, path_len);
-      child = child->sibling;
+      current = current->sibling;
     }
   }
 

@@ -227,25 +227,25 @@ TEST_F(resource_trie_test, wildcard_add_to_concrete) {
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
 
-  // First match: the wildcard entry (unchanged)
-  EXPECT_EQ(matches[0]->resource_id, wildcard_id);
-  EXPECT_EQ(matches[0]->port_mask, wildcard_port);
-  EXPECT_EQ(matches[0]->local_interest, true);
-
-  // Second match: the concrete entry, mutated by the overlapping wildcard add
-  EXPECT_EQ(matches[1]->resource_id, concrete_id);
-  EXPECT_EQ(matches[1]->port_mask, concrete_port | wildcard_port);
-  EXPECT_EQ(matches[1]->local_interest, true); // promoted from false
+  // First match: the concrete entry, mutated by the overlapping wildcard add
+  EXPECT_EQ(matches[0]->resource_id, concrete_id);
+  EXPECT_EQ(matches[0]->port_mask, concrete_port | wildcard_port);
+  EXPECT_EQ(matches[0]->local_interest, true); // promoted from false
+                                               //
+  // Second match: the wildcard entry (unchanged)
+  EXPECT_EQ(matches[1]->resource_id, wildcard_id);
+  EXPECT_EQ(matches[1]->port_mask, wildcard_port);
+  EXPECT_EQ(matches[1]->local_interest, true);
 
   // Querying the wildcard topic should produce identical results
   err = resource_trie_match(&root, wildcard_topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
-  EXPECT_EQ(matches[0]->resource_id, wildcard_id);
-  EXPECT_EQ(matches[0]->port_mask, wildcard_port);
+  EXPECT_EQ(matches[0]->resource_id, concrete_id);
+  EXPECT_EQ(matches[0]->port_mask, concrete_port | wildcard_port);
   EXPECT_EQ(matches[0]->local_interest, true);
-  EXPECT_EQ(matches[1]->resource_id, concrete_id);
-  EXPECT_EQ(matches[1]->port_mask, concrete_port | wildcard_port);
+  EXPECT_EQ(matches[1]->resource_id, wildcard_id);
+  EXPECT_EQ(matches[1]->port_mask, wildcard_port);
   EXPECT_EQ(matches[1]->local_interest, true);
 }
 
@@ -279,15 +279,15 @@ TEST_F(resource_trie_test, concrete_add_to_wildcard) {
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
 
-  // First match: the concrete entry mutated by the overlapping wildcard
-  EXPECT_EQ(matches[0]->resource_id, concrete_id);
+  // First match: the wildcard entry (unchanged)
+  EXPECT_EQ(matches[0]->resource_id, wildcard_id);
   EXPECT_EQ(matches[0]->port_mask, wildcard_port);
-  EXPECT_EQ(matches[0]->local_interest, true);
+  EXPECT_EQ(matches[0]->local_interest, true); // promoted from false
 
-  // Second match: the wildcard entry (unchanged)
-  EXPECT_EQ(matches[1]->resource_id, wildcard_id);
+  // Second match: the concrete entry mutated by the overlapping wildcard
+  EXPECT_EQ(matches[1]->resource_id, concrete_id);
   EXPECT_EQ(matches[1]->port_mask, wildcard_port);
-  EXPECT_EQ(matches[1]->local_interest, true); // promoted from false
+  EXPECT_EQ(matches[1]->local_interest, true);
 }
 
 TEST_F(resource_trie_test, multiple_wildcards_validate_unique) {
