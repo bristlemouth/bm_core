@@ -21,9 +21,11 @@ typedef struct ExactMatchCtx {
 } ExactMatchCtx;
 
 typedef struct {
-  BmTopicLength shared_segments;
-  BmTopicLength shared_length;
-} SegmentConsumedCtx;
+  ResourceTrieElement *current;
+  bool topic_wildcard;
+  BmTopicLength match_length;
+  BmTopicLength topic_length;
+} WildcardMatchCtx;
 
 static inline bool topic_has_wildcard(const char *topic) {
   return (strchr(topic, '*') != NULL) || (strchr(topic, '?') != NULL);
@@ -177,26 +179,26 @@ static BmTopicLength calculate_shared_segments(const char *topic,
 
 static bool segment_consumed(const char *topic,
                              const ResourceTrieElement *current,
-                             SegmentConsumedCtx *ctx) {
+                             BmTopicLength *shared_length,
+                             BmTopicLength *shared_segments) {
   BmTopicLength segment_length = current->segment_length;
   const char *segment = current->segment;
 
-  ctx->shared_segments =
-      calculate_shared_segments(topic, segment, &ctx->shared_length);
+  *shared_segments = calculate_shared_segments(topic, segment, shared_length);
   BmTopicLength topic_span = (BmTopicLength)strcspn(topic, "/");
 
   // Full segment consumed
-  if (segment_length >= topic_span && ctx->shared_length == segment_length) {
+  if (segment_length >= topic_span && *shared_length == segment_length) {
     return true;
   }
 
   // If the length does not span to the next separator
-  bool topic_separator = is_separator(&topic[ctx->shared_length]);
-  bool segment_separator = is_separator(&segment[ctx->shared_length]);
-  if (!topic_separator && !segment_separator && ctx->shared_segments) {
+  bool topic_separator = is_separator(&topic[*shared_length]);
+  bool segment_separator = is_separator(&segment[*shared_length]);
+  if (!topic_separator && !segment_separator && *shared_segments) {
     // Walk back to the next separator
-    while (ctx->shared_length > 0 && topic[ctx->shared_length] != '/') {
-      ctx->shared_length--;
+    while (*shared_length > 0 && topic[*shared_length] != '/') {
+      *shared_length = uint_safe_decrement(*shared_length);
     }
   }
 
@@ -217,20 +219,19 @@ static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
   *path_len = stack[*sp].path_len;
 }
 
-static bool process(ResourceTrieRoot *root, const char *topic, MatchCb cb,
-                    void *arg, bool topic_wildcard, BmTopicLength offset,
-                    BmTopicLength topic_length, ResourceTrieElement *current) {
-  if (!current) {
-    return false;
-  }
+static bool wildcard_process(ResourceTrieRoot *root, const char *topic,
+                             MatchCb cb, void *arg, WildcardMatchCtx ctx) {
+  ResourceTrieElement *current = ctx.current;
 
   // Check match at entries with valid resource_id
   if (current->resource_id != invalid_resource_id) {
     bool matched;
     if (current->is_wildcard) {
-      matched = bm_wildcard_match(topic, topic_length, root->match_str, offset);
-    } else if (topic_wildcard) {
-      matched = bm_wildcard_match(root->match_str, offset, topic, topic_length);
+      matched = bm_wildcard_match(topic, ctx.topic_length, root->match_str,
+                                  ctx.match_length);
+    } else if (ctx.topic_wildcard) {
+      matched = bm_wildcard_match(root->match_str, ctx.match_length, topic,
+                                  ctx.topic_length);
     } else {
       matched = !strncmp(root->match_str, topic, BM_TOPIC_MAX_LEN);
     }
@@ -247,64 +248,65 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
                             MatchCb cb, void *arg) {
 
   topic = increment_past_separator(topic);
-  BmTopicLength topic_length = (BmTopicLength)strnlen(topic, BM_TOPIC_MAX_LEN);
-  bool topic_wildcard = topic_has_wildcard(topic);
 
-  // Push root onto stack
+  WildcardMatchCtx ctx = {
+      .current = root->element.children,
+      .match_length = 0,
+      .topic_length = (BmTopicLength)strnlen(topic, BM_TOPIC_MAX_LEN),
+      .topic_wildcard = topic_has_wildcard(topic),
+  };
   BmTopicLength sp = 0;
   ResourceTrieStack *stack = root->stack;
-  ResourceTrieElement *current = root->element.children;
-  BmTopicLength path_length = 0;
 
-  while (current || sp) {
-    while (current != NULL) {
-      BmTopicLength segment_length = current->segment_length;
+  while (ctx.current || sp) {
+    while (ctx.current != NULL) {
+      BmTopicLength segment_length = ctx.current->segment_length;
       // Add separator between segments
-      if (path_length > 0) {
-        if (path_length >= BM_TOPIC_MAX_LEN) {
-          continue;
+      if (ctx.match_length > 0) {
+        if (ctx.match_length >= BM_TOPIC_MAX_LEN) {
+          break;
         }
-        root->match_str[path_length++] = '/';
+        root->match_str[ctx.match_length++] = '/';
       }
 
       // Skip if segment would overflow buffer
-      if (path_length + segment_length >= BM_TOPIC_MAX_LEN) {
-        continue;
+      if (ctx.match_length + segment_length >= BM_TOPIC_MAX_LEN) {
+        break;
       }
       // Copy segment into match_str at parent offset
-      memcpy(&root->match_str[path_length], current->segment, segment_length);
-      path_length += segment_length;
-      root->match_str[path_length] = '\0';
+      memcpy(&root->match_str[ctx.match_length], ctx.current->segment,
+             segment_length);
+      ctx.match_length += segment_length;
+      root->match_str[ctx.match_length] = '\0';
 
-      if (current->children) {
-        stack_push(stack, &sp, current, path_length);
-
-        current = current->children;
+      if (ctx.current->children) {
+        // Push the child onto the stack
+        stack_push(stack, &sp, ctx.current, ctx.match_length);
+        ctx.current = ctx.current->children;
       } else {
         // Process leaf node
-        if (process(root, topic, cb, arg, topic_wildcard, path_length,
-                    topic_length, current)) {
+        if (wildcard_process(root, topic, cb, arg, ctx)) {
           return BmOK;
         }
 
-        // Remove the added segment from the path
-        path_length -= segment_length;
-        path_length = uint_safe_decrement(path_length);
-        memset(&root->match_str[path_length], 0, segment_length);
-        current = current->sibling;
+        // Remove the added segment and separator from the path
+        ctx.match_length -= segment_length;
+        ctx.match_length = uint_safe_decrement(ctx.match_length);
+        memset(&root->match_str[ctx.match_length], 0, segment_length);
+        ctx.current = ctx.current->sibling;
       }
     }
 
     if (sp > 0) {
-      stack_pop(stack, &sp, &current, &path_length);
+      stack_pop(stack, &sp, &ctx.current, &ctx.match_length);
 
       // Clear separator and segment
-      memset(&root->match_str[path_length], 0, current->segment_length + 1);
-      if (process(root, topic, cb, arg, topic_wildcard, path_length,
-                  topic_length, current)) {
+      memset(&root->match_str[ctx.match_length], 0,
+             ctx.current->segment_length + 1);
+      if (wildcard_process(root, topic, cb, arg, ctx)) {
         return BmOK;
       }
-      current = current->sibling;
+      ctx.current = ctx.current->sibling;
     }
   }
 
@@ -324,8 +326,10 @@ static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
     ResourceTrieElement *child = ctx->current->children;
     while (child) {
 
-      SegmentConsumedCtx consumed = {0};
-      if (segment_consumed(topic_local, child, &consumed)) {
+      BmTopicLength shared_length = 0;
+      BmTopicLength shared_segments = 0;
+      if (segment_consumed(topic_local, child, &shared_length,
+                           &shared_segments)) {
         topic_local += child->segment_length;
         topic_local = increment_past_separator(topic_local);
         ctx->parent = ctx->current;
@@ -334,7 +338,7 @@ static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
         break;
       }
 
-      if (!consumed.shared_segments) {
+      if (!shared_segments) {
         child = child->sibling;
         continue;
       }
@@ -343,11 +347,11 @@ static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
         break;
       }
 
-      BmErr err = ctx->cb(ctx, child, consumed.shared_length);
+      BmErr err = ctx->cb(ctx, child, shared_length);
       if (err != BmOK) {
         return err;
       }
-      topic_local += consumed.shared_length;
+      topic_local += shared_length;
       topic_local = increment_past_separator(topic_local);
       ctx->found = true;
       break;
