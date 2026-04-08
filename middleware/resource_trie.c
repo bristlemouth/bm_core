@@ -244,6 +244,16 @@ static bool wildcard_process(ResourceTrieRoot *root, const char *topic,
   return false;
 }
 
+static inline void remove_match_string_segment(ResourceTrieRoot *root,
+                                               WildcardMatchCtx *ctx) {
+  BmTopicLength segment_length = ctx->current->segment_length;
+
+  // Remove the added segment and separator from the path
+  ctx->match_length -= segment_length;
+  ctx->match_length = uint_safe_decrement(ctx->match_length);
+  memset(&root->match_str[ctx->match_length], 0, segment_length + 1);
+}
+
 static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
                             MatchCb cb, void *arg) {
 
@@ -289,10 +299,7 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
           return BmOK;
         }
 
-        // Remove the added segment and separator from the path
-        ctx.match_length -= segment_length;
-        ctx.match_length = uint_safe_decrement(ctx.match_length);
-        memset(&root->match_str[ctx.match_length], 0, segment_length);
+        remove_match_string_segment(root, &ctx);
         ctx.current = ctx.current->sibling;
       }
     }
@@ -300,12 +307,10 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
     if (sp > 0) {
       stack_pop(stack, &sp, &ctx.current, &ctx.match_length);
 
-      // Clear separator and segment
-      memset(&root->match_str[ctx.match_length], 0,
-             ctx.current->segment_length + 1);
       if (wildcard_process(root, topic, cb, arg, ctx)) {
         return BmOK;
       }
+      remove_match_string_segment(root, &ctx);
       ctx.current = ctx.current->sibling;
     }
   }
@@ -412,7 +417,7 @@ static ResourceTrieElement *split_element(ResourceTrieElement *parent,
 static bool concrete_topic_update(ResourceTrieElement *current, void *arg) {
   ResourceTrieElement *new = (ResourceTrieElement *)arg;
 
-  if (current == new) {
+  if (current == new || current->resource_id == invalid_resource_id) {
     return false;
   }
 
@@ -528,6 +533,16 @@ BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic) {
   return match_wildcard(root, topic, match_result_update, &root->result);
 }
 
+static bool get_path(ResourceTrieElement *current, void *arg) {
+  ResourceTrieElement *match = (ResourceTrieElement *)arg;
+
+  if (current == match) {
+    return true;
+  }
+
+  return false;
+}
+
 BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
   if (!root || !topic) {
     return BmEINVAL;
@@ -554,27 +569,12 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
     if (topic_has_wildcard(topic)) {
       resource_trie_match(root, topic);
 
-      uint16_t wildcard_port_mask = 0;
-      bool wildcard_local_interest = false;
       ResourceTrieMatchResult *result = &root->result;
 
-      // Check which of the removed wildcard's bits/interest are still covered
-      // by other remaining wildcards
-      for (uint16_t i = 0; i < result->count; i++) {
-        ResourceTrieElement *match = result->matches[i];
-        if (!match->is_wildcard || match == current) {
-          continue;
-        }
-
-        wildcard_port_mask |= match->port_mask;
-        wildcard_local_interest |= match->local_interest;
-      }
-
-      // Determine which bits are now orphaned, were only held by
-      // the removed wildcard and no other wildcard covers them anymore
-      uint16_t remove_mask = current->port_mask & ~wildcard_port_mask;
-      uint16_t remove_local_interest =
-          current->local_interest && !wildcard_local_interest;
+      // Determine which bits are now orphaned and invalidate the resource ID
+      uint16_t remove_mask = current->port_mask;
+      uint8_t remove_local_interest = current->local_interest;
+      current->resource_id = invalid_resource_id;
 
       // Search all concrete patterns and strip the bits
       for (uint16_t i = 0; i < result->count; i++) {
@@ -585,9 +585,13 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
 
         // Concrete topic will clear bits if
         match->port_mask &= ~remove_mask;
-        if (remove_local_interest) {
-          match->local_interest = 0;
-        }
+        match->local_interest &= ~remove_local_interest;
+
+        // Leverage obtaining the root->match_str
+        match_wildcard(root, topic, get_path, match);
+
+        // Update topic in case other wildcard share the same port mask and local interest
+        match_wildcard(root, root->match_str, concrete_topic_update, match);
       }
     }
     remove_child(root, parent, current);
