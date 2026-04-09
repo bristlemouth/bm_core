@@ -370,8 +370,8 @@ BmErr s_client_receiving_run(void) {
 
     if (image_chunk_evt->payload_length > bm_dfu_max_chunk_size) {
       // Ignore this malformed chunk
-      // Return BmEINVAL while keeping the timer running awaiting a valid chunk
-      goto error;
+      // Return early, keeping the timer running awaiting a valid chunk
+      return BmEINVAL;
     }
 
     /* Stop Chunk Timer */
@@ -439,7 +439,6 @@ BmErr s_client_receiving_run(void) {
     timer_err_check_and_return(err, bm_timer_start(CLIENT_CTX.chunk_timer, 10));
   }
 
-error:
   return err;
 }
 
