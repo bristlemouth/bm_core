@@ -314,6 +314,7 @@ create_gtest("config" "${BCMP_CONFIG_SRCS}")
 set (L2_SRCS
     # File we're testing
     ${NETWORK_DIR}/l2.c
+    ${NETWORK_DIR}/l2_policy.c
 
     # Support files
     ${COMMON_DIR}/util.c
@@ -325,6 +326,19 @@ set (L2_SRCS
     ${STUB_DIR}/bm_adin2111_stub.c
 )
 create_gtest("l2" "${L2_SRCS}")
+
+# L2 Policy Tests
+set (L2_POLICY_SRCS
+    # File we're testing
+    ${NETWORK_DIR}/l2_policy.c
+
+    # Support files
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("l2_policy" "${L2_POLICY_SRCS}")
 
 # TOPOLOGY TESTS
 set (TOPOLOGY_SRCS
