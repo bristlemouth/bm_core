@@ -5,6 +5,7 @@ set(SOURCES
     lib_state_machine.c
     ll.c
     q.c
+    hash.c
     timer_callback_handler.c
     util.c
 )
