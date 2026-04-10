@@ -368,6 +368,12 @@ BmErr s_client_receiving_run(void) {
     BmDfuEventImageChunk *image_chunk_evt =
         (BmDfuEventImageChunk *)&((uint8_t *)(frame))[1];
 
+    if (image_chunk_evt->payload_length > bm_dfu_max_chunk_size) {
+      // Ignore this malformed chunk
+      // Return early, keeping the timer running awaiting a valid chunk
+      return BmEINVAL;
+    }
+
     /* Stop Chunk Timer */
     timer_err_check_and_return(err, bm_timer_stop(CLIENT_CTX.chunk_timer, 10));
 
