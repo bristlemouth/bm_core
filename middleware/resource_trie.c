@@ -2,7 +2,6 @@
 #include "bm_os.h"
 #include <string.h>
 
-#define increment_past_separator(t) (*t == '/' ? t + 1 : t)
 #define is_separator(t) (*t == '/')
 
 typedef bool (*MatchCb)(ResourceTrieElement *current, void *arg);
@@ -26,6 +25,13 @@ typedef struct {
   BmTopicLength match_length;
   BmTopicLength topic_length;
 } WildcardMatchCtx;
+
+static const char *increment_past_separator(const char *topic) {
+  while (is_separator(topic)) {
+    topic++;
+  }
+  return topic;
+}
 
 static inline bool topic_has_wildcard(const char *topic) {
   return (strchr(topic, '*') != NULL) || (strchr(topic, '?') != NULL);
@@ -134,7 +140,8 @@ static void remove_child(ResourceTrieRoot *root, ResourceTrieElement *parent,
       current->resource_id = invalid_resource_id;
       current->port_mask = 0;
       current->local_interest = 0;
-      current->is_wildcard = 0;
+      current->wildcard_port_mask = 0;
+      current->wildcard_interest = 0;
     }
     return;
   }
@@ -421,8 +428,8 @@ static bool concrete_topic_update(ResourceTrieElement *current, void *arg) {
     return false;
   }
 
-  new->port_mask |= current->port_mask;
-  new->local_interest |= current->local_interest;
+  new->wildcard_port_mask |= current->port_mask;
+  new->wildcard_interest |= current->local_interest;
 
   return false;
 }
@@ -436,8 +443,8 @@ static bool match_topic_update(ResourceTrieElement *current, void *arg) {
     return false;
   }
 
-  current->port_mask |= new->port_mask;
-  current->local_interest |= new->local_interest;
+  current->wildcard_port_mask |= new->port_mask;
+  current->wildcard_interest |= new->local_interest;
 
   return false;
 }
@@ -463,6 +470,12 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   }
 
   const char *topic_start = topic;
+  topic = increment_past_separator(topic);
+  BmTopicLength topic_length = strnlen(topic, BM_TOPIC_MAX_LEN);
+  if (!topic_length) {
+    return BmEINVAL;
+  }
+
   ExactMatchCtx ctx = {
       .current = NULL,
       .parent = NULL,
@@ -584,8 +597,8 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
         }
 
         // Concrete topic will clear bits if
-        match->port_mask &= ~remove_mask;
-        match->local_interest &= ~remove_local_interest;
+        match->wildcard_port_mask &= ~remove_mask;
+        match->wildcard_interest &= ~remove_local_interest;
 
         // Leverage obtaining the root->match_str
         match_wildcard(root, topic, get_path, match);

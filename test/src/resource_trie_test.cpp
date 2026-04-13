@@ -22,9 +22,58 @@ protected:
   void TearDown() override {}
 };
 
-TEST_F(resource_trie_test, add_elements) {}
+TEST_F(resource_trie_test, add_elements) {
+  ResourceTrieRoot root = {};
+  static constexpr char topic[] = "/topic/1";
+  BmErr err;
 
-TEST_F(resource_trie_test, match_elements) {}
+  // Test invalid use cases
+  err = resource_trie_add(NULL, topic, 0, 0, false);
+  EXPECT_EQ(err, BmEINVAL);
+  err = resource_trie_add(&root, NULL, 0, 0, false);
+  EXPECT_EQ(err, BmEINVAL);
+  err = resource_trie_add(&root, topic, max_resource_id + 1, 0, false);
+  EXPECT_EQ(err, BmEINVAL);
+  err = resource_trie_add(&root, "", 0, 0, false);
+  EXPECT_EQ(err, BmEINVAL);
+  err = resource_trie_add(&root, "/", 0, 0, false);
+  EXPECT_EQ(err, BmEINVAL);
+  err = resource_trie_add(&root, "/////", 0, 0, false);
+  EXPECT_EQ(err, BmEINVAL);
+}
+
+TEST_F(resource_trie_test, match_elements) {
+  ResourceTrieRoot root = {};
+  static constexpr char topic[] = "/topic/1";
+  BmErr err;
+
+  // Test invalid use cases
+  err = resource_trie_match(NULL, topic);
+  EXPECT_EQ(err, BmEINVAL);
+  err = resource_trie_match(&root, NULL);
+  EXPECT_EQ(err, BmEINVAL);
+
+  // Test match before any add
+  err = resource_trie_match(&root, topic);
+  EXPECT_EQ(err, BmOK);
+  EXPECT_EQ(root.result.count, 0);
+}
+
+TEST_F(resource_trie_test, remove_elements) {
+  ResourceTrieRoot root = {};
+  static constexpr char topic[] = "/topic/1";
+  BmErr err;
+
+  // Test invalid use cases
+  err = resource_trie_remove(NULL, topic);
+  EXPECT_EQ(err, BmEINVAL);
+  err = resource_trie_remove(&root, NULL);
+  EXPECT_EQ(err, BmEINVAL);
+
+  // Try removing a topic that does not exist
+  err = resource_trie_remove(&root, topic);
+  EXPECT_EQ(err, BmENODATA);
+}
 
 TEST_F(resource_trie_test, match_concrete_simple) {
   ResourceTrieRoot root = {};
@@ -197,6 +246,39 @@ TEST_F(resource_trie_test, match_wildcard_simple) {
   EXPECT_EQ(matches[0]->port_mask, port_mask);
 }
 
+TEST_F(resource_trie_test, match_duplicated_add) {
+  ResourceTrieRoot root = {};
+
+  const char *topic = "/sensor/temperature/raw";
+  uint32_t resource_id = (uint32_t)RND.rnd_int(max_resource_id, 0);
+  uint16_t port_mask = 0xFF00;
+  bool local_interest = true;
+
+  BmErr err =
+      resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+  ASSERT_EQ(err, BmOK);
+
+  ResourceTrieMatchResult *result = &root.result;
+  ResourceTrieElement **matches = root.result.matches;
+
+  err = resource_trie_match(&root, topic);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->local_interest, local_interest);
+  EXPECT_EQ(matches[0]->resource_id, resource_id);
+  EXPECT_EQ(matches[0]->port_mask, port_mask);
+
+  // Adding again will return ok, but only update the port_mask and interest
+  port_mask = 0x01;
+  local_interest = false;
+  err = resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->local_interest, local_interest);
+  EXPECT_EQ(matches[0]->resource_id, resource_id);
+  EXPECT_EQ(matches[0]->port_mask, port_mask);
+}
+
 TEST_F(resource_trie_test, wildcard_add_to_concrete) {
   ResourceTrieRoot root = {};
 
@@ -227,26 +309,34 @@ TEST_F(resource_trie_test, wildcard_add_to_concrete) {
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
 
-  // First match: the concrete entry, mutated by the overlapping wildcard add
+  // First match: the concrete entry, wildcard interests updated
   EXPECT_EQ(matches[0]->resource_id, concrete_id);
-  EXPECT_EQ(matches[0]->port_mask, concrete_port | wildcard_port);
-  EXPECT_EQ(matches[0]->local_interest, true); // promoted from false
-                                               //
-  // Second match: the wildcard entry (unchanged)
+  EXPECT_EQ(matches[0]->port_mask, concrete_port);
+  EXPECT_EQ(matches[0]->local_interest, false);
+  EXPECT_EQ(matches[0]->wildcard_port_mask, wildcard_port);
+  EXPECT_EQ(matches[0]->wildcard_interest, true);
+
+  // Second match: the wildcard entry, wildcard interests are not applied
   EXPECT_EQ(matches[1]->resource_id, wildcard_id);
   EXPECT_EQ(matches[1]->port_mask, wildcard_port);
   EXPECT_EQ(matches[1]->local_interest, true);
+  EXPECT_EQ(matches[1]->wildcard_port_mask, 0);
+  EXPECT_EQ(matches[1]->wildcard_interest, false);
 
   // Querying the wildcard topic should produce identical results
   err = resource_trie_match(&root, wildcard_topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
   EXPECT_EQ(matches[0]->resource_id, concrete_id);
-  EXPECT_EQ(matches[0]->port_mask, concrete_port | wildcard_port);
-  EXPECT_EQ(matches[0]->local_interest, true);
+  EXPECT_EQ(matches[0]->port_mask, concrete_port);
+  EXPECT_EQ(matches[0]->local_interest, false);
+  EXPECT_EQ(matches[0]->wildcard_port_mask, wildcard_port);
+  EXPECT_EQ(matches[0]->wildcard_interest, true);
   EXPECT_EQ(matches[1]->resource_id, wildcard_id);
   EXPECT_EQ(matches[1]->port_mask, wildcard_port);
   EXPECT_EQ(matches[1]->local_interest, true);
+  EXPECT_EQ(matches[1]->wildcard_port_mask, 0);
+  EXPECT_EQ(matches[1]->wildcard_interest, false);
 }
 
 TEST_F(resource_trie_test, concrete_add_to_wildcard) {
@@ -256,7 +346,7 @@ TEST_F(resource_trie_test, concrete_add_to_wildcard) {
   const char *wildcard_topic = "/sensor/*/raw";
 
   uint32_t concrete_id = 100;
-  uint16_t concrete_port = 0;
+  uint16_t concrete_port = 0x2222;
   uint32_t wildcard_id = 200;
   uint16_t wildcard_port = 0x0002;
 
@@ -279,15 +369,19 @@ TEST_F(resource_trie_test, concrete_add_to_wildcard) {
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
 
-  // First match: the wildcard entry (unchanged)
+  // First match: the wildcard entry, wildcard interests are never updated
   EXPECT_EQ(matches[0]->resource_id, wildcard_id);
   EXPECT_EQ(matches[0]->port_mask, wildcard_port);
-  EXPECT_EQ(matches[0]->local_interest, true); // promoted from false
+  EXPECT_EQ(matches[0]->local_interest, true);
+  EXPECT_EQ(matches[0]->wildcard_port_mask, 0);
+  EXPECT_EQ(matches[0]->wildcard_interest, false);
 
-  // Second match: the concrete entry mutated by the overlapping wildcard
+  // Second match: the concrete entry wildcard manipulated wildcard interests
   EXPECT_EQ(matches[1]->resource_id, concrete_id);
-  EXPECT_EQ(matches[1]->port_mask, wildcard_port);
-  EXPECT_EQ(matches[1]->local_interest, true);
+  EXPECT_EQ(matches[1]->port_mask, concrete_port);
+  EXPECT_EQ(matches[1]->local_interest, false);
+  EXPECT_EQ(matches[1]->wildcard_port_mask, wildcard_port);
+  EXPECT_EQ(matches[1]->wildcard_interest, true);
 }
 
 TEST_F(resource_trie_test, multiple_wildcards_validate_unique) {
@@ -346,6 +440,23 @@ TEST_F(resource_trie_test, simple_remove) {
   err = resource_trie_match(&root, topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 0);
+}
+
+TEST_F(resource_trie_test, simple_double_remove) {
+  ResourceTrieRoot root = {};
+
+  const char *topic = "/sensor/temperature/raw";
+  uint32_t resource_id = (uint32_t)RND.rnd_int(max_resource_id, 0);
+  uint16_t port_mask = (uint16_t)RND.rnd_int(UINT16_MAX, 1);
+  bool local_interest = true;
+
+  BmErr err =
+      resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+  ASSERT_EQ(err, BmOK);
+  err = resource_trie_remove(&root, topic);
+  ASSERT_EQ(err, BmOK);
+  err = resource_trie_remove(&root, topic);
+  ASSERT_EQ(err, BmENODATA);
 }
 
 TEST_F(resource_trie_test, simple_remove_compression) {
@@ -470,30 +581,32 @@ TEST_F(resource_trie_test, remove_wildcard_complex) {
   ResourceTrieRoot root = {};
 
   const char *concrete_topic = "/sensor/temperature/raw";
-  const char *wildcard_topics[] = {
-      "/sensor/*/raw", "/sensor/temperature/*",
-      "/sensor/*",     "/se*",
-      "/se*raw",       "/se*/raw",
-      "/sensor*",
-  };
+  const char *wildcard_topics[] = {"/sensor/*/raw",
+                                   "/sensor/temperature/*",
+                                   "/sensor/*",
+                                   "/se*",
+                                   "/*temperature/*",
+                                   "/se*raw",
+                                   "/se*/raw",
+                                   "/sensor*",
+                                   "/se*/temperature/r?w"};
 
   constexpr uint8_t arr_size = array_size(wildcard_topics);
   uint32_t concrete_id = 100;
-  uint16_t concrete_port = 0x0001;
-  uint32_t wildcard_ids[arr_size] = {150, 200, 300, 400, 500, 600, 700};
+  uint16_t concrete_port = 0xABAB;
+  uint32_t wildcard_ids[arr_size] = {150, 200, 300, 400, 500,
+                                     600, 700, 800, 2000};
   uint16_t wildcard_ports[arr_size] = {
-      0x0002, 0x0020, 0x0200, 0x8888, 0x2222, 0x123, 0x9999,
+      0x0002, 0x0020, 0x0200, 0x8888, 0x2222, 0x123, 0x9999, 0x5555, 0x8654,
   };
   bool wildcard_interests[arr_size] = {
-      true, true, true, true, true, true, false,
+      true, true, true, true, true, true, true, true, false,
   };
 
   BmErr err = resource_trie_add(&root, concrete_topic, concrete_id,
                                 concrete_port, false);
   ASSERT_EQ(err, BmOK);
 
-  // Adding a wildcard that overlaps an existing concrete element updates
-  // the concrete element's port_mask (OR'd) and sets its local_interest = true
   for (uint8_t i = 0; i < arr_size; i++) {
     err = resource_trie_add(&root, wildcard_topics[i], wildcard_ids[i],
                             wildcard_ports[i], wildcard_interests[i]);
@@ -503,26 +616,30 @@ TEST_F(resource_trie_test, remove_wildcard_complex) {
   ResourceTrieMatchResult *result = &root.result;
   ResourceTrieElement **matches = root.result.matches;
 
+  // Validate the wildcard ports and interests of the concrete topic are
+  // updated every time an element is removed
   for (uint8_t i = 0; i < arr_size; i++) {
     // Match against concrete topic to get all wildcard matches
     err = resource_trie_match(&root, concrete_topic);
     ASSERT_EQ(err, BmOK);
     ASSERT_EQ(result->count, arr_size + 1 - i);
 
-    uint16_t mask_check = concrete_port;
-    bool local_interest_check = false;
+    uint16_t mask_check = 0;
+    bool interest_check = false;
 
     // Make sure all wildcard bits are OR'd on the concrete topic
     for (uint8_t i = 0; i < result->count; i++) {
       if (matches[i]->is_wildcard) {
         mask_check |= matches[i]->port_mask;
-        local_interest_check |= matches[i]->local_interest;
+        interest_check |= matches[i]->local_interest;
       }
     }
     for (uint8_t i = 0; i < result->count; i++) {
       if (matches[i]->resource_id == concrete_id) {
-        EXPECT_EQ(matches[i]->port_mask, mask_check);
-        EXPECT_EQ(matches[i]->local_interest, local_interest_check);
+        EXPECT_EQ(matches[i]->wildcard_port_mask, mask_check);
+        EXPECT_EQ(matches[i]->wildcard_interest, interest_check);
+        EXPECT_EQ(matches[i]->port_mask, concrete_port);
+        EXPECT_EQ(matches[i]->local_interest, false);
         break;
       }
     }
