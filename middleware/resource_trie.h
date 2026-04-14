@@ -44,7 +44,7 @@ typedef struct {
   ResourceTrieElement element;
   ResourceTrieStack stack[resource_trie_max_depth];
   ResourceTrieMatchResult result;
-  char match_str[BM_TOPIC_MAX_LEN];
+  char match_str[BM_TOPIC_MAX_LEN + 1];
 } ResourceTrieRoot;
 
 BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
