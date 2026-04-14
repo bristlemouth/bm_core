@@ -280,14 +280,14 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
       BmTopicLength segment_length = ctx.current->segment_length;
       // Add separator between segments
       if (ctx.match_length > 0) {
-        if (ctx.match_length >= BM_TOPIC_MAX_LEN) {
+        if (ctx.match_length > BM_TOPIC_MAX_LEN) {
           break;
         }
         root->match_str[ctx.match_length++] = '/';
       }
 
       // Skip if segment would overflow buffer
-      if (ctx.match_length + segment_length >= BM_TOPIC_MAX_LEN) {
+      if (ctx.match_length + segment_length > BM_TOPIC_MAX_LEN) {
         break;
       }
       // Copy segment into match_str at parent offset
@@ -471,8 +471,8 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
 
   const char *topic_start = topic;
   topic = increment_past_separator(topic);
-  BmTopicLength topic_length = strnlen(topic, BM_TOPIC_MAX_LEN);
-  if (!topic_length) {
+  uint16_t topic_length = strlen(topic);
+  if (!topic_length || topic_length > BM_TOPIC_MAX_LEN) {
     return BmEINVAL;
   }
 

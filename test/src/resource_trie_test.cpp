@@ -581,26 +581,22 @@ TEST_F(resource_trie_test, remove_wildcard_complex) {
   ResourceTrieRoot root = {};
 
   const char *concrete_topic = "/sensor/temperature/raw";
-  const char *wildcard_topics[] = {"/sensor/*/raw",
-                                   "/sensor/temperature/*",
-                                   "/sensor/*",
-                                   "/se*",
-                                   "/*temperature/*",
-                                   "/se*raw",
-                                   "/se*/raw",
-                                   "/sensor*",
-                                   "/se*/temperature/r?w"};
+  const char *wildcard_topics[] = {
+      "/sensor/*/raw", "/sensor/temperature/*", "/sensor/*", "/s?ns?r/*",
+      "/se*",          "/*temperature/*",       "/se*raw",   "/se*/raw",
+      "/sensor*",      "/se*/temperature/r?w"};
 
   constexpr uint8_t arr_size = array_size(wildcard_topics);
   uint32_t concrete_id = 100;
   uint16_t concrete_port = 0xABAB;
-  uint32_t wildcard_ids[arr_size] = {150, 200, 300, 400, 500,
-                                     600, 700, 800, 2000};
+  uint32_t wildcard_ids[arr_size] = {150, 200, 300, 400,  500,
+                                     600, 700, 800, 2000, 12345};
   uint16_t wildcard_ports[arr_size] = {
-      0x0002, 0x0020, 0x0200, 0x8888, 0x2222, 0x123, 0x9999, 0x5555, 0x8654,
+      0x0002, 0x0020, 0x0200, 0x8888, 0x2222,
+      0x123,  0x9999, 0x5555, 0x8654, 0xF11F,
   };
   bool wildcard_interests[arr_size] = {
-      true, true, true, true, true, true, true, true, false,
+      true, true, true, true, true, true, true, true, true, false,
   };
 
   BmErr err = resource_trie_add(&root, concrete_topic, concrete_id,
@@ -647,4 +643,60 @@ TEST_F(resource_trie_test, remove_wildcard_complex) {
     err = resource_trie_remove(&root, wildcard_topics[i]);
     ASSERT_EQ(err, BmOK);
   }
+}
+
+TEST_F(resource_trie_test, trie_depth_validate) {
+  constexpr size_t max_topic_size = BM_TOPIC_MAX_LEN;
+  char topic[max_topic_size + 1] = {};
+  BmErr err;
+  ResourceTrieRoot root = {};
+
+  // Add individual topics all the way to the max stack depth
+  for (uint16_t i = 0; i < max_topic_size;) {
+    topic[i++] = 'a' + (i % 26);
+    err = resource_trie_add(&root, topic, i, i, false);
+    EXPECT_EQ(err, BmOK);
+    ASSERT_LT(i, array_size(topic));
+    topic[i++] = '/';
+  }
+
+  char invalid_topic[array_size(topic) + 1] = {};
+  memcpy(invalid_topic, topic, sizeof(topic));
+
+  invalid_topic[array_size(topic)] = 'a';
+
+  // Topic cannot be longer than BM_TOPIC_MAX_LEN
+  err = resource_trie_add(&root, invalid_topic, 0, 0, false);
+  EXPECT_EQ(err, BmEINVAL);
+
+  // Match all individual topics
+  memset(topic, 0, array_size(topic));
+  for (uint16_t i = 0; i < max_topic_size;) {
+    topic[i++] = 'a' + (i % 26);
+    err = resource_trie_match(&root, topic);
+    EXPECT_EQ(err, BmOK);
+    ASSERT_EQ(root.result.count, 1);
+    topic[i++] = '/';
+  }
+  topic[array_size(topic) - 1] = '\0';
+
+  // Modify the last match so the segment is longer than expected
+  // this will fail upon next search for the segment being too
+  // large to fit in the match_str buffer
+  ResourceTrieMatchResult *results = &root.result;
+  ResourceTrieElement *match = results->matches[0];
+  const char new_segment[] = "new_segment";
+  const char *old_segment = match->segment;
+  results->matches[0]->segment = new_segment;
+  err = resource_trie_match(&root, topic);
+  EXPECT_EQ(err, BmOK);
+  ASSERT_EQ(root.result.count, 0);
+
+  // Restore segment and make sure it matches
+  match->segment = old_segment;
+  err = resource_trie_match(&root, topic);
+  EXPECT_EQ(err, BmOK);
+  ASSERT_EQ(root.result.count, 1);
+
+  // Add an extra element to the depth of the trie and validate failure
 }
