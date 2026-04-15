@@ -9,6 +9,7 @@ set(SOURCES
     middleware.c
     power_info_service.c
     pubsub.c
+    resource_trie.c
     sys_info_service.c
 )
 
