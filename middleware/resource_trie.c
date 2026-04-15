@@ -22,7 +22,7 @@ typedef struct ExactMatchCtx {
 typedef struct {
   ResourceTrieElement *current;
   bool topic_wildcard;
-  BmTopicLength match_length;
+  uint16_t match_length;
   BmTopicLength topic_length;
 } WildcardMatchCtx;
 
@@ -109,6 +109,9 @@ static bool check_and_compress(ResourceTrieRoot *root,
   // Add 1 for separator
   uint32_t combined_length = child_length + parent_length + 1;
   char *new_segment = (char *)bm_malloc(combined_length + 1);
+  if (!new_segment) {
+    return false;
+  }
   const char *segment_begin = new_segment;
 
   copy_and_increment_segment(&new_segment, parent->segment, parent_length);
@@ -116,6 +119,7 @@ static bool check_and_compress(ResourceTrieRoot *root,
   new_segment++;
   copy_and_increment_segment(&new_segment, child->segment, child_length);
 
+  const char *old_parent_segment = parent->segment;
   ResourceTrieElement *sibling = parent->sibling;
   *parent = *child;
   // Child segment will be freed in free_element
@@ -123,6 +127,7 @@ static bool check_and_compress(ResourceTrieRoot *root,
   parent->segment_length = combined_length;
   parent->sibling = sibling;
 
+  bm_free((void *)old_parent_segment);
   free_element(child);
 
   return true;
@@ -220,7 +225,7 @@ static void stack_push(ResourceTrieStack *stack, BmTopicLength *sp,
 }
 
 static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
-                      ResourceTrieElement **element, BmTopicLength *path_len) {
+                      ResourceTrieElement **element, uint16_t *path_len) {
   *sp = uint_safe_decrement(*sp);
   *element = stack[*sp].element;
   *path_len = stack[*sp].path_len;
@@ -269,7 +274,7 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
   WildcardMatchCtx ctx = {
       .current = root->element.children,
       .match_length = 0,
-      .topic_length = (BmTopicLength)strnlen(topic, BM_TOPIC_MAX_LEN),
+      .topic_length = (BmTopicLength)bm_strnlen(topic, BM_TOPIC_MAX_LEN),
       .topic_wildcard = topic_has_wildcard(topic),
   };
   BmTopicLength sp = 0;
@@ -402,6 +407,7 @@ static ResourceTrieElement *split_element(ResourceTrieElement *parent,
   // Create the split element which will have the prefix
   ResourceTrieElement *split = alloc_element(prefix, split_length);
   if (!split) {
+    bm_free(tmp_segment);
     return NULL;
   }
 
