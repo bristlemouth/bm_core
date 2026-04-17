@@ -428,7 +428,7 @@ void bm_dfu_host_init(void) {
   host_ctx.update_timer = bm_timer_create(
       "update timer", bm_ms_to_ticks(bm_dfu_update_default_timeout_ms), false,
       (void *)&tmr_id, update_timer_handler);
-  if (host_ctx.update_timer) {
+  if (!host_ctx.update_timer) {
     bm_debug("Could not create DFU host update timer...\n");
   }
 }

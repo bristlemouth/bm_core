@@ -103,6 +103,7 @@ typedef struct {
   BmQueue evt_queue;
   BmTaskHandle task_handle;
   L2LinkLocalRoutingCb routing_cb;
+  L2PcapCb pcap_cb;
   LL link_change_callback_list;
   LL renegotiate_timer_list;
 } BmL2Ctx;
@@ -151,9 +152,8 @@ static BmErr bm_l2_start_renegotiate_check(uint8_t port_num) {
   BmErr err = ll_get_item(&CTX.renegotiate_timer_list, port_num, &timer);
 
   if (CTX.network_device.trait->retry_negotiation && err == BmENODEV) {
-    uint32_t port_num_cast = port_num;
     timer = bm_timer_create("renegotiate_timer", renegotiate_wait_time_ms, true,
-                            (void *)port_num_cast, bm_l2_renegotiate);
+                            (void *)(uintptr_t)port_num, bm_l2_renegotiate);
     if (!timer) {
       return BmENOMEM;
     }
@@ -190,18 +190,21 @@ static BmErr bm_l2_start_renegotiate_check(uint8_t port_num) {
  */
 static BmErr bm_l2_stop_renegotiate_check(uint8_t port_num) {
   if (CTX.network_device.trait->retry_negotiation) {
-    BmTimer *timer = NULL;
+    BmTimer *timer_ptr = NULL;
     BmErr err =
-        ll_get_item(&CTX.renegotiate_timer_list, port_num, (void **)&timer);
+        ll_get_item(&CTX.renegotiate_timer_list, port_num, (void **)&timer_ptr);
 
-    if (err != BmOK || !timer) {
+    if (err != BmOK || !timer_ptr) {
       bm_debug("Could not find negotiation timer on port: %u\n", port_num);
       return BmENODATA;
     }
 
+    // Save the timer handle before ll_remove frees the linked-list node
+    // (and its data block) preventing a use-after-free in bm_timer_stop.
+    BmTimer timer = *timer_ptr;
     ll_remove(&CTX.renegotiate_timer_list, port_num);
-    bm_timer_stop(*timer, 0);
-    bm_timer_delete(*timer, 0);
+    bm_timer_stop(timer, 0);
+    bm_timer_delete(timer, 0);
     bm_debug("Deleting negotiation timer on port: %u\n", port_num);
     return BmOK;
   }
@@ -251,6 +254,9 @@ static void bm_l2_rx(uint8_t port_num, uint8_t *data, size_t length) {
       .type = L2Rx, .length = length, .buf = NULL, .port_mask = port_mask};
 
   if (data) {
+    if (CTX.pcap_cb) {
+      CTX.pcap_cb(data, length);
+    }
     rx_evt.buf = bm_l2_new(length);
     if (rx_evt.buf == NULL) {
       bm_debug("No mem for buf in RX pathway\n");
@@ -323,6 +329,9 @@ static inline void network_add_egress_port(uint8_t *payload, uint8_t port_num) {
 }
 
 static void send_to_port(uint8_t port_num, uint8_t *payload, size_t length) {
+  if (CTX.pcap_cb) {
+    CTX.pcap_cb(payload, length);
+  }
   BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
                                              length, port_num);
   if (err != BmOK) {
@@ -333,6 +342,9 @@ static void send_to_port(uint8_t port_num, uint8_t *payload, size_t length) {
 static void send_global_multicast_packet(uint8_t *payload, size_t length,
                                          uint16_t port_mask) {
   if (port_mask == CTX.all_ports_mask) {
+    if (CTX.pcap_cb) {
+      CTX.pcap_cb(payload, length);
+    }
     BmErr err = CTX.network_device.trait->send(CTX.network_device.self, payload,
                                                length, device_all_ports);
     if (err != BmOK) {
@@ -620,6 +632,16 @@ BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb) {
     item = ll_create_item(item, &cb, sizeof(&cb), cb_count);
     err = item != NULL ? BmOK : BmENOMEM;
     bm_err_check(err, ll_item_add(&CTX.link_change_callback_list, item));
+
+    // Replay link-up events for any ports that are already enabled so that
+    // late registrants learn about the current state.
+    if (err == BmOK) {
+      for (uint8_t port_idx = 0; port_idx < CTX.num_ports; port_idx++) {
+        if (CTX.enabled_ports_mask & (1U << port_idx)) {
+          cb(port_idx + 1, true);
+        }
+      }
+    }
   }
 
   return err;
@@ -727,5 +749,14 @@ BmErr bm_l2_register_link_local_routing_callback(L2LinkLocalRoutingCb cb) {
   }
 
   CTX.routing_cb = cb;
+  return BmOK;
+}
+
+BmErr bm_l2_register_pcap_callback(L2PcapCb cb) {
+  if (!cb) {
+    return BmEINVAL;
+  }
+
+  CTX.pcap_cb = cb;
   return BmOK;
 }

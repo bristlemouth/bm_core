@@ -80,6 +80,16 @@ function(create_gtest test_name  srcs)
     endforeach()
 endfunction()
 
+# PCAP unit tests
+set (PCAP_TEST_SRCS
+    # File we are testing
+    ${COMMON_DIR}/pcap.c
+
+    # Supporting files
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("pcap" "${PCAP_TEST_SRCS}")
+
 # Linked List (LL) unit tests
 set (LL_TEST_SRCS
     # File we are testing
@@ -596,3 +606,22 @@ set (UTIL_SRCS
     ${COMMON_DIR}/util.c
 )
 create_gtest("util" "${UTIL_SRCS}")
+
+# Linux network functions (skip on Windows)
+if (NOT WIN32)
+    set (LINUX_NET_SRCS
+        # File we're testing
+        ${NETWORK_DIR}/bm_linux.c
+
+        # Supporting Files
+        ${COMMON_DIR}/util.c
+        ${COMMON_DIR}/ll.c
+
+        # Stubs
+        ${STUB_DIR}/bm_os_stub.c
+        ${STUB_DIR}/l2_stub.c
+        ${STUB_DIR}/packet_stub.c
+        ${STUB_DIR}/device_stub.c
+    )
+    create_gtest("bm_linux" "${LINUX_NET_SRCS}")
+endif()

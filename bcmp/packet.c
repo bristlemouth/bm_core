@@ -2,6 +2,7 @@
 #include "bm_config.h"
 #include "bm_os.h"
 #include "ll.h"
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -320,7 +321,7 @@ static BcmpRequestElement *sequence_list_find_message(uint32_t seq_num) {
                         default_message_timeout_ms) == BmOK) {
     err = ll_get_item(&PACKET.sequence_list, seq_num, (void *)&element);
     if (err == BmOK && element) {
-      bm_debug("Bcmp message with seq_num %lu\n", seq_num);
+      bm_debug("Bcmp message with seq_num %" PRIu32 "\n", seq_num);
     }
     bm_semaphore_give(PACKET.sequence_list_semaphore);
   }
@@ -475,9 +476,9 @@ BmErr process_received_message(void *payload, uint32_t size) {
       if (cfg->sequenced_reply && !cfg->sequenced_request) {
         request_message = sequence_list_find_message(data.header->seq_num);
         if (request_message) {
-          bm_debug(
-              "BCMP - Received reply to our request message with seq_num %lu\n",
-              data.header->seq_num);
+          bm_debug("BCMP - Received reply to our request message with seq_num "
+                   "%" PRIu32 "\n",
+                   data.header->seq_num);
           if (bm_semaphore_take(PACKET.sequence_list_semaphore,
                                 default_message_timeout_ms) == BmOK) {
             cb = request_message->cb;
@@ -558,7 +559,7 @@ BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
         request_message = new_sequence_list_item(
             header->type, default_message_timeout_ms, header->seq_num, cb);
         sequence_list_add_message(request_message, header->seq_num);
-        bm_debug("BCMP - Serializing message with seq_num %lu\n",
+        bm_debug("BCMP - Serializing message with seq_num %" PRIu32 "\n",
                  header->seq_num);
       } else {
         // If the message doesn't use sequence numbers, set it to 0
