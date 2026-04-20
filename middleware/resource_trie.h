@@ -52,3 +52,4 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
                         bool local_interest);
 BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic);
 BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic);
+BmErr resource_trie_purge(ResourceTrieRoot *root);

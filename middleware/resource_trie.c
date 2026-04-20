@@ -8,6 +8,8 @@ typedef bool (*MatchCb)(ResourceTrieElement *current, void *arg);
 
 struct ExactMatchCtx;
 
+typedef BmErr (*ExactMatchCb)(struct ExactMatchCtx *ctx,
+                              ResourceTrieRoot *root);
 typedef BmErr (*PartialMatchCb)(struct ExactMatchCtx *ctx,
                                 ResourceTrieElement *child,
                                 BmTopicLength shared_len);
@@ -15,7 +17,11 @@ typedef BmErr (*PartialMatchCb)(struct ExactMatchCtx *ctx,
 typedef struct ExactMatchCtx {
   ResourceTrieElement *current;
   ResourceTrieElement *parent;
-  const PartialMatchCb cb;
+  const struct {
+    ExactMatchCb exact;
+    PartialMatchCb partial;
+  } cb;
+  void *arg;
   bool found;
 } ExactMatchCtx;
 
@@ -56,6 +62,7 @@ static ResourceTrieElement *alloc_element(const char *segment,
     return NULL;
   }
   strncpy((void *)element->segment, segment, segment_length);
+  ((char *)element->segment)[segment_length] = '\0';
   element->resource_id = invalid_resource_id;
   element->segment_length = segment_length;
 
@@ -93,12 +100,14 @@ static inline void copy_and_increment_segment(char **new, const char *old,
 
 static bool check_and_compress(ResourceTrieRoot *root,
                                ResourceTrieElement *parent) {
-  // Compress if possible
   ResourceTrieElement *child = parent->children;
 
   bool has_children = !child || child->sibling || child->children;
   bool is_root = parent == &root->element;
-  if (has_children || is_root) {
+  // Only compress elements on that are passthrough
+  bool parent_is_passthrough = parent->resource_id != invalid_resource_id;
+
+  if (has_children || is_root || parent_is_passthrough) {
     return false;
   }
 
@@ -118,6 +127,7 @@ static bool check_and_compress(ResourceTrieRoot *root,
   *new_segment = '/';
   new_segment++;
   copy_and_increment_segment(&new_segment, child->segment, child_length);
+  *new_segment = '\0';
 
   const char *old_parent_segment = parent->segment;
   ResourceTrieElement *sibling = parent->sibling;
@@ -136,11 +146,11 @@ static bool check_and_compress(ResourceTrieRoot *root,
 static void remove_child(ResourceTrieRoot *root, ResourceTrieElement *parent,
                          ResourceTrieElement *current) {
 
-  // If there are children under this element see if element can be compressed
   if (current->children) {
+    // If there are children under this element see if child can be compressed
     bool compressed = check_and_compress(root, current);
 
-    // Could not compress, but resource is now invalid
+    // Could not compress, but resource is now a passthrough element
     if (!compressed) {
       current->resource_id = invalid_resource_id;
       current->port_mask = 0;
@@ -148,23 +158,19 @@ static void remove_child(ResourceTrieRoot *root, ResourceTrieElement *parent,
       current->wildcard_port_mask = 0;
       current->wildcard_interest = 0;
     }
-    return;
-  }
-
-  // If current is child set to sibling
-  if (parent->children == current) {
+  } else if (parent->children == current) {
+    // If current is direct child set child pointer to sibling
     parent->children = current->sibling;
     free_element(current);
-    return;
+  } else {
+    // Current must be a sibling
+    ResourceTrieElement *tmp = parent->children;
+    while (tmp->sibling != current) {
+      tmp = tmp->sibling;
+    }
+    tmp->sibling = current->sibling;
+    free_element(current);
   }
-
-  // Current must be a sibling
-  ResourceTrieElement *tmp = parent->children;
-  while (tmp->sibling != current) {
-    tmp = tmp->sibling;
-  }
-  tmp->sibling = current->sibling;
-  free_element(current);
 }
 
 static BmTopicLength calculate_shared_segments(const char *topic,
@@ -228,7 +234,9 @@ static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
                       ResourceTrieElement **element, uint16_t *path_len) {
   *sp = uint_safe_decrement(*sp);
   *element = stack[*sp].element;
-  *path_len = stack[*sp].path_len;
+  if (path_len) {
+    *path_len = stack[*sp].path_len;
+  }
 }
 
 static bool wildcard_process(ResourceTrieRoot *root, const char *topic,
@@ -347,6 +355,9 @@ static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
       BmTopicLength shared_segments = 0;
       if (segment_consumed(topic_local, child, &shared_length,
                            &shared_segments)) {
+        if (ctx->cb.exact) {
+          ctx->cb.exact(ctx, root);
+        }
         topic_local += child->segment_length;
         topic_local = increment_past_separator(topic_local);
         ctx->parent = ctx->current;
@@ -360,11 +371,11 @@ static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
         continue;
       }
 
-      if (!ctx->cb) {
+      if (!ctx->cb.partial) {
         break;
       }
 
-      BmErr err = ctx->cb(ctx, child, shared_length);
+      BmErr err = ctx->cb.partial(ctx, child, shared_length);
       if (err != BmOK) {
         return err;
       }
@@ -468,6 +479,22 @@ static BmErr split_topic(ExactMatchCtx *ctx, ResourceTrieElement *child,
   return BmOK;
 }
 
+/*!
+ @brief Add An Element To The Resource Trie
+
+ @details Has the ability to split elements if the current topic being added
+          is a substring of another compressed element's segment, i.e:
+            - topic added = "sensor/temperature"
+            - element segment = "sensor/temperature/raw"
+
+ @param root
+ @param topic
+ @param resource_id
+ @param port_mask
+ @param local_interest
+
+ @return 
+ */
 BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
                         uint32_t resource_id, uint16_t port_mask,
                         bool local_interest) {
@@ -485,7 +512,9 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   ExactMatchCtx ctx = {
       .current = NULL,
       .parent = NULL,
-      .cb = split_topic,
+      .cb.exact = NULL,
+      .cb.partial = split_topic,
+      .arg = NULL,
       .found = false,
   };
   BmErr err = exact_match(root, &topic, &ctx);
@@ -562,38 +591,60 @@ static bool get_path(ResourceTrieElement *current, void *arg) {
   return false;
 }
 
+static BmErr track_ancestry(ExactMatchCtx *ctx, ResourceTrieRoot *root) {
+  BmTopicLength *sp = (BmTopicLength *)ctx->arg;
+  stack_push(root->stack, sp, ctx->current, 0);
+  return BmOK;
+}
+
 BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
   if (!root || !topic) {
     return BmEINVAL;
   }
+  BmErr err;
+  bool is_wildcard = topic_has_wildcard(topic);
+  uint16_t remove_mask = 0;
+  uint8_t remove_local_interest = 0;
 
+  BmTopicLength sp = 0;
   ExactMatchCtx ctx = {
       .current = NULL,
       .parent = NULL,
-      .cb = NULL,
+      .cb = {.exact = track_ancestry, .partial = NULL},
+      .arg = &sp,
       .found = false,
   };
   const char *t = topic;
-  BmErr err = exact_match(root, &t, &ctx);
+  err = exact_match(root, &t, &ctx);
   if (err != BmOK) {
     return err;
   }
-
   bool found = ctx.found;
   ResourceTrieElement *current = ctx.current;
   ResourceTrieElement *parent = ctx.parent;
 
   // Remove and delete the element if found
   if (found) {
-    if (topic_has_wildcard(topic)) {
+    // Determine which bits are now orphaned and invalidate the resource ID
+    remove_mask = current->port_mask;
+    remove_local_interest = current->local_interest;
+    current->resource_id = invalid_resource_id;
+
+    remove_child(root, parent, current);
+
+    while (sp > 0) {
+      stack_pop(root->stack, &sp, &parent, NULL);
+
+      if (!check_and_compress(root, parent)) {
+        break;
+      }
+    }
+
+    // Strip concrete nodes of wildcard interests
+    if (is_wildcard) {
       resource_trie_match(root, topic);
 
       ResourceTrieMatchResult *result = &root->result;
-
-      // Determine which bits are now orphaned and invalidate the resource ID
-      uint16_t remove_mask = current->port_mask;
-      uint8_t remove_local_interest = current->local_interest;
-      current->resource_id = invalid_resource_id;
 
       // Search all concrete patterns and strip the bits
       for (uint16_t i = 0; i < result->count; i++) {
@@ -613,8 +664,6 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
         match_wildcard(root, root->match_str, concrete_topic_update, match);
       }
     }
-    remove_child(root, parent, current);
-    check_and_compress(root, parent);
 
     return BmOK;
   }
