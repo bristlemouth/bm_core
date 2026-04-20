@@ -3,7 +3,9 @@
 
 static int16_t FAIL_ATTEMPTS = -1;
 static int16_t FAIL_COUNT = 0;
+static size_t MEM_ALLOC = 0;
 
+size_t bm_get_alloc_mem(void) { return MEM_ALLOC; }
 void bm_malloc_fail_on_attempt(uint8_t attempts) { FAIL_ATTEMPTS = attempts; }
 void bm_malloc_fail_reset(void) {
   FAIL_COUNT = 0;
@@ -14,7 +16,11 @@ void *bm_malloc(size_t size) {
 
   FAIL_COUNT = FAIL_ATTEMPTS != -1 ? FAIL_COUNT + 1 : 0;
   if (FAIL_ATTEMPTS == -1 || FAIL_COUNT < FAIL_ATTEMPTS) {
-    ret = malloc(size);
+    ret = malloc(sizeof(MEM_ALLOC) + size);
+    size_t *alloc_size = (size_t *)ret;
+    *alloc_size = size;
+    MEM_ALLOC += size;
+    ret += sizeof(MEM_ALLOC);
   } else {
     FAIL_COUNT = 0;
     FAIL_ATTEMPTS = -1;
@@ -22,7 +28,13 @@ void *bm_malloc(size_t size) {
 
   return ret;
 }
-void bm_free(void *p) { return free(p); }
+void bm_free(void *p) {
+  p -= sizeof(MEM_ALLOC);
+  size_t *alloc_size = (size_t *)p;
+  MEM_ALLOC -= *alloc_size;
+
+  return free(p);
+}
 DEFINE_FAKE_VALUE_FUNC(BmSemaphore, bm_mutex_create);
 DEFINE_FAKE_VALUE_FUNC(BmSemaphore, bm_semaphore_create);
 DEFINE_FAKE_VOID_FUNC(bm_semaphore_delete, BmSemaphore);
