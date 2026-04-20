@@ -102,12 +102,12 @@ static bool check_and_compress(ResourceTrieRoot *root,
                                ResourceTrieElement *parent) {
   ResourceTrieElement *child = parent->children;
 
-  bool has_children = !child || child->sibling || child->children;
+  // Only compress elements that are passthrough and have single children
+  bool has_children = !child || child->sibling;
+  bool parent_has_resource = parent->resource_id != invalid_resource_id;
   bool is_root = parent == &root->element;
-  // Only compress elements on that are passthrough
-  bool parent_is_passthrough = parent->resource_id != invalid_resource_id;
 
-  if (has_children || is_root || parent_is_passthrough) {
+  if (has_children || is_root || parent_has_resource) {
     return false;
   }
 
