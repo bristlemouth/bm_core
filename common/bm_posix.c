@@ -132,7 +132,7 @@ BmErr bm_queue_send(BmQueue queue, const void *item, uint32_t timeout_ms) {
       deadline_from_ms(timeout_ms, &ts);
       if (pthread_cond_timedwait(&q->not_full, &q->lock, &ts) == ETIMEDOUT) {
         pthread_mutex_unlock(&q->lock);
-        return BmENOMEM;
+        return BmETIMEDOUT;
       }
     }
   }
@@ -223,9 +223,11 @@ BmErr bm_stream_buffer_send(BmBuffer buf, uint8_t *data, uint32_t size,
 
   pthread_mutex_lock(&sb->lock);
   uint32_t written = 0;
+  BmErr err = BmEINVAL;
   while (written < size) {
     while (sb->count == sb->capacity) {
       if (timeout_ms == 0) {
+        err = BmENOMEM;
         goto done;
       }
       if (timeout_ms == UINT32_MAX) {
@@ -233,6 +235,7 @@ BmErr bm_stream_buffer_send(BmBuffer buf, uint8_t *data, uint32_t size,
       } else {
         if (pthread_cond_timedwait(&sb->not_full, &sb->lock, &ts) ==
             ETIMEDOUT) {
+          err = BmETIMEDOUT;
           goto done;
         }
       }
@@ -250,9 +253,11 @@ BmErr bm_stream_buffer_send(BmBuffer buf, uint8_t *data, uint32_t size,
     written += to_write;
     pthread_cond_signal(&sb->not_empty);
   }
+  err = BmOK;
+
 done:
   pthread_mutex_unlock(&sb->lock);
-  return BmOK;
+  return err;
 }
 
 BmErr bm_stream_buffer_receive(BmBuffer buf, uint8_t *data, uint32_t *size,
@@ -270,19 +275,18 @@ BmErr bm_stream_buffer_receive(BmBuffer buf, uint8_t *data, uint32_t *size,
     deadline_from_ms(timeout_ms, &ts);
   }
 
+  BmErr err = BmETIMEDOUT;
   pthread_mutex_lock(&sb->lock);
   // Block until at least 1 byte is available
   while (sb->count == 0) {
     if (timeout_ms == 0) {
-      pthread_mutex_unlock(&sb->lock);
-      return BmOK;
+      goto done;
     }
     if (timeout_ms == UINT32_MAX) {
       pthread_cond_wait(&sb->not_empty, &sb->lock);
     } else {
       if (pthread_cond_timedwait(&sb->not_empty, &sb->lock, &ts) == ETIMEDOUT) {
-        pthread_mutex_unlock(&sb->lock);
-        return BmOK;
+        goto done;
       }
     }
   }
@@ -297,8 +301,11 @@ BmErr bm_stream_buffer_receive(BmBuffer buf, uint8_t *data, uint32_t *size,
   sb->count -= to_read;
   *size = to_read;
   pthread_cond_signal(&sb->not_full);
+  err = BmOK;
+
+done:
   pthread_mutex_unlock(&sb->lock);
-  return BmOK;
+  return err;
 }
 
 // ---------------------------------------------------------------------------
