@@ -23,12 +23,7 @@ typedef struct dfu_core_ctx_t {
   bool internal;
 } dfu_core_ctx_t;
 
-#if !defined(ENABLE_TESTING) && !defined(BM_HOSTED)
-ReboootClientUpdateInfo client_update_reboot_info
-    __attribute__((section(".noinit")));
-#else
-ReboootClientUpdateInfo client_update_reboot_info;
-#endif
+[[bm_noinit_ram_attribute]] ReboootClientUpdateInfo client_update_reboot_info;
 
 static dfu_core_ctx_t dfu_ctx;
 
