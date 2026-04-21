@@ -126,9 +126,7 @@ else()
     add_subdirectory(bm_common_messages)
     add_subdirectory(network)
     add_subdirectory(third_party)
-    if(NOT BM_HOSTED)
-        add_subdirectory(drivers/adin2111)
-    endif()
+    add_subdirectory(drivers/adin2111)
 
     target_link_libraries(bmcore PUBLIC
         bmcommon
@@ -139,8 +137,6 @@ else()
         bmthirdparty
         bmintegrations
     )
-    if(NOT BM_HOSTED)
-        target_link_libraries(bmcore PUBLIC bmadin2111)
-    endif()
+    target_link_libraries(bmcore PUBLIC bmadin2111)
     add_dependencies(bmcore update_submodules)
 endif()
