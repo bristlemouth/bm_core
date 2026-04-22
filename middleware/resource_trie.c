@@ -239,6 +239,14 @@ static void stack_pop(ResourceTrieStack *stack, BmTopicLength *sp,
   }
 }
 
+static void stack_peek(ResourceTrieStack *stack, BmTopicLength sp,
+                       ResourceTrieElement **element, uint16_t *path_len) {
+  *element = stack[sp].element;
+  if (path_len) {
+    *path_len = stack[sp].path_len;
+  }
+}
+
 static bool wildcard_process(ResourceTrieRoot *root, const char *topic,
                              MatchCb cb, void *arg, WildcardMatchCtx ctx) {
   ResourceTrieElement *current = ctx.current;
@@ -310,7 +318,7 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
       root->match_str[ctx.match_length] = '\0';
 
       if (ctx.current->children) {
-        // Push the child onto the stack
+        // Push the element onto the stack
         stack_push(stack, &sp, ctx.current, ctx.match_length);
         ctx.current = ctx.current->children;
       } else {
@@ -324,7 +332,7 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
       }
     }
 
-    if (sp > 0) {
+    if (sp) {
       stack_pop(stack, &sp, &ctx.current, &ctx.match_length);
 
       if (wildcard_process(root, topic, cb, arg, ctx)) {
@@ -632,7 +640,7 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
 
     remove_child(root, parent, current);
 
-    while (sp > 0) {
+    while (sp) {
       stack_pop(root->stack, &sp, &parent, NULL);
 
       if (!check_and_compress(root, parent)) {
@@ -669,4 +677,39 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
   }
 
   return BmENODATA;
+}
+
+BmErr resource_trie_purge(ResourceTrieRoot *root) {
+  BmTopicLength sp = 0;
+  ResourceTrieStack *stack = root->stack;
+  ResourceTrieElement *current = root->element.children;
+  ResourceTrieElement *parent = &root->element;
+
+  while (current || sp) {
+    while (current != NULL) {
+      if (current->children) {
+        stack_push(stack, &sp, current, 0);
+        parent = current;
+        current = current->children;
+      } else {
+        ResourceTrieElement *tmp_element = current->sibling;
+        remove_child(root, parent, current);
+        current = tmp_element;
+      }
+    }
+
+    if (sp) {
+      stack_pop(stack, &sp, &current, NULL);
+      if (sp) {
+        stack_peek(stack, sp - 1, &parent, NULL);
+      } else {
+        parent = &root->element;
+      }
+      ResourceTrieElement *tmp_element = current->sibling;
+      remove_child(root, parent, current);
+      current = tmp_element;
+    }
+  }
+
+  return BmOK;
 }

@@ -15,14 +15,25 @@ class resource_trie_test : public ::testing::Test {
 protected:
   rnd_gen RND;
   size_t MEM_CONSUMED;
+  size_t MEM_TEST;
+  ResourceTrieRoot ROOT = {};
 
   resource_trie_test() {}
 
   ~resource_trie_test() override {}
 
-  void SetUp() override {}
+  void SetUp() override {
+    MEM_TEST = bm_get_alloc_mem();
 
-  void TearDown() override {}
+    ROOT = (ResourceTrieRoot){};
+  }
+
+  void TearDown() override {
+    resource_trie_purge(&ROOT);
+
+    // Ensure all memory has been reclaimed
+    ASSERT_EQ(MEM_TEST, bm_get_alloc_mem());
+  }
 
   void begin_tracking_memory(void) { MEM_CONSUMED = bm_get_alloc_mem(); }
 
@@ -33,60 +44,56 @@ protected:
 };
 
 TEST_F(resource_trie_test, add_elements) {
-  ResourceTrieRoot root = {};
   static constexpr char topic[] = "/topic/1";
   BmErr err;
 
   // Test invalid use cases
   err = resource_trie_add(NULL, topic, 0, 0, false);
   EXPECT_EQ(err, BmEINVAL);
-  err = resource_trie_add(&root, NULL, 0, 0, false);
+  err = resource_trie_add(&ROOT, NULL, 0, 0, false);
   EXPECT_EQ(err, BmEINVAL);
-  err = resource_trie_add(&root, topic, max_resource_id + 1, 0, false);
+  err = resource_trie_add(&ROOT, topic, max_resource_id + 1, 0, false);
   EXPECT_EQ(err, BmEINVAL);
-  err = resource_trie_add(&root, "", 0, 0, false);
+  err = resource_trie_add(&ROOT, "", 0, 0, false);
   EXPECT_EQ(err, BmEINVAL);
-  err = resource_trie_add(&root, "/", 0, 0, false);
+  err = resource_trie_add(&ROOT, "/", 0, 0, false);
   EXPECT_EQ(err, BmEINVAL);
-  err = resource_trie_add(&root, "/////", 0, 0, false);
+  err = resource_trie_add(&ROOT, "/////", 0, 0, false);
   EXPECT_EQ(err, BmEINVAL);
 }
 
 TEST_F(resource_trie_test, match_elements) {
-  ResourceTrieRoot root = {};
   static constexpr char topic[] = "/topic/1";
   BmErr err;
 
   // Test invalid use cases
   err = resource_trie_match(NULL, topic);
   EXPECT_EQ(err, BmEINVAL);
-  err = resource_trie_match(&root, NULL);
+  err = resource_trie_match(&ROOT, NULL);
   EXPECT_EQ(err, BmEINVAL);
 
   // Test match before any add
-  err = resource_trie_match(&root, topic);
+  err = resource_trie_match(&ROOT, topic);
   EXPECT_EQ(err, BmOK);
-  EXPECT_EQ(root.result.count, 0);
+  EXPECT_EQ(ROOT.result.count, 0);
 }
 
 TEST_F(resource_trie_test, remove_elements) {
-  ResourceTrieRoot root = {};
   static constexpr char topic[] = "/topic/1";
   BmErr err;
 
   // Test invalid use cases
   err = resource_trie_remove(NULL, topic);
   EXPECT_EQ(err, BmEINVAL);
-  err = resource_trie_remove(&root, NULL);
+  err = resource_trie_remove(&ROOT, NULL);
   EXPECT_EQ(err, BmEINVAL);
 
   // Try removing a topic that does not exist
-  err = resource_trie_remove(&root, topic);
+  err = resource_trie_remove(&ROOT, topic);
   EXPECT_EQ(err, BmENODATA);
 }
 
 TEST_F(resource_trie_test, match_concrete_simple) {
-  ResourceTrieRoot root = {};
 
   const char *topic = "/sensor/temperature/raw";
   uint32_t resource_id = (uint32_t)RND.rnd_int(max_resource_id, 0);
@@ -94,13 +101,13 @@ TEST_F(resource_trie_test, match_concrete_simple) {
   bool local_interest = true;
 
   BmErr err =
-      resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+      resource_trie_add(&ROOT, topic, resource_id, port_mask, local_interest);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
-  err = resource_trie_match(&root, topic);
+  err = resource_trie_match(&ROOT, topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_EQ(matches[0]->local_interest, local_interest);
@@ -109,7 +116,6 @@ TEST_F(resource_trie_test, match_concrete_simple) {
 }
 
 TEST_F(resource_trie_test, match_concrete_split_sub_span) {
-  ResourceTrieRoot root = {};
 
   // Second topic is a sub topic of the first added topic
   const char *topic_1 = "/sensor/temperature/raw";
@@ -124,17 +130,17 @@ TEST_F(resource_trie_test, match_concrete_split_sub_span) {
   };
   bool local_interest = true;
 
-  BmErr err = resource_trie_add(&root, topic_1, resource_id[0], port_mask[0],
+  BmErr err = resource_trie_add(&ROOT, topic_1, resource_id[0], port_mask[0],
                                 local_interest);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_add(&root, topic_2, resource_id[1], port_mask[1],
+  err = resource_trie_add(&ROOT, topic_2, resource_id[1], port_mask[1],
                           local_interest);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
-  err = resource_trie_match(&root, topic_1);
+  err = resource_trie_match(&ROOT, topic_1);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "raw");
@@ -142,7 +148,7 @@ TEST_F(resource_trie_test, match_concrete_split_sub_span) {
   EXPECT_EQ(matches[0]->resource_id, resource_id[0]);
   EXPECT_EQ(matches[0]->port_mask, port_mask[0]);
 
-  err = resource_trie_match(&root, topic_2);
+  err = resource_trie_match(&ROOT, topic_2);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "sensor/temperature");
@@ -152,7 +158,6 @@ TEST_F(resource_trie_test, match_concrete_split_sub_span) {
 }
 
 TEST_F(resource_trie_test, match_concrete_split_substring) {
-  ResourceTrieRoot root = {};
 
   // Second topic is a substring of the first added topic
   const char *topic_1 = "/sensor/temperature";
@@ -167,17 +172,17 @@ TEST_F(resource_trie_test, match_concrete_split_substring) {
   };
   bool local_interest = true;
 
-  BmErr err = resource_trie_add(&root, topic_1, resource_id[0], port_mask[0],
+  BmErr err = resource_trie_add(&ROOT, topic_1, resource_id[0], port_mask[0],
                                 local_interest);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_add(&root, topic_2, resource_id[1], port_mask[1],
+  err = resource_trie_add(&ROOT, topic_2, resource_id[1], port_mask[1],
                           local_interest);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
-  err = resource_trie_match(&root, topic_1);
+  err = resource_trie_match(&ROOT, topic_1);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "temperature");
@@ -185,7 +190,7 @@ TEST_F(resource_trie_test, match_concrete_split_substring) {
   EXPECT_EQ(matches[0]->resource_id, resource_id[0]);
   EXPECT_EQ(matches[0]->port_mask, port_mask[0]);
 
-  err = resource_trie_match(&root, topic_2);
+  err = resource_trie_match(&ROOT, topic_2);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "temp");
@@ -195,7 +200,6 @@ TEST_F(resource_trie_test, match_concrete_split_substring) {
 }
 
 TEST_F(resource_trie_test, match_split_unique) {
-  ResourceTrieRoot root = {};
 
   // Split performed on a unique string of the first added topic
   const char *topic_1 = "/sensor/temperature";
@@ -207,15 +211,15 @@ TEST_F(resource_trie_test, match_split_unique) {
   uint16_t port_2 = 0x0002;
   bool local_interest_2 = true;
 
-  BmErr err = resource_trie_add(&root, topic_1, id_1, port_1, local_interest_1);
+  BmErr err = resource_trie_add(&ROOT, topic_1, id_1, port_1, local_interest_1);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_add(&root, topic_2, id_2, port_2, local_interest_2);
+  err = resource_trie_add(&ROOT, topic_2, id_2, port_2, local_interest_2);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
-  err = resource_trie_match(&root, topic_1);
+  err = resource_trie_match(&ROOT, topic_1);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "temperature");
@@ -223,7 +227,7 @@ TEST_F(resource_trie_test, match_split_unique) {
   EXPECT_EQ(matches[0]->resource_id, id_1);
   EXPECT_EQ(matches[0]->port_mask, port_1);
 
-  err = resource_trie_match(&root, topic_2);
+  err = resource_trie_match(&ROOT, topic_2);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "pressure/*");
@@ -233,7 +237,6 @@ TEST_F(resource_trie_test, match_split_unique) {
 }
 
 TEST_F(resource_trie_test, match_wildcard_simple) {
-  ResourceTrieRoot root = {};
 
   const char *topic = "/sensor/temperature/raw";
   const char *wildcard = "/sensor/*/raw";
@@ -241,14 +244,14 @@ TEST_F(resource_trie_test, match_wildcard_simple) {
   uint16_t port_mask = RND.rnd_int(UINT16_MAX, 1);
   bool local_interest = true;
 
-  BmErr err = resource_trie_add(&root, wildcard, resource_id, port_mask,
+  BmErr err = resource_trie_add(&ROOT, wildcard, resource_id, port_mask,
                                 local_interest);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
-  err = resource_trie_match(&root, topic);
+  err = resource_trie_match(&ROOT, topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_EQ(matches[0]->local_interest, local_interest);
@@ -257,7 +260,6 @@ TEST_F(resource_trie_test, match_wildcard_simple) {
 }
 
 TEST_F(resource_trie_test, match_duplicated_add) {
-  ResourceTrieRoot root = {};
 
   const char *topic = "/sensor/temperature/raw";
   uint32_t resource_id = (uint32_t)RND.rnd_int(max_resource_id, 0);
@@ -265,13 +267,13 @@ TEST_F(resource_trie_test, match_duplicated_add) {
   bool local_interest = true;
 
   BmErr err =
-      resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+      resource_trie_add(&ROOT, topic, resource_id, port_mask, local_interest);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
-  err = resource_trie_match(&root, topic);
+  err = resource_trie_match(&ROOT, topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_EQ(matches[0]->local_interest, local_interest);
@@ -282,7 +284,7 @@ TEST_F(resource_trie_test, match_duplicated_add) {
   begin_tracking_memory();
   port_mask = 0x01;
   local_interest = false;
-  err = resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+  err = resource_trie_add(&ROOT, topic, resource_id, port_mask, local_interest);
 
   // Validate that more memory was not consumed on the second add
   validate_memory();
@@ -295,7 +297,6 @@ TEST_F(resource_trie_test, match_duplicated_add) {
 }
 
 TEST_F(resource_trie_test, wildcard_add_to_concrete) {
-  ResourceTrieRoot root = {};
 
   const char *concrete_topic = "/sensor/temperature/raw";
   const char *wildcard_topic = "/sensor/*/raw";
@@ -305,22 +306,22 @@ TEST_F(resource_trie_test, wildcard_add_to_concrete) {
   uint32_t wildcard_id = 200;
   uint16_t wildcard_port = 0x0002;
 
-  BmErr err = resource_trie_add(&root, concrete_topic, concrete_id,
+  BmErr err = resource_trie_add(&ROOT, concrete_topic, concrete_id,
                                 concrete_port, false);
   ASSERT_EQ(err, BmOK);
 
   // Adding a wildcard that overlaps an existing concrete element updates
   // the concrete element's port_mask (OR'd) and sets its local_interest = true
-  err = resource_trie_add(&root, wildcard_topic, wildcard_id, wildcard_port,
+  err = resource_trie_add(&ROOT, wildcard_topic, wildcard_id, wildcard_port,
                           true);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
   // Querying the concrete topic should return both the wildcard and concrete
   // entries
-  err = resource_trie_match(&root, concrete_topic);
+  err = resource_trie_match(&ROOT, concrete_topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
 
@@ -339,7 +340,7 @@ TEST_F(resource_trie_test, wildcard_add_to_concrete) {
   EXPECT_EQ(matches[1]->wildcard_interest, false);
 
   // Querying the wildcard topic should produce identical results
-  err = resource_trie_match(&root, wildcard_topic);
+  err = resource_trie_match(&ROOT, wildcard_topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
   EXPECT_EQ(matches[0]->resource_id, concrete_id);
@@ -355,7 +356,6 @@ TEST_F(resource_trie_test, wildcard_add_to_concrete) {
 }
 
 TEST_F(resource_trie_test, concrete_add_to_wildcard) {
-  ResourceTrieRoot root = {};
 
   const char *concrete_topic = "/sensor/temperature/raw";
   const char *wildcard_topic = "/sensor/*/raw";
@@ -365,22 +365,22 @@ TEST_F(resource_trie_test, concrete_add_to_wildcard) {
   uint32_t wildcard_id = 200;
   uint16_t wildcard_port = 0x0002;
 
-  BmErr err = resource_trie_add(&root, wildcard_topic, wildcard_id,
+  BmErr err = resource_trie_add(&ROOT, wildcard_topic, wildcard_id,
                                 wildcard_port, true);
   ASSERT_EQ(err, BmOK);
 
   // Adding a concrete that overlaps an existing wildcard element updates
   // the concrete element's port_mask (OR'd) and sets its local_interest = true
-  err = resource_trie_add(&root, concrete_topic, concrete_id, concrete_port,
+  err = resource_trie_add(&ROOT, concrete_topic, concrete_id, concrete_port,
                           false);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
   // Querying the concrete topic should return both the wildcard and concrete
   // entries
-  err = resource_trie_match(&root, concrete_topic);
+  err = resource_trie_match(&ROOT, concrete_topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 2);
 
@@ -400,7 +400,6 @@ TEST_F(resource_trie_test, concrete_add_to_wildcard) {
 }
 
 TEST_F(resource_trie_test, multiple_wildcards_validate_unique) {
-  ResourceTrieRoot root = {};
 
   uint32_t id_1 = 100;
   uint16_t port_1 = 0x0080;
@@ -412,23 +411,23 @@ TEST_F(resource_trie_test, multiple_wildcards_validate_unique) {
   const char *wildcard_2 = "/sensor/*";
 
   BmErr err =
-      resource_trie_add(&root, wildcard_1, id_1, port_1, local_interest_1);
+      resource_trie_add(&ROOT, wildcard_1, id_1, port_1, local_interest_1);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_add(&root, wildcard_2, id_2, port_2, local_interest_2);
+  err = resource_trie_add(&ROOT, wildcard_2, id_2, port_2, local_interest_2);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
   // Validate that each wildcard still has unique data
   // (they have not been OR'd together)
-  err = resource_trie_match(&root, wildcard_1);
+  err = resource_trie_match(&ROOT, wildcard_1);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_EQ(matches[0]->resource_id, id_1);
   EXPECT_EQ(matches[0]->port_mask, port_1);
   EXPECT_EQ(matches[0]->local_interest, local_interest_1);
-  err = resource_trie_match(&root, wildcard_2);
+  err = resource_trie_match(&ROOT, wildcard_2);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_EQ(matches[0]->resource_id, id_2);
@@ -437,7 +436,6 @@ TEST_F(resource_trie_test, multiple_wildcards_validate_unique) {
 }
 
 TEST_F(resource_trie_test, simple_remove) {
-  ResourceTrieRoot root = {};
 
   const char *topic = "/sensor/temperature/raw";
   uint32_t resource_id = (uint32_t)RND.rnd_int(max_resource_id, 0);
@@ -445,20 +443,19 @@ TEST_F(resource_trie_test, simple_remove) {
   bool local_interest = true;
 
   BmErr err =
-      resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+      resource_trie_add(&ROOT, topic, resource_id, port_mask, local_interest);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_remove(&root, topic);
+  err = resource_trie_remove(&ROOT, topic);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
+  ResourceTrieMatchResult *result = &ROOT.result;
 
-  err = resource_trie_match(&root, topic);
+  err = resource_trie_match(&ROOT, topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 0);
 }
 
 TEST_F(resource_trie_test, simple_double_remove) {
-  ResourceTrieRoot root = {};
 
   const char *topic = "/sensor/temperature/raw";
   uint32_t resource_id = (uint32_t)RND.rnd_int(max_resource_id, 0);
@@ -466,16 +463,15 @@ TEST_F(resource_trie_test, simple_double_remove) {
   bool local_interest = true;
 
   BmErr err =
-      resource_trie_add(&root, topic, resource_id, port_mask, local_interest);
+      resource_trie_add(&ROOT, topic, resource_id, port_mask, local_interest);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_remove(&root, topic);
+  err = resource_trie_remove(&ROOT, topic);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_remove(&root, topic);
+  err = resource_trie_remove(&ROOT, topic);
   ASSERT_EQ(err, BmENODATA);
 }
 
 TEST_F(resource_trie_test, simple_remove_compression) {
-  ResourceTrieRoot root = {};
 
   uint32_t id_1 = 100;
   uint16_t port_1 = 0x0080;
@@ -486,26 +482,26 @@ TEST_F(resource_trie_test, simple_remove_compression) {
   const char *topic_1 = "/sensor/temperature";
   const char *topic_2 = "/sensor/pressure";
 
-  BmErr err = resource_trie_add(&root, topic_1, id_1, port_1, local_interest_1);
+  BmErr err = resource_trie_add(&ROOT, topic_1, id_1, port_1, local_interest_1);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_add(&root, topic_2, id_2, port_2, local_interest_2);
+  err = resource_trie_add(&ROOT, topic_2, id_2, port_2, local_interest_2);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
   // Before removal, topic_2 segment will be split at pressure
-  err = resource_trie_match(&root, topic_2);
+  err = resource_trie_match(&ROOT, topic_2);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "pressure");
 
   // Remove first element, topic_2 segment will compress to sensor/pressure
-  err = resource_trie_remove(&root, topic_1);
+  err = resource_trie_remove(&ROOT, topic_1);
   ASSERT_EQ(err, BmOK);
 
   // Validate topic_2 matches all expected values after compression
-  err = resource_trie_match(&root, topic_2);
+  err = resource_trie_match(&ROOT, topic_2);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "sensor/pressure");
@@ -515,7 +511,6 @@ TEST_F(resource_trie_test, simple_remove_compression) {
 }
 
 TEST_F(resource_trie_test, remove_compression_substring) {
-  ResourceTrieRoot root = {};
 
   uint32_t id_1 = 100;
   uint16_t port_1 = 0x0080;
@@ -526,26 +521,26 @@ TEST_F(resource_trie_test, remove_compression_substring) {
   const char *topic_1 = "/sensor/temperature";
   const char *topic_2 = "/sensor/temperature/raw";
 
-  BmErr err = resource_trie_add(&root, topic_1, id_1, port_1, local_interest_1);
+  BmErr err = resource_trie_add(&ROOT, topic_1, id_1, port_1, local_interest_1);
   ASSERT_EQ(err, BmOK);
-  err = resource_trie_add(&root, topic_2, id_2, port_2, local_interest_2);
+  err = resource_trie_add(&ROOT, topic_2, id_2, port_2, local_interest_2);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
   // Before removal, topic_2 segment will be split at raw
-  err = resource_trie_match(&root, topic_2);
+  err = resource_trie_match(&ROOT, topic_2);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "raw");
 
   // Remove first element, topic_2 segment will compress to sensor/temperature/raw
-  err = resource_trie_remove(&root, topic_1);
+  err = resource_trie_remove(&ROOT, topic_1);
   ASSERT_EQ(err, BmOK);
 
   // Validate topic_2 matches all expected values after compression
-  err = resource_trie_match(&root, topic_2);
+  err = resource_trie_match(&ROOT, topic_2);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
   EXPECT_STREQ(matches[0]->segment, "sensor/temperature/raw");
@@ -555,7 +550,6 @@ TEST_F(resource_trie_test, remove_compression_substring) {
 }
 
 TEST_F(resource_trie_test, remove_wildcard_simple) {
-  ResourceTrieRoot root = {};
 
   const char *concrete_topic = "/sensor/temperature/raw";
   const char *wildcard_topic = "/sensor/*/raw";
@@ -565,23 +559,23 @@ TEST_F(resource_trie_test, remove_wildcard_simple) {
   uint32_t wildcard_id = 200;
   uint16_t wildcard_port = 0x0002;
 
-  BmErr err = resource_trie_add(&root, concrete_topic, concrete_id,
+  BmErr err = resource_trie_add(&ROOT, concrete_topic, concrete_id,
                                 concrete_port, false);
   ASSERT_EQ(err, BmOK);
 
   // Adding a wildcard that overlaps an existing concrete element updates
   // the concrete element's port_mask (OR'd) and sets its local_interest = true
-  err = resource_trie_add(&root, wildcard_topic, wildcard_id, wildcard_port,
+  err = resource_trie_add(&ROOT, wildcard_topic, wildcard_id, wildcard_port,
                           true);
   ASSERT_EQ(err, BmOK);
 
-  err = resource_trie_remove(&root, wildcard_topic);
+  err = resource_trie_remove(&ROOT, wildcard_topic);
   ASSERT_EQ(err, BmOK);
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
-  err = resource_trie_match(&root, concrete_topic);
+  err = resource_trie_match(&ROOT, concrete_topic);
   ASSERT_EQ(err, BmOK);
   ASSERT_EQ(result->count, 1);
 
@@ -593,7 +587,6 @@ TEST_F(resource_trie_test, remove_wildcard_simple) {
 }
 
 TEST_F(resource_trie_test, remove_wildcard_complex) {
-  ResourceTrieRoot root = {};
 
   const char *concrete_topic = "/sensor/temperature/raw";
   const char *wildcard_topics[] = {
@@ -617,25 +610,25 @@ TEST_F(resource_trie_test, remove_wildcard_complex) {
 
   begin_tracking_memory();
 
-  BmErr err = resource_trie_add(&root, concrete_topic, concrete_id,
+  BmErr err = resource_trie_add(&ROOT, concrete_topic, concrete_id,
                                 concrete_port, false);
 
   ASSERT_EQ(err, BmOK);
 
   for (uint8_t i = 0; i < arr_size; i++) {
-    err = resource_trie_add(&root, wildcard_topics[i], wildcard_ids[i],
+    err = resource_trie_add(&ROOT, wildcard_topics[i], wildcard_ids[i],
                             wildcard_ports[i], wildcard_interests[i]);
     ASSERT_EQ(err, BmOK);
   }
 
-  ResourceTrieMatchResult *result = &root.result;
-  ResourceTrieElement **matches = root.result.matches;
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
 
   // Validate the wildcard ports and interests of the concrete topic are
   // updated every time an element is removed
   for (uint8_t i = 0; i < arr_size; i++) {
     // Match against concrete topic to get all wildcard matches
-    err = resource_trie_match(&root, concrete_topic);
+    err = resource_trie_match(&ROOT, concrete_topic);
     ASSERT_EQ(err, BmOK);
     ASSERT_EQ(result->count, arr_size + 1 - i);
 
@@ -659,12 +652,12 @@ TEST_F(resource_trie_test, remove_wildcard_complex) {
       }
     }
 
-    err = resource_trie_remove(&root, wildcard_topics[i]);
+    err = resource_trie_remove(&ROOT, wildcard_topics[i]);
     ASSERT_EQ(err, BmOK);
   }
 
   // Remove concrete topic
-  err = resource_trie_remove(&root, concrete_topic);
+  err = resource_trie_remove(&ROOT, concrete_topic);
   ASSERT_EQ(err, BmOK);
 
   validate_memory();
@@ -674,12 +667,11 @@ TEST_F(resource_trie_test, trie_depth_validate) {
   constexpr size_t max_topic_size = BM_TOPIC_MAX_LEN;
   char topic[max_topic_size + 1] = {};
   BmErr err;
-  ResourceTrieRoot root = {};
 
   // Add individual topics all the way to the max stack depth
   for (uint16_t i = 0; i < max_topic_size;) {
     topic[i++] = 'a' + (i % 26);
-    err = resource_trie_add(&root, topic, i, i, false);
+    err = resource_trie_add(&ROOT, topic, i, i, false);
     EXPECT_EQ(err, BmOK);
     ASSERT_LT(i, array_size(topic));
     topic[i++] = '/';
@@ -690,18 +682,18 @@ TEST_F(resource_trie_test, trie_depth_validate) {
   memcpy(invalid_topic, topic, sizeof(topic));
 
   invalid_topic[array_size(topic)] = 'a';
-  err = resource_trie_add(&root, invalid_topic, 0, 0, false);
+  err = resource_trie_add(&ROOT, invalid_topic, 0, 0, false);
   EXPECT_EQ(err, BmEINVAL);
 
   // Match all individual topics
   memset(topic, 0, array_size(topic));
   for (uint16_t i = 0; i < max_topic_size;) {
     topic[i++] = 'a' + (i % 26);
-    err = resource_trie_match(&root, topic);
+    err = resource_trie_match(&ROOT, topic);
     EXPECT_EQ(err, BmOK);
-    ASSERT_EQ(root.result.count, 1);
-    EXPECT_EQ(root.result.matches[0]->resource_id, i);
-    EXPECT_EQ(root.result.matches[0]->port_mask, i);
+    ASSERT_EQ(ROOT.result.count, 1);
+    EXPECT_EQ(ROOT.result.matches[0]->resource_id, i);
+    EXPECT_EQ(ROOT.result.matches[0]->port_mask, i);
     topic[i++] = '/';
   }
   topic[array_size(topic) - 1] = '\0';
@@ -709,148 +701,144 @@ TEST_F(resource_trie_test, trie_depth_validate) {
   // Modify the last match so the segment is longer than expected
   // this will fail upon next search for the segment being too
   // large to fit in the match_str buffer
-  ResourceTrieMatchResult *results = &root.result;
+  ResourceTrieMatchResult *results = &ROOT.result;
   ResourceTrieElement *match = results->matches[0];
   const char new_segment[] = "new_segment";
   const char *old_segment = match->segment;
   results->matches[0]->segment = new_segment;
-  err = resource_trie_match(&root, topic);
+  err = resource_trie_match(&ROOT, topic);
   EXPECT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 0);
+  ASSERT_EQ(ROOT.result.count, 0);
 
   // Restore segment and make sure it matches
   match->segment = old_segment;
-  err = resource_trie_match(&root, topic);
+  err = resource_trie_match(&ROOT, topic);
   EXPECT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
+  ASSERT_EQ(ROOT.result.count, 1);
 
   // Add an extra element to the depth of the trie and validate failure
 }
 
 TEST_F(resource_trie_test, trie_remove_orphan) {
-  ResourceTrieRoot root = {};
   BmErr err;
 
   // Build: a(pt) -> { b(pt) -> {c(1), d(2)}, x(3) }
   begin_tracking_memory();
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/c", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/d", 2, 0x2, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/x", 3, 0x3, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/d", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/x", 3, 0x3, false), BmOK);
 
   // Remove x: 'a' and 'b' become compressed into a/b
-  ASSERT_EQ(resource_trie_remove(&root, "/a/x"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/x"), BmOK);
 
   // Remove c: 'b' compresses with 'd' -> "b/d"(2)
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
 
   // /a/b/d still reachable through compressed path
-  err = resource_trie_match(&root, "/a/b/d");
+  err = resource_trie_match(&ROOT, "/a/b/d");
   ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 2);
-  EXPECT_STREQ(root.result.matches[0]->segment, "a/b/d");
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "a/b/d");
 
   // Remove /a/b/d: 'a' becomes orphan (0 children, invalid) ->
   // ancestor cleanup should free it
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/d"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/d"), BmOK);
   validate_memory();
 }
 
 TEST_F(resource_trie_test, trie_remove_multiple_orphans) {
-  ResourceTrieRoot root = {};
   BmErr err;
 
   // Build: a(pt) -> { b(pt) -> { c(pt) -> {d(1), e(2)}, f(3) }, g(4) }
   begin_tracking_memory();
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/c/d", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/c/e", 2, 0x2, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/f", 3, 0x3, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/g", 4, 0x4, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c/d", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c/e", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/f", 3, 0x3, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/g", 4, 0x4, false), BmOK);
 
   // Strip siblings that block compression at each level
-  ASSERT_EQ(resource_trie_remove(&root, "/a/g"), BmOK);
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/f"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/g"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/f"), BmOK);
   // Now: a/b/c -> {d(1), e(2)}
 
   // Remove d: a/b/c compresses with e -> "a/b/c/e"(2)
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c/d"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c/d"), BmOK);
 
   // /a/b/c/e still reachable
-  err = resource_trie_match(&root, "/a/b/c/e");
+  err = resource_trie_match(&ROOT, "/a/b/c/e");
   ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 2);
-  EXPECT_STREQ(root.result.matches[0]->segment, "a/b/c/e");
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "a/b/c/e");
 
   // All memory must be cleaned up
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c/e"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c/e"), BmOK);
   validate_memory();
 }
 
 TEST_F(resource_trie_test, remove_compression_preserves_resources) {
-  ResourceTrieRoot root = {};
 
   begin_tracking_memory();
   // Build: a(1) -> { b(2) -> c(3), x(4) }
-  ASSERT_EQ(resource_trie_add(&root, "/a", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/b", 2, 0x2, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/c", 3, 0x3, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/x", 4, 0x4, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 3, 0x3, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/x", 4, 0x4, false), BmOK);
 
   // Remove /a/x: now a(1) -> b(2) -> c(3)
   // 'a' has a single child 'b', but 'a' has a valid resource so
   // ancestor compression SHALL NOT merge 'a' with 'b'.
-  ASSERT_EQ(resource_trie_remove(&root, "/a/x"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/x"), BmOK);
 
   // Remove /a/b/c: b becomes passthrough, b compresses with c -> "b/c"(3).
   // Ancestor loop then sees a(1) with single child — must NOT compress
   // because 'a' holds resource 1.
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
 
   // /a must still be matchable with resource 1
-  ASSERT_EQ(resource_trie_match(&root, "/a"), BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 1);
+  ASSERT_EQ(resource_trie_match(&ROOT, "/a"), BmOK);
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 1);
 
   // /a/b must still be matchable with resource 2
-  ASSERT_EQ(resource_trie_match(&root, "/a/b"), BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 2);
+  ASSERT_EQ(resource_trie_match(&ROOT, "/a/b"), BmOK);
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
 
   // Cleanup
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b"), BmOK);
-  ASSERT_EQ(resource_trie_remove(&root, "/a"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a"), BmOK);
 
   // All memory must be cleaned up
   validate_memory();
 }
 
 TEST_F(resource_trie_test, complex_removal_preserves_resources) {
-  ResourceTrieRoot root = {};
 
   begin_tracking_memory();
 
   // Build: a(1) -> { b(2) -> c(3), x(4) }
-  ASSERT_EQ(resource_trie_add(&root, "/a", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/b", 2, 0x2, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/x", 4, 0x4, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/x", 4, 0x4, false), BmOK);
 
   // Remove /a/x: now a(1) -> b(2)
   // 'a' has a single child 'b', but 'a' has a valid resource so
   // ancestor compression must NOT merge a with b.
-  ASSERT_EQ(resource_trie_remove(&root, "/a/x"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/x"), BmOK);
 
   // Remove /a: now a/b
-  ASSERT_EQ(resource_trie_remove(&root, "/a"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a"), BmOK);
 
   // "/a/b" must still be matchable with resource 2 and is compressed to "/a/b"
-  ASSERT_EQ(resource_trie_match(&root, "/a/b"), BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 2);
-  EXPECT_STREQ(root.result.matches[0]->segment, "a/b");
+  ASSERT_EQ(resource_trie_match(&ROOT, "/a/b"), BmOK);
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "a/b");
 
   // Cleanup
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b"), BmOK);
 
   // All memory must be cleaned up
   validate_memory();
@@ -858,106 +846,102 @@ TEST_F(resource_trie_test, complex_removal_preserves_resources) {
 
 TEST_F(resource_trie_test, remove_non_leaf_child_compression) {
   // Verify compression works on an inner element in trie
-  ResourceTrieRoot root = {};
   BmErr err;
 
   // Build: a(pt) -> { b(pt) -> { c(1), d(2) }, x(3) }
   begin_tracking_memory();
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/c", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/d", 2, 0x2, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/x", 3, 0x3, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/d", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/x", 3, 0x3, false), BmOK);
 
-  ASSERT_EQ(resource_trie_remove(&root, "/a/x"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/x"), BmOK);
   // Now: a/b -> {c(1), d(2)}
 
   // /a/b/c and /a/b/d still reachable
-  err = resource_trie_match(&root, "/a/b/c");
+  err = resource_trie_match(&ROOT, "/a/b/c");
   ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 1);
-  EXPECT_STREQ(root.result.matches[0]->segment, "c");
-  err = resource_trie_match(&root, "/a/b/d");
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 1);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "c");
+  err = resource_trie_match(&ROOT, "/a/b/d");
   ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 2);
-  EXPECT_STREQ(root.result.matches[0]->segment, "d");
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "d");
 
   // All memory must be cleaned up
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c"), BmOK);
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/d"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/d"), BmOK);
 
   validate_memory();
 }
 
 TEST_F(resource_trie_test, remove_sibling) {
   // Verify compression works on an inner element in trie
-  ResourceTrieRoot root = {};
   BmErr err;
 
   // Build: a(pt) -> { b(1), c(2), d(3) }
   begin_tracking_memory();
-  ASSERT_EQ(resource_trie_add(&root, "/a/b", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/c", 2, 0x2, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/d", 3, 0x3, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/c", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/d", 3, 0x3, false), BmOK);
 
-  ASSERT_EQ(resource_trie_remove(&root, "/a/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/c"), BmOK);
   // Now: a -> {b(1), d(3)}
 
   // /a/b and /a/d still reachable
-  err = resource_trie_match(&root, "/a/b");
+  err = resource_trie_match(&ROOT, "/a/b");
   ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 1);
-  EXPECT_STREQ(root.result.matches[0]->segment, "b");
-  err = resource_trie_match(&root, "/a/d");
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 1);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "b");
+  err = resource_trie_match(&ROOT, "/a/d");
   ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 3);
-  EXPECT_STREQ(root.result.matches[0]->segment, "d");
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 3);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "d");
 
   // All memory must be cleaned up
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b"), BmOK);
-  ASSERT_EQ(resource_trie_remove(&root, "/a/d"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/d"), BmOK);
 
   validate_memory();
 }
 
 TEST_F(resource_trie_test, add_after_compression) {
-  ResourceTrieRoot root = {};
   BmErr err;
 
   // Build: a/b(pt) -> { c(1), d(2) }
   begin_tracking_memory();
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/c", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/d", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/d", 2, 0x2, false), BmOK);
 
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
   // Now: a/b/d
 
   // Add a/b/c again: a/b(pt) -> { c(3), d(2) }
-  ASSERT_EQ(resource_trie_add(&root, "/a/b/c", 3, 0x3, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 3, 0x3, false), BmOK);
 
   // /a/b/c and /a/b/d still reachable
-  err = resource_trie_match(&root, "/a/b/c");
+  err = resource_trie_match(&ROOT, "/a/b/c");
   ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 3);
-  EXPECT_STREQ(root.result.matches[0]->segment, "c");
-  err = resource_trie_match(&root, "/a/b/d");
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 3);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "c");
+  err = resource_trie_match(&ROOT, "/a/b/d");
   ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(root.result.count, 1);
-  EXPECT_EQ(root.result.matches[0]->resource_id, 2);
-  EXPECT_STREQ(root.result.matches[0]->segment, "d");
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "d");
 
   // All memory must be cleaned up
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c"), BmOK);
-  ASSERT_EQ(resource_trie_remove(&root, "/a/b/d"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/d"), BmOK);
 
   validate_memory();
 }
 
-TEST_F(resource_trie_test, add_random_ordering_remove) {
-  ResourceTrieRoot root = {};
+TEST_F(resource_trie_test, random_ordering_remove) {
   BmErr err;
 
   const char *topics[] = {
@@ -969,7 +953,7 @@ TEST_F(resource_trie_test, add_random_ordering_remove) {
 
   // Add all topics
   for (uint8_t i = 0; i < arr_size; i++) {
-    err = resource_trie_add(&root, topics[i], i, i, false);
+    err = resource_trie_add(&ROOT, topics[i], i, i, false);
     ASSERT_EQ(err, BmOK);
   }
 
@@ -996,7 +980,7 @@ TEST_F(resource_trie_test, add_random_ordering_remove) {
       j++;
     }
 
-    err = resource_trie_remove(&root, topics[to_erase]);
+    err = resource_trie_remove(&ROOT, topics[to_erase]);
     ASSERT_EQ(err, BmOK);
   }
 
