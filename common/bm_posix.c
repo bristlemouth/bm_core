@@ -645,6 +645,7 @@ BmErr bm_timer_change_period(BmTimer timer, uint32_t period_ms,
   }
   pthread_mutex_lock(&t->lock);
   t->period_ms = period_ms;
+  t->running = true;
   t->needs_reset = true;
   pthread_cond_signal(&t->cond);
   pthread_mutex_unlock(&t->lock);
