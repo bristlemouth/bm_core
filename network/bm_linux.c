@@ -239,10 +239,6 @@ BM_LINUX_STATIC bool is_multicast(const BmIpAddr *addr) {
 #define FRAME_HDR_LEN (ETH_HDR_LEN + IPV6_HDR_LEN)
 
 // ---------------------------------------------------------------------------
-// Stub implementations — will be replaced by subsequent subtasks
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Packet accessor callbacks — registered via packet_init() so the BCMP
 // packet processor can extract fields from a LinuxLayout.
 // ---------------------------------------------------------------------------
