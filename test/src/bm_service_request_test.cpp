@@ -74,5 +74,5 @@ TEST_F(BmServiceRequest, request) {
   ASSERT_EQ(bm_service_request(strlen(service), service, size,
                                (const uint8_t *)data, service_handler, 1000),
             false);
-  free(data);
+  bm_free(data);
 }
