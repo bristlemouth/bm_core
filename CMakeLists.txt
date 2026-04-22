@@ -26,11 +26,17 @@ function(append_platform_file sources platform path)
     endforeach()
 endfunction()
 
-if(NOT ENABLE_TESTING)
+option(BM_HOSTED "Build for hosted environment (skip embedded drivers)" OFF)
+
+if(NOT ENABLE_TESTING AND NOT BM_HOSTED)
     set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/arm-gcc-toolchain.cmake)
 endif()
 
-project(Bristlemouth VERSION 0.11 LANGUAGES C)
+if(BM_HOSTED)
+    add_compile_definitions(BM_HOSTED)
+endif()
+
+project(Bristlemouth VERSION 0.13 LANGUAGES C)
 
 include(FetchContent)
 
@@ -74,6 +80,7 @@ if(ENABLE_TESTING)
     set(CMAKE_C_FLAGS "-g -Wall -W")
     set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
     add_compile_options(-DENABLE_TESTING)
+    add_compile_options(-Werror=attributes)
 
     enable_testing()
     add_subdirectory("test")
@@ -108,6 +115,9 @@ else()
     # Make includes available to above CMakeLists directories
     target_include_directories(bmcore PUBLIC ${BM_INCLUDES})
 
+    # Fail the build if bm_noinit_ram_attribute isn't defined in bm_config.h
+    target_compile_options(bmcore PRIVATE -Werror=attributes)
+
     # Add static libraries
     add_subdirectory(bcmp)
     add_subdirectory(middleware)
@@ -124,9 +134,9 @@ else()
         middleware
         bmmessages
         bmnetwork
-        bmadin2111
         bmthirdparty
         bmintegrations
     )
+    target_link_libraries(bmcore PUBLIC bmadin2111)
     add_dependencies(bmcore update_submodules)
 endif()

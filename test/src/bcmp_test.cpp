@@ -131,6 +131,10 @@ TEST_F(Bcmp, bcmp_tx) {
 }
 
 TEST_F(Bcmp, bcmp_ll_forward) {
+  // Forwarding requires knowing how many ports there are
+  netdevice_num_ports_fake.return_val = 2;
+  bcmp_init(adin2111_network_device());
+
   BcmpHeader header = {};
   const uint16_t size = RND.rnd_int(max_payload_len, UINT8_MAX);
   uint8_t *data = (uint8_t *)bm_malloc(size);

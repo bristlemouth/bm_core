@@ -296,8 +296,13 @@ BcmpNeighbor *bcmp_update_neighbor(uint64_t node_id, uint8_t port) {
   if (neighbor == NULL) {
     bm_debug("🏘  Adding new neighbor! %016" PRIx64 "\n", node_id);
     neighbor = bcmp_add_neighbor(node_id, port);
-    // Let's get this node's information
-    bcmp_request_info(node_id, &multicast_ll_addr, NULL);
+    if (neighbor) {
+      // Fire the discovery callback so the application learns about this new
+      // neighbor immediately (node_id and port are already populated).
+      bcmp_neighbor_invoke_discovery_cb(true, neighbor);
+      // Let's get this node's information
+      bcmp_request_info(node_id, &multicast_ll_addr, NULL);
+    }
   }
 
   return neighbor;
@@ -409,6 +414,16 @@ void bcmp_print_neighbor_info(BcmpNeighbor *neighbor) {
 */
 void bcmp_neighbor_register_discovery_callback(NeighborDiscoveryCallback cb) {
   NEIGHBOR_DISCOVERY_CB = cb;
+  // Replay discovery events for any neighbors already in the table so that
+  // late registrants (e.g. application setup() called after the stack has
+  // already processed the first heartbeat) still receive NEIGHBOR_UP events.
+  if (cb) {
+    BcmpNeighbor *neighbor = NEIGHBORS;
+    while (neighbor != NULL) {
+      cb(true, neighbor);
+      neighbor = neighbor->next;
+    }
+  }
 }
 
 /*!

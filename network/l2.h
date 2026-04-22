@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 typedef void (*L2LinkChangeCb)(uint8_t port, bool state);
+typedef void (*L2PcapCb)(const uint8_t *frame, size_t len);
 
 /*!
  @brief Handle Routing Of Link-Local Packets
@@ -50,6 +51,7 @@ uint8_t bm_l2_get_port_count(void);
 BmErr bm_l2_netif_set_power(bool on);
 BmErr bm_l2_netif_enable_disable_port(uint8_t port_num, bool enable);
 BmErr bm_l2_register_link_local_routing_callback(L2LinkLocalRoutingCb cb);
+BmErr bm_l2_register_pcap_callback(L2PcapCb cb);
 
 #ifdef __cplusplus
 }

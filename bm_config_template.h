@@ -5,4 +5,6 @@
 
 #define bm_debug(format, ...) printf(format, ##__VA_ARGS__)
 
+#define bm_noinit_ram_attribute section(".noinit")
+
 #endif
