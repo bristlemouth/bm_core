@@ -799,7 +799,7 @@ TEST_F(resource_trie_test, remove_compression_preserves_resources) {
 
   // Remove /a/x: now a(1) -> b(2) -> c(3)
   // 'a' has a single child 'b', but 'a' has a valid resource so
-  // ancestor compression SHALL NOT merge a with b.
+  // ancestor compression SHALL NOT merge 'a' with 'b'.
   ASSERT_EQ(resource_trie_remove(&root, "/a/x"), BmOK);
 
   // Remove /a/b/c: b becomes passthrough, b compresses with c -> "b/c"(3).
@@ -853,5 +853,153 @@ TEST_F(resource_trie_test, complex_removal_preserves_resources) {
   ASSERT_EQ(resource_trie_remove(&root, "/a/b"), BmOK);
 
   // All memory must be cleaned up
+  validate_memory();
+}
+
+TEST_F(resource_trie_test, remove_non_leaf_child_compression) {
+  // Verify compression works on an inner element in trie
+  ResourceTrieRoot root = {};
+  BmErr err;
+
+  // Build: a(pt) -> { b(pt) -> { c(1), d(2) }, x(3) }
+  begin_tracking_memory();
+  ASSERT_EQ(resource_trie_add(&root, "/a/b/c", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&root, "/a/b/d", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&root, "/a/x", 3, 0x3, false), BmOK);
+
+  ASSERT_EQ(resource_trie_remove(&root, "/a/x"), BmOK);
+  // Now: a/b -> {c(1), d(2)}
+
+  // /a/b/c and /a/b/d still reachable
+  err = resource_trie_match(&root, "/a/b/c");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(root.result.count, 1);
+  EXPECT_EQ(root.result.matches[0]->resource_id, 1);
+  EXPECT_STREQ(root.result.matches[0]->segment, "c");
+  err = resource_trie_match(&root, "/a/b/d");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(root.result.count, 1);
+  EXPECT_EQ(root.result.matches[0]->resource_id, 2);
+  EXPECT_STREQ(root.result.matches[0]->segment, "d");
+
+  // All memory must be cleaned up
+  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&root, "/a/b/d"), BmOK);
+
+  validate_memory();
+}
+
+TEST_F(resource_trie_test, remove_sibling) {
+  // Verify compression works on an inner element in trie
+  ResourceTrieRoot root = {};
+  BmErr err;
+
+  // Build: a(pt) -> { b(1), c(2), d(3) }
+  begin_tracking_memory();
+  ASSERT_EQ(resource_trie_add(&root, "/a/b", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&root, "/a/c", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&root, "/a/d", 3, 0x3, false), BmOK);
+
+  ASSERT_EQ(resource_trie_remove(&root, "/a/c"), BmOK);
+  // Now: a -> {b(1), d(3)}
+
+  // /a/b and /a/d still reachable
+  err = resource_trie_match(&root, "/a/b");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(root.result.count, 1);
+  EXPECT_EQ(root.result.matches[0]->resource_id, 1);
+  EXPECT_STREQ(root.result.matches[0]->segment, "b");
+  err = resource_trie_match(&root, "/a/d");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(root.result.count, 1);
+  EXPECT_EQ(root.result.matches[0]->resource_id, 3);
+  EXPECT_STREQ(root.result.matches[0]->segment, "d");
+
+  // All memory must be cleaned up
+  ASSERT_EQ(resource_trie_remove(&root, "/a/b"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&root, "/a/d"), BmOK);
+
+  validate_memory();
+}
+
+TEST_F(resource_trie_test, add_after_compression) {
+  ResourceTrieRoot root = {};
+  BmErr err;
+
+  // Build: a/b(pt) -> { c(1), d(2) }
+  begin_tracking_memory();
+  ASSERT_EQ(resource_trie_add(&root, "/a/b/c", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&root, "/a/b/d", 2, 0x2, false), BmOK);
+
+  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c"), BmOK);
+  // Now: a/b/d
+
+  // Add a/b/c again: a/b(pt) -> { c(3), d(2) }
+  ASSERT_EQ(resource_trie_add(&root, "/a/b/c", 3, 0x3, false), BmOK);
+
+  // /a/b/c and /a/b/d still reachable
+  err = resource_trie_match(&root, "/a/b/c");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(root.result.count, 1);
+  EXPECT_EQ(root.result.matches[0]->resource_id, 3);
+  EXPECT_STREQ(root.result.matches[0]->segment, "c");
+  err = resource_trie_match(&root, "/a/b/d");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(root.result.count, 1);
+  EXPECT_EQ(root.result.matches[0]->resource_id, 2);
+  EXPECT_STREQ(root.result.matches[0]->segment, "d");
+
+  // All memory must be cleaned up
+  ASSERT_EQ(resource_trie_remove(&root, "/a/b/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&root, "/a/b/d"), BmOK);
+
+  validate_memory();
+}
+
+TEST_F(resource_trie_test, add_random_ordering_remove) {
+  ResourceTrieRoot root = {};
+  BmErr err;
+
+  const char *topics[] = {
+      "/a/b/c", "/a/b/d", "/a/b/e", "/a/x/y", "/a/x/z", "/q/r/s", "/q/r/t",
+  };
+  constexpr uint8_t arr_size = array_size(topics);
+
+  begin_tracking_memory();
+
+  // Add all topics
+  for (uint8_t i = 0; i < arr_size; i++) {
+    err = resource_trie_add(&root, topics[i], i, i, false);
+    ASSERT_EQ(err, BmOK);
+  }
+
+  // Remove topics in a random order
+  int16_t called[arr_size];
+  for (uint8_t i = 0; i < arr_size; i++) {
+    called[i] = -1;
+  }
+
+  for (uint8_t i = 0; i < arr_size; i++) {
+    // Match against concrete topic to get all wildcard matches
+    int16_t to_erase = RND.rnd_int(arr_size, 0);
+
+    // Ensure to_erase has not been called before
+    for (uint8_t j = 0; j < arr_size;) {
+      if (to_erase == called[j]) {
+        to_erase = (to_erase += 1) % arr_size;
+        j = 0;
+        continue;
+      } else if (called[j] == -1) {
+        called[j] = to_erase;
+        break;
+      }
+      j++;
+    }
+
+    err = resource_trie_remove(&root, topics[to_erase]);
+    ASSERT_EQ(err, BmOK);
+  }
+
+  // Validate all memory is cleaned up, no dangling elements
   validate_memory();
 }
