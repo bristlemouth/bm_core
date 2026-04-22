@@ -566,8 +566,21 @@ BmTimer bm_timer_create(const char *name, uint32_t period_ms, bool auto_reload,
   return (BmTimer)t;
 }
 
+// Acquire a timer mutex with a bounded wait.  Returns 0 on success, ETIMEDOUT
+// if the lock could not be acquired within timeout_ms milliseconds.
+static int timed_mutex_lock(pthread_mutex_t *lock, uint32_t timeout_ms) {
+  if (timeout_ms == UINT32_MAX) {
+    return pthread_mutex_lock(lock);
+  }
+  if (timeout_ms == 0) {
+    return pthread_mutex_trylock(lock) == 0 ? 0 : ETIMEDOUT;
+  }
+  struct timespec ts;
+  deadline_from_ms(timeout_ms, &ts);
+  return pthread_mutex_timedlock(lock, &ts);
+}
+
 void bm_timer_delete(BmTimer timer, uint32_t timeout_ms) {
-  (void)timeout_ms;
   PosixTimer *t = (PosixTimer *)timer;
   if (!t) {
     return;
@@ -576,14 +589,18 @@ void bm_timer_delete(BmTimer timer, uint32_t timeout_ms) {
   // mutex here would crash posix_timer_thread when it tries to relock after
   // the callback returns.  Mark for deferred self-cleanup instead.
   if (t->thread_created && pthread_equal(pthread_self(), t->thread)) {
-    pthread_mutex_lock(&t->lock);
+    if (timed_mutex_lock(&t->lock, timeout_ms) != 0) {
+      return;
+    }
     t->delete_requested = true;
     t->running = false;
     t->self_delete = true;
     pthread_mutex_unlock(&t->lock);
     return; // posix_timer_thread will free memory after cb() returns
   }
-  pthread_mutex_lock(&t->lock);
+  if (timed_mutex_lock(&t->lock, timeout_ms) != 0) {
+    return;
+  }
   t->delete_requested = true;
   pthread_cond_signal(&t->cond);
   pthread_mutex_unlock(&t->lock);
@@ -596,12 +613,13 @@ void bm_timer_delete(BmTimer timer, uint32_t timeout_ms) {
 }
 
 BmErr bm_timer_reset(BmTimer timer, uint32_t timeout_ms) {
-  (void)timeout_ms;
   PosixTimer *t = (PosixTimer *)timer;
   if (!t) {
     return BmEINVAL;
   }
-  pthread_mutex_lock(&t->lock);
+  if (timed_mutex_lock(&t->lock, timeout_ms) != 0) {
+    return BmETIMEDOUT;
+  }
   t->running = true;
   t->needs_reset = true;
   pthread_cond_signal(&t->cond);
@@ -610,12 +628,13 @@ BmErr bm_timer_reset(BmTimer timer, uint32_t timeout_ms) {
 }
 
 BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms) {
-  (void)timeout_ms;
   PosixTimer *t = (PosixTimer *)timer;
   if (!t) {
     return BmEINVAL;
   }
-  pthread_mutex_lock(&t->lock);
+  if (timed_mutex_lock(&t->lock, timeout_ms) != 0) {
+    return BmETIMEDOUT;
+  }
   t->running = true;
   t->needs_reset = true;
   pthread_cond_signal(&t->cond);
@@ -624,12 +643,13 @@ BmErr bm_timer_start(BmTimer timer, uint32_t timeout_ms) {
 }
 
 BmErr bm_timer_stop(BmTimer timer, uint32_t timeout_ms) {
-  (void)timeout_ms;
   PosixTimer *t = (PosixTimer *)timer;
   if (!t) {
     return BmEINVAL;
   }
-  pthread_mutex_lock(&t->lock);
+  if (timed_mutex_lock(&t->lock, timeout_ms) != 0) {
+    return BmETIMEDOUT;
+  }
   t->running = false;
   pthread_cond_signal(&t->cond);
   pthread_mutex_unlock(&t->lock);
@@ -638,12 +658,13 @@ BmErr bm_timer_stop(BmTimer timer, uint32_t timeout_ms) {
 
 BmErr bm_timer_change_period(BmTimer timer, uint32_t period_ms,
                              uint32_t timeout_ms) {
-  (void)timeout_ms;
   PosixTimer *t = (PosixTimer *)timer;
   if (!t) {
     return BmEINVAL;
   }
-  pthread_mutex_lock(&t->lock);
+  if (timed_mutex_lock(&t->lock, timeout_ms) != 0) {
+    return BmETIMEDOUT;
+  }
   t->period_ms = period_ms;
   t->running = true;
   t->needs_reset = true;
