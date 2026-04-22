@@ -110,5 +110,5 @@ TEST_F(Ping, reply_ping) {
   ASSERT_EQ(packet_process_invoke(BcmpEchoReplyMessage, data), BmOK);
   RESET_FAKE(bm_ticks_to_ms)
 
-  free(reply);
+  bm_free(reply);
 }
