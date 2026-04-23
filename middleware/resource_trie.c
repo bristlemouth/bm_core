@@ -282,8 +282,8 @@ static inline void remove_match_string_segment(ResourceTrieRoot *root,
   memset(&root->match_str[ctx->match_length], 0, segment_length + 1);
 }
 
-static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
-                            MatchCb cb, void *arg) {
+static void match_wildcard(ResourceTrieRoot *root, const char *topic,
+                           MatchCb cb, void *arg) {
 
   topic = increment_past_separator(topic);
 
@@ -324,7 +324,7 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
       } else {
         // Process leaf node
         if (wildcard_process(root, topic, cb, arg, ctx)) {
-          return BmOK;
+          return;
         }
 
         remove_match_string_segment(root, &ctx);
@@ -336,14 +336,14 @@ static BmErr match_wildcard(ResourceTrieRoot *root, const char *topic,
       stack_pop(stack, &sp, &ctx.current, &ctx.match_length);
 
       if (wildcard_process(root, topic, cb, arg, ctx)) {
-        return BmOK;
+        return;
       }
       remove_match_string_segment(root, &ctx);
       ctx.current = ctx.current->sibling;
     }
   }
 
-  return BmOK;
+  return;
 }
 
 static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
@@ -488,20 +488,37 @@ static BmErr split_topic(ExactMatchCtx *ctx, ResourceTrieElement *child,
 }
 
 /*!
- @brief Add An Element To The Resource Trie
+ @brief Add an element to the resource trie
 
  @details Has the ability to split elements if the current topic being added
           is a substring of another compressed element's segment, i.e:
             - topic added = "sensor/temperature"
             - element segment = "sensor/temperature/raw"
+          When topics are successfully added:
+            - If the topic is concrete (does not contain a wildcard character),
+              the trie is searched for all matching wildcard resources, for 
+              every match the following is updated:
+                1. The concrete topic's `wildcard_port_mask` is OR'd with the 
+                   wildcard resource's `port_mask`
+                2. The concrete topic's `wildcard_interest` is OR'd with the
+                   wildcard resource's `local_interest`
+            - If the topic contains a wildcard character the trie is searched
+              for all matching concrete resources, for every match the following
+              is updated:
+                1. The concrete topic's `wildcard_port_mask` is OR'd with the 
+                   wildcard resource's `port_mask`
+                2. The concrete topic's `wildcard_interest` is OR'd with the
+                   wildcard resource's `local_interest`
 
- @param root
- @param topic
- @param resource_id
- @param port_mask
- @param local_interest
+ @param root Root instance for the resource trie
+ @param topic Topic to add (or update if it already exists)
+ @param resource_id Resource ID associated with the topic
+ @param port_mask Port mask associated with the topic
+ @param local_interest Whether or not there is a local interest in the topic
 
- @return 
+ @return BmOK on success
+         BmEINVAL on invalid input arguments
+         BmENOMEM if there is invalid memory in the system
  */
 BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
                         uint32_t resource_id, uint16_t port_mask,
@@ -562,7 +579,9 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
     cb = match_topic_update;
   }
 
-  return match_wildcard(root, topic_start, cb, new);
+  match_wildcard(root, topic_start, cb, new);
+
+  return BmOK;
 }
 
 static bool match_result_update(ResourceTrieElement *current, void *arg) {
@@ -579,6 +598,23 @@ static bool match_result_update(ResourceTrieElement *current, void *arg) {
   return false;
 }
 
+/*!
+ @brief Matches topic to elements in resource trie
+
+ @details Successfully matched elements are stored in the root->result member.
+          Up to max_trie_matches can be stored in the result.
+          The resource trie is searched with an iterative in-order walk
+          (Depth First Search). Reconstructs each node's full topic path in
+          root->match_str and compares against the query topic.
+
+ @see ResourceTrieMatchResult
+
+ @param root Root instance for the resource trie
+ @param topic Topic to match against
+
+ @return BmOK on success, even if no matches are found
+         BmEINVAL on invalid input arguments
+ */
 BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic) {
   if (!root || !topic) {
     return BmEINVAL;
@@ -586,7 +622,9 @@ BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic) {
 
   memset(&root->result, 0, sizeof(ResourceTrieMatchResult));
 
-  return match_wildcard(root, topic, match_result_update, &root->result);
+  match_wildcard(root, topic, match_result_update, &root->result);
+
+  return BmOK;
 }
 
 static bool get_path(ResourceTrieElement *current, void *arg) {
@@ -605,12 +643,27 @@ static BmErr track_ancestry(ExactMatchCtx *ctx, ResourceTrieRoot *root) {
   return BmOK;
 }
 
+/*!
+ @brief Remove element in resource trie
+
+ @details Searches trie for exact element to remove. If topic to remove has a
+          wildcard character in it, the matching concrete resource will have 
+          their wildcard_port_mask and local_interest cleared of the bits
+          shared with the removed resource, pending no other matching resources
+          share the same bits.
+
+ @param root Root instance for the resource trie
+ @param topic Topic to remove resource for
+
+ @return BmOK on success
+         BmEINVAL on invalid input arguments
+         BmENODATA if there were no elements that matched the desired topic
+ */
 BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
   if (!root || !topic) {
     return BmEINVAL;
   }
   BmErr err;
-  bool is_wildcard = topic_has_wildcard(topic);
   uint16_t remove_mask = 0;
   uint8_t remove_local_interest = 0;
 
@@ -649,6 +702,7 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
     }
 
     // Strip concrete nodes of wildcard interests
+    bool is_wildcard = topic_has_wildcard(topic);
     if (is_wildcard) {
       resource_trie_match(root, topic);
 
@@ -679,7 +733,21 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
   return BmENODATA;
 }
 
+/*!
+ @brief Purge the trie of all elements
+
+ @details Mostly useful for testing.
+
+ @param root Root instance for the resource trie
+
+ @return BmOK on success
+         BmEINVAL on invalid input arguments
+ */
 BmErr resource_trie_purge(ResourceTrieRoot *root) {
+  if (!root) {
+    return BmEINVAL;
+  }
+
   BmTopicLength sp = 0;
   ResourceTrieStack *stack = root->stack;
   ResourceTrieElement *current = root->element.children;
