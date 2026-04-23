@@ -728,10 +728,22 @@ TEST_F(resource_trie_test, trie_remove_orphan) {
   ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/d", 2, 0x2, false), BmOK);
   ASSERT_EQ(resource_trie_add(&ROOT, "/a/x", 3, 0x3, false), BmOK);
 
-  // Remove x: 'a' and 'b' become compressed into a/b
+  // Remove x: 'a' and 'b' compress into a/b(pt) -> {c(1), d(2)}
   ASSERT_EQ(resource_trie_remove(&ROOT, "/a/x"), BmOK);
 
-  // Remove c: 'b' compresses with 'd' -> "b/d"(2)
+  // Children still reachable under compressed parent
+  err = resource_trie_match(&ROOT, "/a/b/c");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 1);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "c");
+  err = resource_trie_match(&ROOT, "/a/b/d");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
+  EXPECT_STREQ(ROOT.result.matches[0]->segment, "d");
+
+  // Remove c: a/b compresses with d -> "a/b/d"(2)
   ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
 
   // /a/b/d still reachable through compressed path
@@ -741,39 +753,8 @@ TEST_F(resource_trie_test, trie_remove_orphan) {
   EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
   EXPECT_STREQ(ROOT.result.matches[0]->segment, "a/b/d");
 
-  // Remove /a/b/d: 'a' becomes orphan (0 children, invalid) ->
-  // ancestor cleanup should free it
+  // Remove /a/b/d: all memory should be freed
   ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/d"), BmOK);
-  validate_memory();
-}
-
-TEST_F(resource_trie_test, trie_remove_multiple_orphans) {
-  BmErr err;
-
-  // Build: a(pt) -> { b(pt) -> { c(pt) -> {d(1), e(2)}, f(3) }, g(4) }
-  begin_tracking_memory();
-  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c/d", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c/e", 2, 0x2, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/f", 3, 0x3, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&ROOT, "/a/g", 4, 0x4, false), BmOK);
-
-  // Strip siblings that block compression at each level
-  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/g"), BmOK);
-  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/f"), BmOK);
-  // Now: a/b/c -> {d(1), e(2)}
-
-  // Remove d: a/b/c compresses with e -> "a/b/c/e"(2)
-  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c/d"), BmOK);
-
-  // /a/b/c/e still reachable
-  err = resource_trie_match(&ROOT, "/a/b/c/e");
-  ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(ROOT.result.count, 1);
-  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
-  EXPECT_STREQ(ROOT.result.matches[0]->segment, "a/b/c/e");
-
-  // All memory must be cleaned up
-  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c/e"), BmOK);
   validate_memory();
 }
 
@@ -844,38 +825,6 @@ TEST_F(resource_trie_test, complex_removal_preserves_resources) {
   validate_memory();
 }
 
-TEST_F(resource_trie_test, remove_non_leaf_child_compression) {
-  // Verify compression works on an inner element in trie
-  BmErr err;
-
-  // Build: a(pt) -> { b(pt) -> { c(1), d(2) }, x(3) }
-  begin_tracking_memory();
-  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 1, 0x1, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/d", 2, 0x2, false), BmOK);
-  ASSERT_EQ(resource_trie_add(&ROOT, "/a/x", 3, 0x3, false), BmOK);
-
-  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/x"), BmOK);
-  // Now: a/b -> {c(1), d(2)}
-
-  // /a/b/c and /a/b/d still reachable
-  err = resource_trie_match(&ROOT, "/a/b/c");
-  ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(ROOT.result.count, 1);
-  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 1);
-  EXPECT_STREQ(ROOT.result.matches[0]->segment, "c");
-  err = resource_trie_match(&ROOT, "/a/b/d");
-  ASSERT_EQ(err, BmOK);
-  ASSERT_EQ(ROOT.result.count, 1);
-  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
-  EXPECT_STREQ(ROOT.result.matches[0]->segment, "d");
-
-  // All memory must be cleaned up
-  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
-  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/d"), BmOK);
-
-  validate_memory();
-}
-
 TEST_F(resource_trie_test, remove_sibling) {
   // Verify compression works on an inner element in trie
   BmErr err;
@@ -904,6 +853,60 @@ TEST_F(resource_trie_test, remove_sibling) {
   // All memory must be cleaned up
   ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b"), BmOK);
   ASSERT_EQ(resource_trie_remove(&ROOT, "/a/d"), BmOK);
+
+  validate_memory();
+}
+
+TEST_F(resource_trie_test, remove_non_leaf_multiple_children) {
+  BmErr err;
+  begin_tracking_memory();
+
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
+
+  // Build: a(pt) -> {b(5) -> {c(1), d(2)}, x(3)}
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b", 5, 0x5, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/d", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/x", 3, 0x3, false), BmOK);
+
+  // Remove /a/b: b has resource + 2 children, compression fails (multiple
+  // children), b becomes passthrough with children intact
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b"), BmOK);
+
+  // /a/b is now passthrough, should NOT match
+  err = resource_trie_match(&ROOT, "/a/b");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 0);
+
+  // Children still reachable through passthrough
+  err = resource_trie_match(&ROOT, "/a/b/c");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 1);
+
+  err = resource_trie_match(&ROOT, "/a/b/d");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 2);
+
+  // Remove /a/x -> a compresses with b -> "a/b"(pt) -> {c(1), d(2)}
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/x"), BmOK);
+
+  // Children still reachable after grandparent compression
+  err = resource_trie_match(&ROOT, "/a/b/c");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 1);
+
+  err = resource_trie_match(&ROOT, "/a/b/d");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 2);
+
+  // Cleanup
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/d"), BmOK);
 
   validate_memory();
 }
@@ -938,6 +941,169 @@ TEST_F(resource_trie_test, add_after_compression) {
   ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
   ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/d"), BmOK);
 
+  validate_memory();
+}
+
+TEST_F(resource_trie_test, deep_cascade_compression) {
+  BmErr err;
+
+  // Build a 4-level deep trie with siblings at each level:
+  //   root -> a(pt) -> {b(pt) -> {c(pt) -> {d(pt) -> {e(1), f(2)}, g(3)}, h(4)}, i(5)}
+  begin_tracking_memory();
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c/d/e", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c/d/f", 2, 0x2, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c/g", 3, 0x3, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/h", 4, 0x4, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/i", 5, 0x5, false), BmOK);
+
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
+
+  // Step 1: Remove /a/b/c/d/e -> d compresses with f -> "d/f"(2)
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c/d/e"), BmOK);
+  err = resource_trie_match(&ROOT, "/a/b/c/d/f");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 2);
+  EXPECT_STREQ(matches[0]->segment, "d/f");
+
+  // Step 2: Remove /a/b/c/d/f -> c compresses with g -> "c/g"(3)
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c/d/f"), BmOK);
+  err = resource_trie_match(&ROOT, "/a/b/c/g");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 3);
+  EXPECT_STREQ(matches[0]->segment, "c/g");
+
+  // Step 3: Remove /a/b/c/g -> b compresses with h -> "b/h"(4)
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c/g"), BmOK);
+  err = resource_trie_match(&ROOT, "/a/b/h");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 4);
+  EXPECT_STREQ(matches[0]->segment, "b/h");
+
+  // Step 4: Remove /a/b/h -> a compresses with i -> "a/i"(5)
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/h"), BmOK);
+  err = resource_trie_match(&ROOT, "/a/i");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 5);
+  EXPECT_STREQ(matches[0]->segment, "a/i");
+
+  // Step 5: Remove last element -> empty trie
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/i"), BmOK);
+  validate_memory();
+}
+
+TEST_F(resource_trie_test, interleaved_add_remove) {
+  BmErr err;
+  begin_tracking_memory();
+
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
+
+  // Phase 1: Add two topics sharing prefix
+  //   a/b(pt) -> {c(1), d(2)}
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 1, 0x1, false), BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/d", 2, 0x2, false), BmOK);
+
+  // Phase 2: Remove c -> compresses to "a/b/d"(2)
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
+  err = resource_trie_match(&ROOT, "/a/b/d");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 2);
+  EXPECT_STREQ(matches[0]->segment, "a/b/d");
+
+  // Phase 3: Re-add c -> splits again: a/b(pt) -> {d(2), c(3)}
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/b/c", 3, 0x3, false), BmOK);
+  err = resource_trie_match(&ROOT, "/a/b/c");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 3);
+
+  // Phase 4: Add divergent topic -> split: a(pt) -> {b(pt) -> {d(2), c(3)}, x(4)}
+  ASSERT_EQ(resource_trie_add(&ROOT, "/a/x", 4, 0x4, false), BmOK);
+
+  // Phase 5: Remove d -> b compresses with c: a(pt) -> {"b/c"(3), x(4)}
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/d"), BmOK);
+  err = resource_trie_match(&ROOT, "/a/b/c");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 3);
+  EXPECT_STREQ(matches[0]->segment, "b/c");
+
+  // Phase 6: Remove x -> a compresses with b/c: "a/b/c"(3)
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/x"), BmOK);
+  err = resource_trie_match(&ROOT, "/a/b/c");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 3);
+  EXPECT_STREQ(matches[0]->segment, "a/b/c");
+
+  // Phase 7: Remove last -> empty
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/a/b/c"), BmOK);
+  validate_memory();
+}
+
+TEST_F(resource_trie_test, wildcard_survives_compression) {
+  BmErr err;
+  begin_tracking_memory();
+
+  ResourceTrieMatchResult *result = &ROOT.result;
+  ResourceTrieElement **matches = ROOT.result.matches;
+
+  // Build: sensor/temperature(pt) -> {raw(1), cooked(2), *(3)}
+  ASSERT_EQ(resource_trie_add(&ROOT, "/sensor/temperature/raw", 1, 0x1, false),
+            BmOK);
+  ASSERT_EQ(
+      resource_trie_add(&ROOT, "/sensor/temperature/cooked", 2, 0x2, false),
+      BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, "/sensor/temperature/*", 3, 0x4, true),
+            BmOK);
+
+  // Verify wildcard cross-refs on raw
+  err = resource_trie_match(&ROOT, "/sensor/temperature/raw");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 2);
+  EXPECT_EQ(matches[0]->resource_id, 1);
+  EXPECT_EQ(matches[0]->wildcard_port_mask, 0x4);
+  EXPECT_EQ(matches[0]->wildcard_interest, true);
+
+  // Remove cooked -> two children remain {raw(1), *(3)}, no compression
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/sensor/temperature/cooked"), BmOK);
+
+  // Add sibling to force a split at sensor level
+  //   sensor(pt) -> {temperature(pt) -> {raw(1), *(3)}, pressure(4)}
+  ASSERT_EQ(resource_trie_add(&ROOT, "/sensor/pressure", 4, 0x8, false), BmOK);
+
+  // Remove pressure -> sensor compresses with temperature
+  //   "sensor/temperature"(pt) -> {raw(1), *(3)}
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/sensor/pressure"), BmOK);
+
+  // Verify wildcard cross-refs on raw survived the compression
+  err = resource_trie_match(&ROOT, "/sensor/temperature/raw");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 2);
+  EXPECT_EQ(matches[0]->resource_id, 1);
+  EXPECT_EQ(matches[0]->wildcard_port_mask, 0x4);
+  EXPECT_EQ(matches[0]->wildcard_interest, true);
+
+  // Remove wildcard -> strips cross-refs from raw, then compresses
+  //   "sensor/temperature/raw"(1) with no wildcard bits
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/sensor/temperature/*"), BmOK);
+
+  err = resource_trie_match(&ROOT, "/sensor/temperature/raw");
+  ASSERT_EQ(err, BmOK);
+  ASSERT_EQ(result->count, 1);
+  EXPECT_EQ(matches[0]->resource_id, 1);
+  EXPECT_STREQ(matches[0]->segment, "sensor/temperature/raw");
+  EXPECT_EQ(matches[0]->wildcard_port_mask, 0);
+  EXPECT_EQ(matches[0]->wildcard_interest, false);
+
+  // Remove last -> empty
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/sensor/temperature/raw"), BmOK);
   validate_memory();
 }
 
