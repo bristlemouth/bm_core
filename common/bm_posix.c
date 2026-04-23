@@ -568,6 +568,7 @@ BmTimer bm_timer_create(const char *name, uint32_t period_ms, bool auto_reload,
 
 // Acquire a timer mutex with a bounded wait.  Returns 0 on success, ETIMEDOUT
 // if the lock could not be acquired within timeout_ms milliseconds.
+// Uses trylock+sleep instead of pthread_mutex_timedlock (absent on Darwin).
 static int timed_mutex_lock(pthread_mutex_t *lock, uint32_t timeout_ms) {
   if (timeout_ms == UINT32_MAX) {
     return pthread_mutex_lock(lock);
@@ -575,9 +576,21 @@ static int timed_mutex_lock(pthread_mutex_t *lock, uint32_t timeout_ms) {
   if (timeout_ms == 0) {
     return pthread_mutex_trylock(lock) == 0 ? 0 : ETIMEDOUT;
   }
-  struct timespec ts;
-  deadline_from_ms(timeout_ms, &ts);
-  return pthread_mutex_timedlock(lock, &ts);
+  struct timespec deadline;
+  deadline_from_ms(timeout_ms, &deadline);
+  static const struct timespec sleep_interval = {0, 1000000L}; // 1 ms
+  for (;;) {
+    if (pthread_mutex_trylock(lock) == 0) {
+      return 0;
+    }
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    if (now.tv_sec > deadline.tv_sec ||
+        (now.tv_sec == deadline.tv_sec && now.tv_nsec >= deadline.tv_nsec)) {
+      return ETIMEDOUT;
+    }
+    nanosleep(&sleep_interval, NULL);
+  }
 }
 
 void bm_timer_delete(BmTimer timer, uint32_t timeout_ms) {
