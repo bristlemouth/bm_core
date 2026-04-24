@@ -532,7 +532,7 @@ static BmSubNode *delete_sub(const char *topic, uint16_t topic_len) {
 
   @param *topic topic string
   @param topic_len byte length of topic
-  @param wildcard_search should the search be based on wildcard topics 
+  @param wildcard_search should the search be based on wildcard topics
 
   @return pointer to BmSubNode
   @return NULL if not found
@@ -548,8 +548,8 @@ static BmSubNode *get_sub(const char *topic, uint16_t topic_len,
         break;
       }
     } else {
-      if (!memcmp(topic, node->sub.topic,
-                  bm_min(topic_len, node->sub.topic_len))) {
+      if (topic_len == node->sub.topic_len &&
+          !memcmp(topic, node->sub.topic, topic_len)) {
         break;
       }
     }
