@@ -370,7 +370,7 @@ typedef struct {
 typedef struct {
   BmConfigHeader header;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
   // String length of the key (without terminator)
   uint8_t key_length;
   // Key string
@@ -380,7 +380,7 @@ typedef struct {
 typedef struct {
   BmConfigHeader header;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
   // Length of cbor buffer
   uint32_t data_length;
   // cbor buffer
@@ -390,7 +390,7 @@ typedef struct {
 typedef struct {
   BmConfigHeader header;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
   // String length of the key (without terminator)
   uint8_t key_length;
   // Length of cbor encoded data buffer
@@ -402,13 +402,13 @@ typedef struct {
 typedef struct {
   BmConfigHeader header;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
 } __attribute__((packed)) BmConfigCommit;
 
 typedef struct {
   BmConfigHeader header;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
 } __attribute__((packed)) BmConfigStatusRequest;
 
 typedef struct {
@@ -421,7 +421,7 @@ typedef struct {
 typedef struct {
   BmConfigHeader header;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
   // True if there are changes to be committed, false otherwise.
   bool committed;
   // Number of keys
@@ -433,7 +433,7 @@ typedef struct {
 typedef struct {
   BmConfigHeader header;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
   // String length of the key (without terminator)
   uint8_t key_length;
   // Key string
@@ -445,7 +445,7 @@ typedef struct {
   // success
   bool success;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
   // String length of the key (without terminator)
   uint8_t key_length;
   // Key string
@@ -455,7 +455,7 @@ typedef struct {
 typedef struct {
   BmConfigHeader header;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
 } __attribute__((packed)) BmConfigClearRequest;
 
 typedef struct {
@@ -463,7 +463,7 @@ typedef struct {
   // success
   bool success;
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
 } __attribute__((packed)) BmConfigClearResponse;
 
 typedef enum {
