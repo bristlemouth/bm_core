@@ -43,8 +43,8 @@ TEST_F(Neighbors, update_neighbor) {
   uint64_t node_id = (uint64_t)RND.rnd_int(UINT64_MAX, UINT8_MAX);
   uint8_t neighbor_count = (uint8_t)RND.rnd_int(UINT8_MAX, 128);
   uint8_t num_neighbors = 0;
-  char *version_string = (char *)malloc(RND.rnd_int(UINT8_MAX, 8));
-  char *device_name = (char *)malloc(RND.rnd_int(UINT8_MAX, 8));
+  char *version_string = (char *)bm_malloc(RND.rnd_int(UINT8_MAX, 8));
+  char *device_name = (char *)bm_malloc(RND.rnd_int(UINT8_MAX, 8));
   BcmpNeighbor *neighbors[neighbor_count];
 
   bcmp_print_neighbor_info(NULL);
