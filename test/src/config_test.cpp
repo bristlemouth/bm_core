@@ -157,6 +157,10 @@ TEST_F(Config, decode) {
   EXPECT_NE(size, sizeof(f.set));
 
   // Test string
+  //
+  // Wire strings do not include a trailing '\0'; the decoder appends one at
+  // p[*buf_length], so the destination must have room for payload_len + 1.
+  const size_t str_payload_len = DECODE_BUFFER_SIZE - 1;
   str.large_get = (char *)bm_malloc(ENCODE_BUFFER_SIZE);
   str.get = (char *)bm_malloc(DECODE_BUFFER_SIZE);
   str.set = (char *)bm_malloc(DECODE_BUFFER_SIZE);
@@ -164,21 +168,23 @@ TEST_F(Config, decode) {
   memset(str.large_get, 0, ENCODE_BUFFER_SIZE);
   RND.rnd_str(str.set, DECODE_BUFFER_SIZE);
   cbor_encoder_init(&encoder, cbor_buf, sizeof(cbor_buf), 0);
-  cbor_encode_text_string(&encoder, str.set, DECODE_BUFFER_SIZE);
+  cbor_encode_text_string(&encoder, str.set, str_payload_len);
 
   size = DECODE_BUFFER_SIZE;
   EXPECT_EQ(bcmp_config_decode_value(STR, cbor_buf, sizeof(cbor_buf),
                                      (void *)str.get, &size),
             BmOK);
-  ASSERT_EQ(size, DECODE_BUFFER_SIZE);
+  ASSERT_EQ(size, str_payload_len);
   EXPECT_EQ(memcmp(str.get, str.set, size), 0);
+  EXPECT_EQ(str.get[size], '\0');
 
   size = ENCODE_BUFFER_SIZE;
   EXPECT_EQ(bcmp_config_decode_value(STR, cbor_buf, sizeof(cbor_buf),
                                      (void *)str.large_get, &size),
             BmOK);
-  ASSERT_EQ(size, DECODE_BUFFER_SIZE);
+  ASSERT_EQ(size, str_payload_len);
   EXPECT_EQ(memcmp(str.large_get, str.set, size), 0);
+  EXPECT_EQ(str.large_get[size], '\0');
   bm_free(str.get);
   bm_free(str.set);
   bm_free(str.large_get);

@@ -81,7 +81,7 @@ BmErr bcmp_config_decode_value(ConfigDataTypes type, uint8_t *data,
           if (*buf_length > init_length) {
             break;
           }
-          p[*buf_length - 1] = '\0';
+          p[*buf_length] = '\0';
           err = BmOK;
         }
       } break;
