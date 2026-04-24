@@ -24,7 +24,7 @@ typedef struct {
 
 typedef struct {
   // Partition id
-  BmConfigPartition partition;
+  uint8_t partition; // BmConfigPartition value
   // Partion crc
   uint32_t crc32;
 } __attribute__((packed)) BmConfigCrc;
@@ -55,7 +55,7 @@ typedef enum {
 
 typedef struct {
   // Log level
-  BmLogLevel level;
+  uint8_t level; // BmLogLevel value
   // String length of the message (without terminator)
   uint32_t message_length;
   // print header (true) or not (false)
