@@ -1054,11 +1054,11 @@ TEST_F(resource_trie_test, wildcard_survives_compression) {
   ResourceTrieMatchResult *result = &ROOT.result;
   ResourceTrieElement **matches = ROOT.result.matches;
 
-  // Build: sensor/temperature(pt) -> {raw(1), cooked(2), *(3)}
+  // Build: sensor/temperature(pt) -> {raw(1), filtered(2), *(3)}
   ASSERT_EQ(resource_trie_add(&ROOT, "/sensor/temperature/raw", 1, 0x1, false),
             BmOK);
   ASSERT_EQ(
-      resource_trie_add(&ROOT, "/sensor/temperature/cooked", 2, 0x2, false),
+      resource_trie_add(&ROOT, "/sensor/temperature/filtered", 2, 0x2, false),
       BmOK);
   ASSERT_EQ(resource_trie_add(&ROOT, "/sensor/temperature/*", 3, 0x4, true),
             BmOK);
@@ -1071,8 +1071,8 @@ TEST_F(resource_trie_test, wildcard_survives_compression) {
   EXPECT_EQ(matches[0]->wildcard_port_mask, 0x4);
   EXPECT_EQ(matches[0]->wildcard_interest, true);
 
-  // Remove cooked -> two children remain {raw(1), *(3)}, no compression
-  ASSERT_EQ(resource_trie_remove(&ROOT, "/sensor/temperature/cooked"), BmOK);
+  // Remove filtered -> two children remain {raw(1), *(3)}, no compression
+  ASSERT_EQ(resource_trie_remove(&ROOT, "/sensor/temperature/filtered"), BmOK);
 
   // Add sibling to force a split at sensor level
   //   sensor(pt) -> {temperature(pt) -> {raw(1), *(3)}, pressure(4)}
