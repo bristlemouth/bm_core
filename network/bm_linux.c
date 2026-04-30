@@ -15,7 +15,6 @@
 #include "packet.h"
 #include "util.h"
 
-#include <arpa/inet.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -36,23 +35,6 @@ typedef struct {
   uint32_t len;        ///< Current valid data length in bytes (<= alloc_size).
   uint8_t payload[];   ///< Frame data (flexible array member).
 } LinuxBuf;
-
-/// Abstraction passed through the BCMP packet processor (packet.c).
-/// Mirrors LwipLayout: the accessor callbacks registered via packet_init()
-/// extract data/src/dst from this struct.
-///
-/// Ownership semantics differ between TX and RX:
-///   TX: data is a separate malloc'd buffer; src points to static CTX address;
-///       dst is the caller's pointer (not copied).  bm_ip_tx_cleanup frees
-///       data and the layout itself.
-///   RX: data, src, and dst are all independently malloc'd copies.
-///       bm_ip_rx_cleanup frees all three plus the layout.
-typedef struct {
-  void *data;          ///< Pointer to upper-layer payload (BCMP message bytes).
-  uint32_t data_size;  ///< Size of the data buffer in bytes.
-  const BmIpAddr *src; ///< Source IPv6 address.
-  const BmIpAddr *dst; ///< Destination IPv6 address.
-} LinuxLayout;
 
 /// Opaque handle returned by bm_udp_bind_port().  Stores the bound local port
 /// so that bm_udp_tx_perform() can fill the UDP source-port header field.
@@ -111,6 +93,16 @@ BM_LINUX_STATIC void nodeid_to_ip(BmIpAddr *out, uint32_t prefix, uint64_t id) {
   out->addr[14] = (uint8_t)(lo >> 8);
   out->addr[15] = (uint8_t)(lo);
 }
+
+#ifndef ntohs
+static inline uint16_t ntohs(uint16_t val) {
+  if (is_little_endian()) {
+    return (val >> 8) | (val << 8);
+  } else {
+    return val;
+  }
+}
+#endif
 
 /// Format a BmIpAddr as a compressed IPv6 string (RFC 5952 :: compression).
 /// Output buffer must be at least 40 bytes.
@@ -240,26 +232,28 @@ BM_LINUX_STATIC bool is_multicast(const BmIpAddr *addr) {
 
 // ---------------------------------------------------------------------------
 // Packet accessor callbacks — registered via packet_init() so the BCMP
-// packet processor can extract fields from a LinuxLayout.
+// packet processor can extract fields from the packet.
 // ---------------------------------------------------------------------------
 
 BM_LINUX_STATIC void *message_get_data(void *payload) {
-  return ((LinuxLayout *)payload)->data;
+  uint8_t *frame = (uint8_t *)bm_l2_get_payload(payload);
+  return (void *)(frame + FRAME_HDR_LEN);
 }
 
 BM_LINUX_STATIC BmIpAddr *message_get_src_ip(void *payload) {
-  return (BmIpAddr *)((LinuxLayout *)payload)->src;
+  uint8_t *frame = (uint8_t *)bm_l2_get_payload(payload);
+  return (BmIpAddr *)&frame[22];
 }
 
 BM_LINUX_STATIC BmIpAddr *message_get_dst_ip(void *payload) {
-  return (BmIpAddr *)((LinuxLayout *)payload)->dst;
+  uint8_t *frame = (uint8_t *)bm_l2_get_payload(payload);
+  return (BmIpAddr *)&frame[38];
 }
 
 BM_LINUX_STATIC uint16_t message_get_checksum(void *payload, uint32_t size) {
-  LinuxLayout *layout = (LinuxLayout *)payload;
-
-  return ipv6_pseudo_checksum(layout->src, layout->dst, ip_proto_bcmp, size,
-                              layout->data);
+  return ipv6_pseudo_checksum(message_get_src_ip(payload),
+                              message_get_dst_ip(payload), ip_proto_bcmp, size,
+                              message_get_data(payload));
 }
 
 // ---------------------------------------------------------------------------
@@ -318,6 +312,7 @@ void bm_l2_tx_prep(void *buf, uint32_t size) {
 void bm_l2_free(void *buf) {
   if (buf && __sync_sub_and_fetch(&((LinuxBuf *)buf)->ref, 1) == 0) {
     bm_free(buf);
+    buf = NULL;
   }
 }
 
@@ -348,40 +343,11 @@ BmErr bm_l2_submit(void *buf, uint32_t size) {
       return BmEBADMSG;
     }
 
-    BmIpAddr *src_copy = (BmIpAddr *)bm_malloc(sizeof(BmIpAddr));
-    BmIpAddr *dst_copy = (BmIpAddr *)bm_malloc(sizeof(BmIpAddr));
-    void *data_copy = bm_malloc(payload_length);
-    LinuxLayout *layout = (LinuxLayout *)bm_malloc(sizeof(LinuxLayout));
-
-    if (!src_copy || !dst_copy || !data_copy || !layout) {
-      bm_free(src_copy);
-      bm_free(dst_copy);
-      bm_free(data_copy);
-      bm_free(layout);
-      return BmENOMEM;
-    }
-
-    memcpy(src_copy, &frame[22], sizeof(BmIpAddr));
-    memcpy(dst_copy, &frame[38], sizeof(BmIpAddr));
-    memcpy(data_copy, frame + FRAME_HDR_LEN, payload_length);
-    *layout = (LinuxLayout){
-        .data = data_copy,
-        .data_size = payload_length,
-        .src = src_copy,
-        .dst = dst_copy,
-    };
-
-    BcmpQueueItem item = {BcmpEventRx, (void *)layout, payload_length};
+    BcmpQueueItem item = {BcmpEventRx, (void *)buf, payload_length};
     if (bm_queue_send(bcmp_get_queue(), &item, 0) != BmOK) {
-      bm_free(src_copy);
-      bm_free(dst_copy);
-      bm_free(data_copy);
-      bm_free(layout);
       return BmEAGAIN;
     }
 
-    /* Success — we own the buf now, free it. */
-    bm_l2_free(buf);
     return BmOK;
 
   } else if (next_header == ip_proto_udp) {
@@ -445,49 +411,33 @@ const BmIpAddr *bm_ip_get(uint8_t idx) {
   return NULL;
 }
 
-void bm_ip_rx_cleanup(void *payload) {
-  if (payload) {
-    LinuxLayout *layout = (LinuxLayout *)payload;
-    if (layout->data) {
-      bm_free(layout->data);
-    }
-    if (layout->src) {
-      bm_free((void *)layout->src);
-    }
-    if (layout->dst) {
-      bm_free((void *)layout->dst);
-    }
-    bm_free(layout);
-  }
-}
+void bm_ip_rx_cleanup(void *payload) { bm_l2_free(payload); }
 
 void *bm_ip_tx_new(const BmIpAddr *dst, uint32_t size) {
-  LinuxLayout *layout = NULL;
-  if (dst) {
-    void *data = bm_malloc(size);
-    layout = (LinuxLayout *)bm_malloc(sizeof(LinuxLayout));
-    if (data && layout) {
-      *layout = (LinuxLayout){
-          .data = data,
-          .data_size = size,
-          .src = &CTX.ll_addr,
-          .dst = dst,
-      };
-    } else {
-      bm_free(data);
-      bm_free(layout);
-      layout = NULL;
-    }
+  if (!dst) {
+    return NULL;
   }
-  return (void *)layout;
+  uint32_t frame_size = FRAME_HDR_LEN + size;
+
+  LinuxBuf *buf = (LinuxBuf *)bm_l2_new(frame_size);
+  if (!buf) {
+    return NULL;
+  }
+
+  // Save src and dst addresses
+  uint8_t *ip = (uint8_t *)bm_l2_get_payload(buf) + ETH_HDR_LEN;
+  memcpy(ip + 8, &CTX.ll_addr, 16);
+  memcpy(ip + 24, dst->addr, 16);
+
+  return (void *)buf;
 }
 
 BmErr bm_ip_tx_copy(void *payload, const void *data, uint32_t size,
                     uint32_t offset) {
   BmErr err = BmEINVAL;
   if (payload && data) {
-    LinuxLayout *layout = (LinuxLayout *)payload;
-    memcpy((uint8_t *)layout->data + offset, data, size);
+    uint8_t *copy_to = (uint8_t *)message_get_data(payload);
+    memcpy(copy_to + offset, data, size);
     err = BmOK;
   }
   return err;
@@ -499,17 +449,10 @@ BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
     return err;
   }
 
-  LinuxLayout *layout = (LinuxLayout *)payload;
-  const BmIpAddr *effective_dst = dst ? dst : layout->dst;
-  uint32_t data_size = layout->data_size;
-  uint32_t frame_size = FRAME_HDR_LEN + data_size;
-
-  void *l2_buf = bm_l2_new(frame_size);
-  if (!l2_buf) {
-    return BmENOMEM;
-  }
-
-  uint8_t *frame = (uint8_t *)bm_l2_get_payload(l2_buf);
+  LinuxBuf *buf = (LinuxBuf *)payload;
+  const BmIpAddr *effective_dst = dst ? dst : message_get_dst_ip(buf);
+  uint8_t *frame = (uint8_t *)bm_l2_get_payload(buf);
+  uint16_t data_size = buf->len - FRAME_HDR_LEN;
 
   /* --- Ethernet header (14 bytes) --- */
   if (is_multicast(effective_dst)) {
@@ -531,25 +474,24 @@ BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
   ip[5] = (uint8_t)(data_size); /* payload length */
   ip[6] = ip_proto_bcmp;        /* next header */
   ip[7] = 64;                   /* hop limit */
-  memcpy(ip + 8, layout->src->addr, 16);
-  memcpy(ip + 24, effective_dst->addr, 16);
 
-  /* --- BCMP payload (at offset 54) --- */
-  memcpy(frame + FRAME_HDR_LEN, layout->data, data_size);
-
-  err = bm_l2_link_output(l2_buf, frame_size);
-  if (err != BmOK) {
-    bm_l2_free(l2_buf);
+  // Update dst address if needed
+  if (dst) {
+    memcpy(ip + 24, effective_dst->addr, 16);
   }
-  bm_l2_free(l2_buf);
+
+  err = bm_l2_link_output(buf, buf->len);
+  if (err != BmOK) {
+    bm_l2_free(buf);
+  }
+
+  // Caller is expected to invoke bm_ip_tx_cleanup
   return err;
 }
 
 void bm_ip_tx_cleanup(void *payload) {
   if (payload) {
-    LinuxLayout *layout = (LinuxLayout *)payload;
-    bm_free(layout->data);
-    bm_free(layout);
+    bm_l2_free(payload);
   }
 }
 
