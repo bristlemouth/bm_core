@@ -541,6 +541,7 @@ BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
   if (err != BmOK) {
     bm_l2_free(l2_buf);
   }
+  bm_l2_free(l2_buf);
   return err;
 }
 
@@ -661,10 +662,12 @@ BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
     udp[7] = (uint8_t)(cksum);
   }
 
+  // Increments the ref count of l2_buf, if fails must free twice
   err = bm_l2_link_output(l2_buf, frame_size);
   if (err != BmOK) {
     bm_l2_free(l2_buf);
   }
+  bm_l2_free(l2_buf);
   return err;
 }
 
