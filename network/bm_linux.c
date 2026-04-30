@@ -541,6 +541,7 @@ BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
   if (err != BmOK) {
     bm_l2_free(l2_buf);
   }
+  bm_l2_free(l2_buf);
   return err;
 }
 
