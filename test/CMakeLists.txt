@@ -639,3 +639,16 @@ if (NOT WIN32)
     )
     create_gtest("bm_linux" "${LINUX_NET_SRCS}")
 endif()
+
+# Heartbeat-driven link monitor tests
+set (BM_LINK_HEARTBEAT_MONITOR_SRCS
+    # File we're testing
+    ${NETWORK_DIR}/bm_link_heartbeat_monitor.c
+
+    # Support files
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("bm_link_heartbeat_monitor" "${BM_LINK_HEARTBEAT_MONITOR_SRCS}")

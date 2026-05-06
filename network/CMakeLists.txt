@@ -1,6 +1,7 @@
 set(SOURCES
     l2.c
     l2_policy.c
+    bm_link_heartbeat_monitor.c
 )
 
 add_library(bmnetwork ${SOURCES})
