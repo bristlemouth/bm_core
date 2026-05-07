@@ -11,6 +11,7 @@ DEFINE_FFF_GLOBALS;
 extern "C" {
 #include "bm_link_heartbeat_monitor.h"
 #include "mock_bm_os.h"
+#include "mock_timer_callback_handler.h"
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +122,18 @@ uint32_t mocked_now_ms = 0;
 uint32_t get_tick_count_custom() { return mocked_now_ms; }
 uint32_t ms_to_ticks_passthrough(uint32_t ms) { return ms; }
 
+// Synchronously runs the offloaded handler. The production code posts the
+// liveness scan to the timer_callback_handler task; in unit tests we just
+// invoke it inline so the existing tests can drive the down-edge logic by
+// calling captured_timer_cb() directly.
+bool send_cb_passthrough(timer_handler_cb cb, void *arg, uint32_t timeout_ms) {
+  (void)timeout_ms;
+  if (cb) {
+    cb(arg);
+  }
+  return true;
+}
+
 void install_default_os_mocks() {
   RESET_FAKE(bm_mutex_create);
   RESET_FAKE(bm_semaphore_take);
@@ -132,6 +145,7 @@ void install_default_os_mocks() {
   RESET_FAKE(bm_timer_delete);
   RESET_FAKE(bm_get_tick_count);
   RESET_FAKE(bm_ms_to_ticks);
+  RESET_FAKE(timer_callback_handler_send_cb);
 
   bm_mutex_create_fake.return_val = MUTEX_HANDLE;
   bm_semaphore_take_fake.return_val = BmOK;
@@ -141,6 +155,7 @@ void install_default_os_mocks() {
   bm_timer_stop_fake.return_val = BmOK;
   bm_get_tick_count_fake.custom_fake = get_tick_count_custom;
   bm_ms_to_ticks_fake.custom_fake = ms_to_ticks_passthrough;
+  timer_callback_handler_send_cb_fake.custom_fake = send_cb_passthrough;
 
   captured_timer_cb = nullptr;
   mocked_now_ms = 1000;
@@ -248,8 +263,7 @@ TEST_F(HeartbeatMonitor, observe_ignores_non_heartbeat_traffic) {
   auto bcmp_other = build_bcmp_non_heartbeat_frame();
   std::vector<uint8_t> tiny(10, 0); // too short
 
-  EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, udp.data(), udp.size()),
-            BmOK);
+  EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, udp.data(), udp.size()), BmOK);
   EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, bcmp_other.data(),
                                               bcmp_other.size()),
             BmOK);
@@ -264,8 +278,7 @@ TEST_F(HeartbeatMonitor, observe_first_heartbeat_fires_up_edge) {
   ASSERT_EQ(bm_link_heartbeat_monitor_init(&cfg), BmOK);
 
   auto hb = build_heartbeat_frame();
-  EXPECT_EQ(bm_link_heartbeat_monitor_observe(2, hb.data(), hb.size()),
-            BmOK);
+  EXPECT_EQ(bm_link_heartbeat_monitor_observe(2, hb.data(), hb.size()), BmOK);
 
   ASSERT_EQ(tracker.events.size(), 1u);
   EXPECT_EQ(tracker.events[0].port_idx, 1); // port_num 2 -> idx 1
@@ -279,8 +292,7 @@ TEST_F(HeartbeatMonitor, observe_subsequent_heartbeats_do_not_refire) {
   auto hb = build_heartbeat_frame();
   for (int i = 0; i < 5; i++) {
     mocked_now_ms += 1000;
-    EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()),
-              BmOK);
+    EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()), BmOK);
   }
   EXPECT_EQ(tracker.events.size(), 1u); // only the first one fired
 }
@@ -290,10 +302,8 @@ TEST_F(HeartbeatMonitor, observe_per_port_independence) {
   ASSERT_EQ(bm_link_heartbeat_monitor_init(&cfg), BmOK);
 
   auto hb = build_heartbeat_frame();
-  EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()),
-            BmOK);
-  EXPECT_EQ(bm_link_heartbeat_monitor_observe(3, hb.data(), hb.size()),
-            BmOK);
+  EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()), BmOK);
+  EXPECT_EQ(bm_link_heartbeat_monitor_observe(3, hb.data(), hb.size()), BmOK);
 
   ASSERT_EQ(tracker.events.size(), 2u);
   EXPECT_EQ(tracker.events[0].port_idx, 0);
@@ -313,8 +323,7 @@ TEST_F(HeartbeatMonitor, timer_fires_down_edge_after_timeout) {
 
   // Bring port 1 up.
   auto hb = build_heartbeat_frame();
-  ASSERT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()),
-            BmOK);
+  ASSERT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()), BmOK);
   ASSERT_EQ(tracker.events.size(), 1u);
 
   // Tick the timer at t = last_hb + timeout - 1 -- still within the window.
@@ -335,13 +344,37 @@ TEST_F(HeartbeatMonitor, timer_fires_down_edge_after_timeout) {
   EXPECT_EQ(tracker.events.size(), 2u);
 }
 
+TEST_F(HeartbeatMonitor, timer_cb_offloads_to_handler_task) {
+  // FreeRTOS docs forbid blocking inside the timer callback. Verify
+  // the callback delegates via timer_callback_handler_send_cb rather
+  // than running the (mutex-taking) liveness scan inline.
+  BmLinkHeartbeatMonitorCfg cfg = make_cfg();
+  ASSERT_EQ(bm_link_heartbeat_monitor_init(&cfg), BmOK);
+  ASSERT_NE(captured_timer_cb, nullptr);
+
+  uint32_t take_calls_before = bm_semaphore_take_fake.call_count;
+  uint32_t send_cb_calls_before =
+      timer_callback_handler_send_cb_fake.call_count;
+
+  // Disable the passthrough so the bottom half does NOT run inline; we
+  // only want to observe what the top half does.
+  timer_callback_handler_send_cb_fake.custom_fake = nullptr;
+  timer_callback_handler_send_cb_fake.return_val = true;
+
+  captured_timer_cb(TIMER_HANDLE);
+
+  EXPECT_EQ(timer_callback_handler_send_cb_fake.call_count,
+            send_cb_calls_before + 1);
+  // Timer callback must not have taken the lock.
+  EXPECT_EQ(bm_semaphore_take_fake.call_count, take_calls_before);
+}
+
 TEST_F(HeartbeatMonitor, recovery_fires_up_edge_after_down) {
   BmLinkHeartbeatMonitorCfg cfg = make_cfg();
   ASSERT_EQ(bm_link_heartbeat_monitor_init(&cfg), BmOK);
 
   auto hb = build_heartbeat_frame();
-  ASSERT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()),
-            BmOK);
+  ASSERT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()), BmOK);
 
   // Force timeout.
   mocked_now_ms += TIMEOUT_MS + 1;
@@ -350,8 +383,7 @@ TEST_F(HeartbeatMonitor, recovery_fires_up_edge_after_down) {
   EXPECT_FALSE(tracker.events[1].up);
 
   // Receive heartbeat -> edge back up.
-  ASSERT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()),
-            BmOK);
+  ASSERT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()), BmOK);
   ASSERT_EQ(tracker.events.size(), 3u);
   EXPECT_TRUE(tracker.events[2].up);
 }
@@ -397,8 +429,7 @@ TEST_F(HeartbeatMonitor, start_ports_up_first_heartbeat_does_not_refire_up) {
   ASSERT_EQ(tracker.events.size(), 2u);
 
   auto hb = build_heartbeat_frame();
-  EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()),
-            BmOK);
+  EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()), BmOK);
   // Already considered up; observe just refreshes last_hb_ticks.
   EXPECT_EQ(tracker.events.size(), 2u);
 
@@ -417,8 +448,7 @@ TEST_F(HeartbeatMonitor, callback_ctx_is_passed_through) {
   ASSERT_EQ(bm_link_heartbeat_monitor_init(&cfg), BmOK);
 
   auto hb = build_heartbeat_frame();
-  ASSERT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()),
-            BmOK);
+  ASSERT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()), BmOK);
 
   EXPECT_EQ(tracker.bad_ctx_count, 0u);
 }

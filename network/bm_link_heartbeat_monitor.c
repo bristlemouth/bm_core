@@ -1,5 +1,6 @@
 #include "bm_link_heartbeat_monitor.h"
 #include "bm_os.h"
+#include "timer_callback_handler.h"
 #include <string.h>
 
 // We deliberately do NOT include bcmp/messages.h here. messages.h pulls in
@@ -94,11 +95,11 @@ static bool is_bcmp_heartbeat(const uint8_t *frame, uint32_t len) {
 }
 
 // ----------------------------------------------------------------------------
-// Timer callback
+// Liveness check
 // ----------------------------------------------------------------------------
 
-static void liveness_timer_cb(BmTimer timer) {
-  (void)timer;
+static void liveness_check_handler(void *arg) {
+  (void)arg;
   if (!MONITOR.initialized) {
     return;
   }
@@ -112,9 +113,8 @@ static void liveness_timer_cb(BmTimer timer) {
 
   bm_semaphore_take(MONITOR.lock, UINT32_MAX);
   for (uint8_t i = 0; i < MONITOR.cfg.num_ports; i++) {
-    if (MONITOR.ports[i].up &&
-        time_remaining(MONITOR.ports[i].last_hb_ticks, now, timeout_ticks) ==
-            0) {
+    if (MONITOR.ports[i].up && time_remaining(MONITOR.ports[i].last_hb_ticks,
+                                              now, timeout_ticks) == 0) {
       MONITOR.ports[i].up = false;
       fire_down[i] = true;
     }
@@ -126,6 +126,14 @@ static void liveness_timer_cb(BmTimer timer) {
       MONITOR.cfg.on_link_change(i, false, MONITOR.cfg.ctx);
     }
   }
+}
+
+static void liveness_timer_cb(BmTimer timer) {
+  (void)timer;
+  // Non-blocking: post the real work to the timer_callback_handler task.
+  // A 0 ms timeout is intentional — if the handler queue is full, dropping
+  // one liveness check is far cheaper than stalling the timer-service task.
+  timer_callback_handler_send_cb(liveness_check_handler, NULL, 0);
 }
 
 // ----------------------------------------------------------------------------

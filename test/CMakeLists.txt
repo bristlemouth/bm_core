@@ -650,5 +650,6 @@ set (BM_LINK_HEARTBEAT_MONITOR_SRCS
 
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/timer_callback_handler_stub.c
 )
 create_gtest("bm_link_heartbeat_monitor" "${BM_LINK_HEARTBEAT_MONITOR_SRCS}")
