@@ -360,10 +360,17 @@ TEST_F(HeartbeatMonitor, recovery_fires_up_edge_after_down) {
 // Bootstrap policies
 // ---------------------------------------------------------------------------
 
-TEST_F(HeartbeatMonitor, start_ports_up_does_not_fire_initial_callbacks) {
+TEST_F(HeartbeatMonitor, start_ports_up_fires_initial_up_callbacks) {
   BmLinkHeartbeatMonitorCfg cfg = make_cfg(/*num_ports=*/3, /*start_up=*/true);
   ASSERT_EQ(bm_link_heartbeat_monitor_init(&cfg), BmOK);
-  EXPECT_EQ(tracker.events.size(), 0u);
+
+  // One synchronous up edge per port so the consumer (e.g. bm_l2) can
+  // mirror the monitor's "ports up" state.
+  ASSERT_EQ(tracker.events.size(), 3u);
+  for (uint8_t i = 0; i < 3; i++) {
+    EXPECT_EQ(tracker.events[i].port_idx, i);
+    EXPECT_TRUE(tracker.events[i].up);
+  }
 }
 
 TEST_F(HeartbeatMonitor,
@@ -371,41 +378,38 @@ TEST_F(HeartbeatMonitor,
   BmLinkHeartbeatMonitorCfg cfg = make_cfg(/*num_ports=*/2, /*start_up=*/true);
   ASSERT_EQ(bm_link_heartbeat_monitor_init(&cfg), BmOK);
 
-  // Tick past timeout; both ports should fire down.
+  // Two initial up edges from init, then two down edges from the timer.
+  ASSERT_EQ(tracker.events.size(), 2u);
+
   mocked_now_ms += TIMEOUT_MS + 1;
   captured_timer_cb(TIMER_HANDLE);
 
-  ASSERT_EQ(tracker.events.size(), 2u);
-  EXPECT_FALSE(tracker.events[0].up);
-  EXPECT_FALSE(tracker.events[1].up);
+  ASSERT_EQ(tracker.events.size(), 4u);
+  EXPECT_FALSE(tracker.events[2].up);
+  EXPECT_FALSE(tracker.events[3].up);
 }
 
-TEST_F(HeartbeatMonitor, start_ports_up_first_heartbeat_does_not_fire_up) {
+TEST_F(HeartbeatMonitor, start_ports_up_first_heartbeat_does_not_refire_up) {
   BmLinkHeartbeatMonitorCfg cfg = make_cfg(/*num_ports=*/2, /*start_up=*/true);
   ASSERT_EQ(bm_link_heartbeat_monitor_init(&cfg), BmOK);
+
+  // Init fired one up edge per port.
+  ASSERT_EQ(tracker.events.size(), 2u);
 
   auto hb = build_heartbeat_frame();
   EXPECT_EQ(bm_link_heartbeat_monitor_observe(1, hb.data(), hb.size()),
             BmOK);
-  // Already considered up; observe just refreshed last_hb_ticks.
-  EXPECT_EQ(tracker.events.size(), 0u);
+  // Already considered up; observe just refreshes last_hb_ticks.
+  EXPECT_EQ(tracker.events.size(), 2u);
 
-  // Tick well past timeout *for port 2 only* (port 1 just got refreshed).
+  // Heartbeat at observe-time refreshed port 1's last_hb_ticks to
+  // mocked_now_ms (1000). Advance past the timeout so both ports go down.
   mocked_now_ms += TIMEOUT_MS + 1;
   captured_timer_cb(TIMER_HANDLE);
 
-  // Port 1 should still be up (heartbeat was at mocked_now_ms - timeout - 1
-  // + small delta -> within window after timer tick). Wait, we need to be
-  // careful: we incremented mocked_now_ms by timeout+1 AFTER the heartbeat,
-  // so port 1 is also out of window.
-  //
-  // Adjust: the heartbeat refreshed last_hb_ticks to the value of
-  // mocked_now_ms at time of observe (before the increment). That value is
-  // (initial)1000. After incrementing by timeout+1, now = 1000 + timeout+1.
-  // time_remaining(1000, 1000+timeout+1, timeout) = 0 -> down.
-  ASSERT_EQ(tracker.events.size(), 2u);
-  EXPECT_FALSE(tracker.events[0].up);
-  EXPECT_FALSE(tracker.events[1].up);
+  ASSERT_EQ(tracker.events.size(), 4u);
+  EXPECT_FALSE(tracker.events[2].up);
+  EXPECT_FALSE(tracker.events[3].up);
 }
 
 TEST_F(HeartbeatMonitor, callback_ctx_is_passed_through) {

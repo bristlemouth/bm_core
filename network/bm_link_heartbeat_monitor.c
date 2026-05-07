@@ -187,6 +187,19 @@ BmErr bm_link_heartbeat_monitor_init(const BmLinkHeartbeatMonitorCfg *cfg) {
     return err;
   }
 
+  // When ports start up, fire a synchronous up edge for each port so the
+  // consumer's view (typically bm_l2's per-port link state) matches the
+  // monitor's internal state. Without this, bm_l2 would gate heartbeat TX
+  // on its default-down state and the link could not bootstrap.
+  // Fired outside the lock to preserve the rule that on_link_change runs
+  // unlocked; the timer cannot race here because last_hb_ticks was just
+  // set to "now" for every port.
+  if (MONITOR.cfg.start_ports_up) {
+    for (uint8_t i = 0; i < MONITOR.cfg.num_ports; i++) {
+      MONITOR.cfg.on_link_change(i, true, MONITOR.cfg.ctx);
+    }
+  }
+
   return BmOK;
 }
 

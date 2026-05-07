@@ -70,16 +70,21 @@ typedef struct {
   /// Typical value: 1000.
   uint32_t check_period_ms;
 
-  /// If true, all ports start in the up state and no initial callback is
-  /// fired. The first down edge can occur after timeout_ms with no
-  /// observed heartbeat. Use this when the transport's send path does
-  /// not gate on link state and you want heartbeats to flow at boot.
+  /// If true, all ports start in the up state and init fires a
+  /// synchronous up edge via on_link_change for each port before
+  /// returning. This keeps the consumer's view (e.g. bm_l2's per-port
+  /// link state) in sync with the monitor's internal state, which
+  /// matters because bm_l2 gates heartbeat TX on link-up — without the
+  /// initial callback, two peers could never bootstrap from each other.
+  /// The first down edge can occur after timeout_ms with no observed
+  /// heartbeat. Use this for transports where link liveness is inferred
+  /// purely from received heartbeats (UART tunnels, sockets, etc.).
   ///
-  /// If false, all ports start down. The first up edge fires when a
-  /// heartbeat is observed. Note that L2 will mask TX on ports it
-  /// believes are down (see bm_l2_tx in network/l2.c) — only set this to
-  /// false if the transport bypasses that mask, otherwise the link can
-  /// never bootstrap.
+  /// If false, all ports start down and no initial callback is fired.
+  /// The first up edge fires when a heartbeat is observed. Note that L2
+  /// will mask TX on ports it believes are down (see bm_l2_tx in
+  /// network/l2.c) — only set this to false if the transport bypasses
+  /// that mask, otherwise the link can never bootstrap.
   bool start_ports_up;
 
   /// Edge-triggered callback. Required (init returns BmEINVAL if null).
