@@ -1,19 +1,8 @@
 #include "bm_link_heartbeat_monitor.h"
 #include "bm_os.h"
+#include "messages.h"
 #include "timer_callback_handler.h"
 #include <string.h>
-
-// We deliberately do NOT include bcmp/messages.h here. messages.h pulls in
-// the entire BCMP message catalog (configuration, dfu, cbor, etc.), which is
-// far more than this helper needs and creates an unwanted compile-time
-// dependency on tinycbor headers. Instead, we replicate the two stable
-// protocol values we depend on. If either of these ever changes, the
-// canonical definitions live in bcmp/messages.h.
-
-/// Mirror of BcmpHeartbeatMessage from bcmp/messages.h.
-/// The full BcmpHeader is 12 bytes; we only need to read the
-/// first two bytes, so we don't replicate the whole struct.
-#define BCMP_HEARTBEAT_MESSAGE_TYPE 0x0001
 
 // ----------------------------------------------------------------------------
 // Frame parsing constants
@@ -91,7 +80,7 @@ static bool is_bcmp_heartbeat(const uint8_t *frame, uint32_t len) {
   // convention (host-endian uint16_t).
   uint16_t bcmp_type;
   memcpy(&bcmp_type, frame + BCMP_HEADER_OFFSET, sizeof(bcmp_type));
-  return bcmp_type == BCMP_HEARTBEAT_MESSAGE_TYPE;
+  return bcmp_type == BcmpHeartbeatMessage;
 }
 
 // ----------------------------------------------------------------------------

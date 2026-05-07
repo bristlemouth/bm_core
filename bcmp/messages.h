@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "configuration.h"
 #include "dfu_message_structs.h"
 #include "network_frames.h"
 
