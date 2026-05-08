@@ -1,9 +1,6 @@
-// network/l2_policy.c
-
 #include "l2_policy.h"
-
-#include "l2_frames.h" // shared Ethernet + IPv6 frame layout constants
-#include "util.h"      // BmIpAddr + is_*_multicast helpers, ethernet_type_ipv6
+#include "network_frames.h"
+#include "util.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

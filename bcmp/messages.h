@@ -6,6 +6,7 @@
 
 #include "configuration.h"
 #include "dfu_message_structs.h"
+#include "network_frames.h"
 
 typedef struct {
   uint16_t type;
@@ -523,3 +524,7 @@ typedef enum {
 } BcmpMessageType;
 
 #endif
+
+#define bcmp_header_offset                                                     \
+  (ipv6_destination_address_offset + ipv6_destination_address_size_bytes)
+#define min_bcmp_frame_size (bcmp_header_offset + sizeof(BcmpHeader))
