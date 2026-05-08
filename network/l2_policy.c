@@ -111,11 +111,6 @@ BmL2PolicyRxResult bm_l2_policy_rx_apply(uint8_t *frame, size_t frame_len,
     policy_result.should_submit =
         routing_cb(ingress_port_num, &egress, src_ip, dst_ip);
     policy_result.egress_mask = egress;
-
-    // Clear egress nibble after callback (on-wire egress must be zero in the submitted copy).
-    if (pb) {
-      clear_egress_nibble(pb);
-    }
   }
 
   return policy_result;
@@ -127,7 +122,9 @@ void bm_l2_policy_prepare_forwarded_copy(uint8_t *frame, size_t frame_len) {
     return;
   }
 
-  // Forwarded copies go on-wire: ingress nibble must be zero.
-  // Applied only to the forwarded copy, leaving the original buffer's ingress info intact.
+  // Clear ingress and egress nibbles copied from received packet.
+  // Applied only to this forwarded copy.
+  // Original buffer's ports info is left intact for submitting up to app.
   clear_ingress_nibble(pb);
+  clear_egress_nibble(pb);
 }

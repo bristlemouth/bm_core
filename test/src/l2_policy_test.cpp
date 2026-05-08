@@ -85,8 +85,7 @@ protected:
   void TearDown() override { RESET_FAKE(routing_cb); }
 };
 
-TEST_F(L2Policy,
-       GlobalMulticast_setsIngress_preservesEgress_returnsForwardMask) {
+TEST_F(L2Policy, global_multicast_sets_ingress_egress_returns_forward_mask) {
   uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
@@ -113,19 +112,17 @@ TEST_F(L2Policy,
   EXPECT_TRUE(r.should_submit);
   EXPECT_EQ(r.ingress_port_num, 3);
 
-  // Ingress encoded for app-visible buffer
+  // Ingress port encoded for app-visible buffer
   EXPECT_EQ(ingress_nibble(frame), 3);
 
-  // Egress preserved on this path (no routing_cb)
+  // Egress port preserved
   EXPECT_EQ(egress_nibble(frame), 0x0E);
 
   // Callback not used on global multicast
   EXPECT_EQ(routing_cb_fake.call_count, 0);
 }
 
-TEST_F(
-    L2Policy,
-    LinkLocalNonNeighbor_invokesRoutingCb_clearsEgressNibble_respectsSubmitFlag) {
+TEST_F(L2Policy, link_local_non_neighbor_calls_routing_cb) {
   uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
@@ -149,24 +146,25 @@ TEST_F(
 
   EXPECT_EQ(routing_cb_fake.call_count, 1);
 
-  // From routing_cb_impl_forward_only
+  // From routing_cb_impl_forward_only to port 2, should not submit
   EXPECT_EQ(r.egress_mask, (uint16_t)(1U << (2 - 1)));
   EXPECT_FALSE(r.should_submit);
   EXPECT_EQ(r.ingress_port_num, 4);
 
-  // Ingress nibble overwritten with actual ingress port
+  // Ingress nibble garbage overwritten with actual ingress port
   EXPECT_EQ(ingress_nibble(frame), 4);
 
-  // Egress nibble cleared after callback
-  EXPECT_EQ(egress_nibble(frame), 0);
+  // Egress nibble untouched
+  EXPECT_EQ(egress_nibble(frame), 0xE);
 }
 
-TEST_F(L2Policy,
-       LinkLocalNeighbor_ff02_1_bypassesRoutingCb_doesNotForward_submits) {
+TEST_F(
+    L2Policy,
+    link_Local_neighbor_ff02_1_bypasses_routing_cb_does_not_forward_submits) {
   uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
-  // ff02::1 (neighbor multicast / all-nodes)
+  // ff02::1 neighbor multicast
   uint8_t dst_ff02_1[16] = {
       0xFF, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01,
   };
@@ -175,7 +173,7 @@ TEST_F(L2Policy,
   write_ipv6_src(frame, src);
   write_ipv6_dst(frame, dst_ff02_1);
 
-  frame[PORTS_BYTE_OFFSET] = 0x0B; // ingress=0, egress=0xB
+  frame[PORTS_BYTE_OFFSET] = 0x0B; // ingress=0, egress=0xB garbage
 
   const uint16_t ingress_mask = (1U << (1 - 1)); // port 1
   const uint16_t all_ports_mask = 0x000F;
@@ -183,10 +181,10 @@ TEST_F(L2Policy,
   const BmL2PolicyRxResult r = bm_l2_policy_rx_apply(
       frame, sizeof(frame), ingress_mask, all_ports_mask, routing_cb);
 
-  // Neighbor multicast should NOT consult routing_cb (policy keeps behavior aligned with l2.c gate)
+  // Neighbor multicast should NOT consult routing_cb
   EXPECT_EQ(routing_cb_fake.call_count, 0);
 
-  // No forwarding decision is made here (egress_mask stays 0)
+  // No forwarding should happen (egress_mask stays 0)
   EXPECT_EQ(r.egress_mask, 0);
   EXPECT_TRUE(r.should_submit);
 
@@ -197,7 +195,7 @@ TEST_F(L2Policy,
   EXPECT_EQ(egress_nibble(frame), 0x0B);
 }
 
-TEST_F(L2Policy, LinkLocalNonNeighbor_withNullCallback_doesNotForward_submits) {
+TEST_F(L2Policy, link_local_non_neighbor_null_cb_does_not_forward_submits) {
   uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
@@ -216,18 +214,19 @@ TEST_F(L2Policy, LinkLocalNonNeighbor_withNullCallback_doesNotForward_submits) {
   const BmL2PolicyRxResult r = bm_l2_policy_rx_apply(
       frame, sizeof(frame), ingress_mask, all_ports_mask, nullptr);
 
-  // No callback => no forward decision
+  // No callback => do not forward
   EXPECT_EQ(r.egress_mask, 0);
   EXPECT_TRUE(r.should_submit);
 
   // Ingress encoded
   EXPECT_EQ(ingress_nibble(frame), 2);
 
-  // Egress preserved (since callback not run / not cleared)
+  // Egress preserved
   EXPECT_EQ(egress_nibble(frame), 7);
 }
 
-TEST_F(L2Policy, IngressMaskZero_doesNotMutate_portsNibble_defaultsToSubmit) {
+TEST_F(L2Policy,
+       ingress_mask_zero_does_not_mutate_ports_nibble_defaults_to_submit) {
   uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
@@ -241,7 +240,7 @@ TEST_F(L2Policy, IngressMaskZero_doesNotMutate_portsNibble_defaultsToSubmit) {
   frame[PORTS_BYTE_OFFSET] = 0x9C; // ingress=9, egress=0xC (junk we can detect)
 
   const BmL2PolicyRxResult r = bm_l2_policy_rx_apply(
-      frame, sizeof(frame), 0 /*ingress_mask*/, 0x000F, routing_cb);
+      frame, sizeof(frame), 0 /* bad ingress mask */, 0x000F, routing_cb);
 
   // Should not decode a port number
   EXPECT_EQ(r.ingress_port_num, 0);
@@ -249,7 +248,7 @@ TEST_F(L2Policy, IngressMaskZero_doesNotMutate_portsNibble_defaultsToSubmit) {
   // Should not mutate ports byte
   EXPECT_EQ(frame[PORTS_BYTE_OFFSET], 0x9C);
 
-  // Default behavior is submit=true, no forwarding decision
+  // Default behavior is submit=true, do not forward
   EXPECT_TRUE(r.should_submit);
   EXPECT_EQ(r.egress_mask, 0);
 
@@ -257,15 +256,15 @@ TEST_F(L2Policy, IngressMaskZero_doesNotMutate_portsNibble_defaultsToSubmit) {
   EXPECT_EQ(routing_cb_fake.call_count, 0);
 }
 
-TEST_F(L2Policy, ShortFrameLen_doesNotCrash_orMutate_orCallCallback) {
+TEST_F(L2Policy, short_frame_len_does_not_crash_or_mutate_or_call_cb) {
   uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
   // Put a recognizable value in ports byte so we can detect unintended changes
   frame[PORTS_BYTE_OFFSET] = 0x55;
 
-  const uint16_t ingress_mask = (1U << (1 - 1));
-  const uint16_t all_ports_mask = 0x000F;
+  const uint16_t ingress_mask = (1U << (1 - 1)); // port 1
+  const uint16_t all_ports_mask = 0x000F;        // ports 1..4
 
   // Pass a length smaller than required to contain IPv6 dst address
   const size_t short_len = IPV6_DST_OFFSET + 1;
@@ -283,7 +282,7 @@ TEST_F(L2Policy, ShortFrameLen_doesNotCrash_orMutate_orCallCallback) {
   EXPECT_EQ(routing_cb_fake.call_count, 0);
 }
 
-TEST_F(L2Policy, PrepareForwardedCopy_clearsIngressOnly_preservesEgress) {
+TEST_F(L2Policy, prepare_forwarded_copy_clears_ingress_and_egress_ports) {
   uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
 
@@ -293,22 +292,24 @@ TEST_F(L2Policy, PrepareForwardedCopy_clearsIngressOnly_preservesEgress) {
   bm_l2_policy_prepare_forwarded_copy(frame, sizeof(frame));
 
   EXPECT_EQ(ingress_nibble(frame), 0);
-  EXPECT_EQ(egress_nibble(frame), 9);
+  EXPECT_EQ(egress_nibble(frame), 0);
 }
 
-TEST_F(L2Policy, PrepareForwardedCopy_isNoopOnShortFrame) {
+TEST_F(L2Policy, prepare_forwarded_copy_is_noop_on_short_frame) {
   uint8_t frame[MIN_FRAME_LEN] = {0};
   write_ethertype_ipv6(frame);
   frame[PORTS_BYTE_OFFSET] = 0xAB;
 
-  const size_t short_len = IPV6_SRC_OFFSET + 1; // shorter than ports byte offset
+  const size_t short_len =
+      IPV6_SRC_OFFSET + 1; // shorter than ports byte offset
   bm_l2_policy_prepare_forwarded_copy(frame, short_len);
 
   EXPECT_EQ(frame[PORTS_BYTE_OFFSET], 0xAB);
 }
 
-TEST_F(L2Policy,
-       LinkLocalNonNeighbor_callbackCanReturnSubmitTrue_forwardMaskPropagates) {
+TEST_F(
+    L2Policy,
+    link_local_non_neighbor_callback_can_return_submit_true_forward_mask_propagates) {
   // Switch fake implementation for this test
   routing_cb_fake.custom_fake = routing_cb_impl_forward_and_submit;
 
@@ -322,7 +323,7 @@ TEST_F(L2Policy,
   write_ipv6_src(frame, src);
   write_ipv6_dst(frame, dst_ff02_2);
 
-  frame[PORTS_BYTE_OFFSET] = 0x0F;
+  frame[PORTS_BYTE_OFFSET] = 0x0F; // ingress=0 egress=15
 
   const uint16_t ingress_mask = (1U << (3 - 1)); // port 3
 
@@ -331,10 +332,13 @@ TEST_F(L2Policy,
 
   EXPECT_EQ(routing_cb_fake.call_count, 1);
   EXPECT_TRUE(r.should_submit);
+
+  // A global multicast packet would also forward to port 4,
+  // but the custom fake routing callback said only ports 1 and 2.
   EXPECT_EQ(r.egress_mask, (uint16_t)((1U << (1 - 1)) | (1U << (2 - 1))));
 
-  // Egress nibble cleared after callback
-  EXPECT_EQ(egress_nibble(frame), 0);
+  // Egress nibble preserved after callback
+  EXPECT_EQ(egress_nibble(frame), 15);
 
   // Ingress nibble reflects ingress port
   EXPECT_EQ(ingress_nibble(frame), 3);

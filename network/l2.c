@@ -365,22 +365,20 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
     return;
   }
 
-  // Apply the stateless policy core: mutates payload in-place (ingress nibble set;
-  // possibly clears egress nibble after routing_cb) and returns routing decisions.
+  // Apply the routing policy. Returns routing decisions.
+  // Mutates payload in-place to set ingress nibble in src address.
   const BmL2PolicyRxResult policy_result =
       bm_l2_policy_rx_apply(payload, rx_evt->length, rx_evt->port_mask,
                             CTX.all_ports_mask, CTX.routing_cb);
 
   // Forwarding: create a copy and prepare it for on-wire transmission.
-  // NOTE: We do NOT clear ingress on the original payload before copying.
-  // Clearing first would remove ingress info from the buffer subsequently submitted upward.
   if (policy_result.egress_mask) {
     void *fwd_buf = bm_l2_new(rx_evt->length);
     if (fwd_buf != NULL) {
       uint8_t *fwd_payload = (uint8_t *)bm_l2_get_payload(fwd_buf);
       memcpy(fwd_payload, payload, rx_evt->length);
 
-      // Ensure forwarded copy has ingress nibble = 0 on-wire.
+      // Ensure forwarded copy has ingress and egress ports cleared.
       bm_l2_policy_prepare_forwarded_copy(fwd_payload, rx_evt->length);
 
       bm_l2_tx(fwd_buf, rx_evt->length, policy_result.egress_mask);
@@ -391,7 +389,8 @@ static void bm_l2_process_rx_evt(L2QueueElement *rx_evt) {
 
   BmErr err = BmENODEV;
 
-  // Submit packet to IP stack (upper level RX callback frees packet).
+  // Submit packet to IP stack and up to listening applications.
+  // Upper level RX callback frees packet.
   if (policy_result.should_submit) {
     err = bm_l2_submit(rx_evt->buf, rx_evt->length);
   }
