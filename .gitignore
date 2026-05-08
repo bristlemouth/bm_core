@@ -7,3 +7,4 @@
 **.bkp
 **.vscode
 **__pycache__
+.worktrees
