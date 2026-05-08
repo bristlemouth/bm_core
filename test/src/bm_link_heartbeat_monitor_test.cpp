@@ -10,8 +10,11 @@ DEFINE_FFF_GLOBALS;
 
 extern "C" {
 #include "bm_link_heartbeat_monitor.h"
+#include "messages.h"
 #include "mock_bm_os.h"
 #include "mock_timer_callback_handler.h"
+#include "network_frames.h"
+#include "util.h"
 }
 
 // ---------------------------------------------------------------------------
@@ -43,55 +46,31 @@ void on_link_change(uint8_t port_idx, bool up, void *ctx) {
   t->events.push_back({port_idx, up});
 }
 
-// ---------------------------------------------------------------------------
-// Frame builders
-// ---------------------------------------------------------------------------
-//
-// Mirror the on-wire layout used by network/l2.c:
-//   [0..5]   destination MAC
-//   [6..11]  source MAC
-//   [12..13] ethertype           (big-endian)
-//   [14..17] IPv6 vers/class/flow
-//   [18..19] IPv6 payload length (big-endian)
-//   [20]     IPv6 next header
-//   [21]     IPv6 hop limit
-//   [22..37] IPv6 source addr
-//   [38..53] IPv6 dest addr
-//   [54..]   upper-layer payload
-
-constexpr size_t ETH_HDR_LEN = 14;
-constexpr size_t IPV6_HDR_LEN = 40;
-constexpr size_t FRAME_HDR_LEN = ETH_HDR_LEN + IPV6_HDR_LEN;
-constexpr size_t BCMP_HDR_LEN = 12;
-constexpr uint16_t ETH_TYPE_IPV6 = 0x86DD;
-constexpr uint8_t IP_PROTO_BCMP = 0xBC;
-constexpr uint16_t HEARTBEAT_TYPE = 0x0001;
-constexpr uint16_t INFO_REQUEST_TYPE = 0x0004; // some other BCMP type
-
 std::vector<uint8_t> build_frame(uint16_t ethertype, uint8_t next_header,
                                  uint16_t bcmp_type, size_t total_len) {
   std::vector<uint8_t> f(total_len, 0);
-  f[12] = static_cast<uint8_t>(ethertype >> 8);
-  f[13] = static_cast<uint8_t>(ethertype & 0xFF);
-  f[20] = next_header;
-  if (total_len >= FRAME_HDR_LEN + sizeof(bcmp_type)) {
-    memcpy(f.data() + FRAME_HDR_LEN, &bcmp_type, sizeof(bcmp_type));
+  f[ethernet_type_offset] = static_cast<uint8_t>(ethertype >> 8);
+  f[ethernet_type_offset + 1] = static_cast<uint8_t>(ethertype & 0xFF);
+  f[ipv6_next_header_offset] = next_header;
+  if (total_len >= bcmp_header_offset + sizeof(bcmp_type)) {
+    memcpy(f.data() + bcmp_header_offset, &bcmp_type, sizeof(bcmp_type));
   }
   return f;
 }
 
 std::vector<uint8_t> build_heartbeat_frame() {
-  return build_frame(ETH_TYPE_IPV6, IP_PROTO_BCMP, HEARTBEAT_TYPE,
-                     FRAME_HDR_LEN + BCMP_HDR_LEN);
+  return build_frame(ethernet_type_ipv6, ip_proto_bcmp, BcmpHeartbeatMessage,
+                     min_bcmp_frame_size);
 }
 
 std::vector<uint8_t> build_bcmp_non_heartbeat_frame() {
-  return build_frame(ETH_TYPE_IPV6, IP_PROTO_BCMP, INFO_REQUEST_TYPE,
-                     FRAME_HDR_LEN + BCMP_HDR_LEN);
+  return build_frame(ethernet_type_ipv6, ip_proto_bcmp,
+                     BcmpDeviceInfoRequestMessage, min_bcmp_frame_size);
 }
 
 std::vector<uint8_t> build_udp_frame() {
-  return build_frame(ETH_TYPE_IPV6, /*UDP*/ 0x11, 0, FRAME_HDR_LEN + 8);
+  return build_frame(ethernet_type_ipv6, /*UDP*/ 0x11, 0,
+                     bcmp_header_offset + 8);
 }
 
 // ---------------------------------------------------------------------------

@@ -4,44 +4,6 @@
 #include "timer_callback_handler.h"
 #include <string.h>
 
-// ----------------------------------------------------------------------------
-// Frame parsing constants
-// ----------------------------------------------------------------------------
-//
-// The L2 frames passed to observe() are raw Ethernet + IPv6 + (optional)
-// upper-layer payload, exactly as they appear on the wire (no FCS — that is
-// added/stripped by hardware and is never present at this layer).
-//
-// We mirror the offset constants from network/l2.c rather than including
-// them, because those are file-local #defines. Duplicating four numbers
-// here is cheaper than refactoring l2.c to export a header.
-//
-//   Offset  Bytes  Field
-//   0       6      Ethernet destination MAC
-//   6       6      Ethernet source MAC
-//   12      2      Ethernet type           = ethernet_type_ipv6 (0x86DD)
-//   14      4      IPv6 version/class/flow
-//   18      2      IPv6 payload length
-//   20      1      IPv6 next header        = ip_proto_bcmp (0xBC)
-//   21      1      IPv6 hop limit
-//   22      16     IPv6 source address
-//   38      16     IPv6 destination address
-//   54      ...    BCMP header (12 bytes; see BcmpHeader in bcmp/messages.h).
-//                  First field is uint16_t type; we compare to
-//                  BcmpHeartbeatMessage.
-
-#define ETH_TYPE_OFFSET 12
-#define IPV6_NEXT_HEADER_OFFSET 20
-#define BCMP_HEADER_OFFSET 54
-// BCMP header is 12 bytes (see bcmp/messages.h::BcmpHeader). We only need to
-// read the first 2 bytes (the type field).
-#define BCMP_HEADER_LEN 12
-#define MIN_HEARTBEAT_FRAME_LEN (BCMP_HEADER_OFFSET + BCMP_HEADER_LEN)
-
-// ----------------------------------------------------------------------------
-// Singleton monitor state
-// ----------------------------------------------------------------------------
-
 typedef struct {
   bool up;
   uint32_t last_hb_ticks;
@@ -57,21 +19,17 @@ typedef struct {
 
 static Monitor MONITOR;
 
-// ----------------------------------------------------------------------------
-// Frame inspection
-// ----------------------------------------------------------------------------
-
 static bool is_bcmp_heartbeat(const uint8_t *frame, uint32_t len) {
-  if (len < MIN_HEARTBEAT_FRAME_LEN) {
+  if (len < min_bcmp_frame_size) {
     return false;
   }
   // Ethertype: big-endian on the wire.
-  uint16_t ethertype =
-      (uint16_t)((frame[ETH_TYPE_OFFSET] << 8) | frame[ETH_TYPE_OFFSET + 1]);
+  uint16_t ethertype = (uint16_t)((frame[ethernet_type_offset] << 8) |
+                                  frame[ethernet_type_offset + 1]);
   if (ethertype != ethernet_type_ipv6) {
     return false;
   }
-  if (frame[IPV6_NEXT_HEADER_OFFSET] != ip_proto_bcmp) {
+  if (frame[ipv6_next_header_offset] != ip_proto_bcmp) {
     return false;
   }
   // BcmpHeader.type is a uint16_t at the start of the BCMP header. The rest
@@ -79,7 +37,7 @@ static bool is_bcmp_heartbeat(const uint8_t *frame, uint32_t len) {
   // assumption that all BM nodes share endianness. Read in that same
   // convention (host-endian uint16_t).
   uint16_t bcmp_type;
-  memcpy(&bcmp_type, frame + BCMP_HEADER_OFFSET, sizeof(bcmp_type));
+  memcpy(&bcmp_type, frame + bcmp_header_offset, sizeof(bcmp_type));
   return bcmp_type == BcmpHeartbeatMessage;
 }
 
