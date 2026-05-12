@@ -321,20 +321,9 @@ static void bcmp_topology_thread(void *parameters) {
     case BcmpTopoEvtTimeout: {
       BcmpTopoQueueItem check_item = {BcmpTopoEvtCheckNode, NULL, NULL};
       bm_queue_send(CTX.evt_queue, &check_item, 0);
-      if (++RETRY_COUNT < topology_retries) {
-        break;
-      }
-
-      bool is_root = network_topology_is_root(CTX.network_topology);
-      RETRY_COUNT = 0;
-      network_topology_increment_port_count(CTX.network_topology);
-      // Can only change cursor if this is not the root node
-      if (!is_root) {
-        if (INSERT_BEFORE) {
-          network_topology_move_next(CTX.network_topology);
-        } else {
-          network_topology_move_prev(CTX.network_topology);
-        }
+      if (++RETRY_COUNT >= topology_retries) {
+        RETRY_COUNT = 0;
+        network_topology_increment_port_count(CTX.network_topology);
       }
       break;
     }
@@ -626,7 +615,7 @@ network_topology_check_all_ports_explored(NetworkTopology *network_topology) {
       }
     }
 
-    if (neighbors_online_count == network_topology->cursor->ports_explored) {
+    if (neighbors_online_count <= network_topology->cursor->ports_explored) {
       return true;
     }
   }
