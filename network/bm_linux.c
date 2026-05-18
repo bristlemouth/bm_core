@@ -229,6 +229,7 @@ BM_LINUX_STATIC bool is_multicast(const BmIpAddr *addr) {
 #define ETH_HDR_LEN 14
 #define IPV6_HDR_LEN 40
 #define FRAME_HDR_LEN (ETH_HDR_LEN + IPV6_HDR_LEN)
+#define UDP_HDR_LEN 8
 
 // ---------------------------------------------------------------------------
 // Packet accessor callbacks — registered via packet_init() so the BCMP
@@ -334,12 +335,20 @@ BmErr bm_l2_submit(void *buf, uint32_t size) {
   /* --- IPv6 header fields --- */
   uint8_t next_header = frame[20];
   uint16_t payload_length = uint8_to_uint16(&frame[18]);
+
+  // Check if IPv6 payload length would cause out-of-bounds read
+  if ((uint32_t)payload_length + FRAME_HDR_LEN > size) {
+    return BmEBADMSG;
+  }
+  // Starting here only check payload length, not size,
+  // since size beyond payload may contain trailing garbage.
+
   BmIpAddr src_addr;
   memcpy(src_addr.addr, &frame[22], sizeof(BmIpAddr));
 
   if (next_header == ip_proto_bcmp) {
     /* --- BCMP RX path --- */
-    if (size < FRAME_HDR_LEN + sizeof(BcmpHeader)) {
+    if (payload_length < sizeof(BcmpHeader)) {
       return BmEBADMSG;
     }
 
@@ -352,15 +361,17 @@ BmErr bm_l2_submit(void *buf, uint32_t size) {
 
   } else if (next_header == ip_proto_udp) {
     /* --- UDP RX path --- */
-    /* 54 (frame header) + 8 (UDP header) = 62 minimum */
-    if (size < FRAME_HDR_LEN + 8) {
+    if (payload_length < UDP_HDR_LEN) {
       return BmEBADMSG;
     }
 
     uint16_t src_port = uint8_to_uint16(&frame[54]);
     uint16_t dst_port = uint8_to_uint16(&frame[56]);
     uint16_t udp_length = uint8_to_uint16(&frame[58]);
-    uint16_t udp_payload_len = (udp_length >= 8) ? (udp_length - 8) : 0;
+    if (udp_length < UDP_HDR_LEN || udp_length > payload_length) {
+      return BmEBADMSG;
+    }
+    uint16_t udp_payload_len = udp_length - UDP_HDR_LEN;
 
     void *udp_buf = bm_l2_new(udp_payload_len);
     if (!udp_buf) {
@@ -368,7 +379,7 @@ BmErr bm_l2_submit(void *buf, uint32_t size) {
     }
 
     if (udp_payload_len > 0) {
-      memcpy(bm_l2_get_payload(udp_buf), frame + FRAME_HDR_LEN + 8,
+      memcpy(bm_l2_get_payload(udp_buf), frame + FRAME_HDR_LEN + UDP_HDR_LEN,
              udp_payload_len);
     }
 
@@ -534,8 +545,6 @@ BmErr bm_udp_reference_update(void *buf) {
 }
 
 void bm_udp_cleanup(void *buf) { bm_l2_free(buf); }
-
-#define UDP_HDR_LEN 8
 
 BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
                         const BmIpAddr *dest_addr, uint16_t port) {
