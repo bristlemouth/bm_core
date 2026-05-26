@@ -96,11 +96,11 @@ BM_LINUX_STATIC void nodeid_to_ip(BmIpAddr *out, uint32_t prefix, uint64_t id) {
 
 #ifndef ntohs
 static inline uint16_t ntohs(uint16_t val) {
-  if (is_little_endian()) {
-    return (val >> 8) | (val << 8);
-  } else {
-    return val;
-  }
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+  return val;
+#else
+  return __builtin_bswap16(val);
+#endif
 }
 #endif
 
@@ -313,7 +313,6 @@ void bm_l2_tx_prep(void *buf, uint32_t size) {
 void bm_l2_free(void *buf) {
   if (buf && __sync_sub_and_fetch(&((LinuxBuf *)buf)->ref, 1) == 0) {
     bm_free(buf);
-    buf = NULL;
   }
 }
 
