@@ -458,3 +458,51 @@ TEST_F(ConfigurationTest, ClearingPartition) {
   // Test improper argument
   EXPECT_EQ(clear_partition(BM_CFG_PARTITION_COUNT), false);
 }
+
+// Regression: find_key_idx used strncmp(key, stored, len) without checking
+// keys[i].key_len == len, so a shorter lookup that is a prefix of a stored
+// key matched it. Setting "wifi" after "wifi_ssid" would then overwrite
+// "wifi_ssid" in place instead of adding a distinct key.
+TEST_F(ConfigurationTest, set_short_key_does_not_overwrite_longer_prefix) {
+  config_init();
+
+  ASSERT_TRUE(set_config_uint(BM_CFG_PARTITION_SYSTEM, "wifi_ssid",
+                              strlen("wifi_ssid"), 0xAAAAAAAAu));
+  ASSERT_TRUE(set_config_uint(BM_CFG_PARTITION_SYSTEM, "wifi", strlen("wifi"),
+                              0xBBBBBBBBu));
+
+  uint8_t num_keys = 0;
+  get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
+  EXPECT_EQ(num_keys, 2);
+
+  uint32_t v_ssid = 0;
+  EXPECT_TRUE(get_config_uint(BM_CFG_PARTITION_SYSTEM, "wifi_ssid",
+                              strlen("wifi_ssid"), &v_ssid));
+  EXPECT_EQ(v_ssid, 0xAAAAAAAAu);
+
+  uint32_t v_wifi = 0;
+  EXPECT_TRUE(get_config_uint(BM_CFG_PARTITION_SYSTEM, "wifi", strlen("wifi"),
+                              &v_wifi));
+  EXPECT_EQ(v_wifi, 0xBBBBBBBBu);
+}
+
+// Same root cause, viewed via remove_key: removing a prefix of a stored
+// key must not delete the longer key.
+TEST_F(ConfigurationTest, remove_prefix_does_not_remove_longer_key) {
+  config_init();
+
+  ASSERT_TRUE(set_config_uint(BM_CFG_PARTITION_SYSTEM, "wifi_ssid",
+                              strlen("wifi_ssid"), 0xAAAAAAAAu));
+
+  // "wifi" isn't stored — remove must report no-such-key.
+  EXPECT_FALSE(remove_key(BM_CFG_PARTITION_SYSTEM, "wifi", strlen("wifi")));
+
+  uint8_t num_keys = 0;
+  get_stored_keys(BM_CFG_PARTITION_SYSTEM, &num_keys);
+  EXPECT_EQ(num_keys, 1);
+
+  uint32_t v = 0;
+  EXPECT_TRUE(get_config_uint(BM_CFG_PARTITION_SYSTEM, "wifi_ssid",
+                              strlen("wifi_ssid"), &v));
+  EXPECT_EQ(v, 0xAAAAAAAAu);
+}
