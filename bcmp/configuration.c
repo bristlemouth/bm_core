@@ -26,7 +26,8 @@ static bool find_key_idx(BmConfigPartition partition, const char *key,
   bool ret = false;
 
   for (int i = 0; i < config_partition->header.numKeys; i++) {
-    if (strncmp(key, config_partition->keys[i].key_buf, len) == 0) {
+    if (config_partition->keys[i].key_len == len &&
+        strncmp(key, config_partition->keys[i].key_buf, len) == 0) {
       *idx = i;
       ret = true;
       break;
