@@ -201,21 +201,6 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
     return BmEINVAL;
   }
 
-  // Allocate and prepare the TX buffer once; bm_ip_tx_perform() creates a
-  // fresh L2 frame per call so the same layout can be reused for every port.
-  // L2 will clear the egress port from the destination address, so calculate
-  // the checksum against the plain link-local multicast address.
-  void *forward = bm_ip_tx_new(&multicast_ll_addr, size + sizeof(BcmpHeader));
-  if (!forward) {
-    return BmENOMEM;
-  }
-
-  header->checksum = 0;
-  bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
-  bm_ip_tx_copy(forward, payload, size, sizeof(BcmpHeader));
-  header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
-  bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
-
   // Forward out every port except the one the packet arrived on.
   uint8_t num_ports = CTX.num_ports;
   BmErr err = BmEINVAL;
@@ -223,6 +208,20 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
     if (egress_port == ingress_port) {
       continue;
     }
+
+    void *forward = bm_ip_tx_new(&multicast_ll_addr, size + sizeof(BcmpHeader));
+    if (!forward) {
+      return BmENOMEM;
+    }
+
+    // L2 will clear the egress port from the destination address, so calculate
+    // the checksum against the plain link-local multicast address.
+    header->checksum = 0;
+    bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
+    bm_ip_tx_copy(forward, payload, size, sizeof(BcmpHeader));
+    header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
+    bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
+
     uint8_t port_specific_dst[sizeof(multicast_ll_addr)];
     memcpy(port_specific_dst, &multicast_ll_addr, sizeof(multicast_ll_addr));
     // Encode egress port into byte 13 of the IPv6 destination address so that
@@ -239,8 +238,9 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
     } else {
       err = BmOK;
     }
+
+    bm_ip_tx_cleanup(forward);
   }
 
-  bm_ip_tx_cleanup(forward);
   return err;
 }
