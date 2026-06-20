@@ -110,6 +110,16 @@ set (Q_TEST_SRCS
 )
 create_gtest("q" "${Q_TEST_SRCS}")
 
+# Hash unit tests
+set (HASH_TEST_SRCS
+    # File we are testing
+    ${COMMON_DIR}/hash.c
+
+    # Supporting files
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("hash" "${HASH_TEST_SRCS}")
+
 # State Machine unit tests
 set (LIB_STATE_MACHINE_TEST_SRCS
     # File we are testing
