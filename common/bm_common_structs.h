@@ -44,6 +44,13 @@ typedef struct {
   uint8_t node_list_and_cbor_config_map[0];
 } __attribute__((packed)) BmNetworkInfo;
 
+typedef struct {
+  uint32_t total_size;
+  uint32_t offset;
+  uint16_t length;
+  uint8_t data[0];
+} __attribute__((packed)) BmNetworkInfoChunk;
+
 typedef enum {
   BM_COMMON_LOG_LEVEL_NONE = 0,
   BM_COMMON_LOG_LEVEL_FATAL = 1,
