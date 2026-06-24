@@ -6,7 +6,6 @@
 
 #include "configuration.h"
 #include "dfu_message_structs.h"
-#include "network_frames.h"
 
 typedef struct {
   uint16_t type;
