@@ -14,6 +14,8 @@ extern "C" {
 
 #define BM_TOPIC_MAX_LEN (255)
 
+typedef uint8_t BmTopicLength;
+
 // Add data structures published through pub sub must have this header.
 typedef struct {
   uint8_t type;       // Type of data.
