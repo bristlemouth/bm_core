@@ -43,9 +43,14 @@ static BmErr bcmp_process_heartbeat(BcmpProcessData data) {
   if (neighbor) {
     err = BmOK;
 
-    // Neighbor restarted, let's get additional info
-    if (heartbeat->time_since_boot_us < neighbor->last_time_since_boot_us) {
+    bool neighbor_reset = heartbeat->time_since_boot_us < neighbor->last_time_since_boot_us;
+    // Neighbor is coming online invoke neighbor discovery callback
+    if (!neighbor->online || neighbor_reset) {
       bcmp_neighbor_invoke_discovery_cb(true, neighbor);
+    }
+
+    // Neighbor restarted, let's get additional info
+    if (neighbor_reset) {
       bm_debug("🏘📡 Updating neighbor info! %016" PRIx64 "\n",
                neighbor->node_id);
       bcmp_request_info(neighbor->info.node_id, &multicast_ll_addr, NULL);
