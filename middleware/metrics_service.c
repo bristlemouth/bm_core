@@ -5,6 +5,7 @@
 #include "device.h"
 #include "ll.h"
 #include "metrics_reply_msg.h"
+#include "metrics_component.h"
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
