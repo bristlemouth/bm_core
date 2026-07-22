@@ -14,7 +14,7 @@ set(SOURCES
 
 # bristlemouth.c hardcodes the ADIN2111 network device; exclude on hosted builds.
 if(NOT BM_HOSTED)
-    list(APPEND SOURCES bristlemouth.c)
+    list(APPEND SOURCES bristlemouth.c metrics_network_component.c)
 endif()
 
 add_library(middleware ${SOURCES})

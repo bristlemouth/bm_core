@@ -1,10 +1,9 @@
 #include "metrics_service.h"
-#include "bm_adin2111.h"
 #include "bm_config.h"
 #include "bm_os.h"
 #include "bm_service.h"
-#include "bristlemouth.h"
 #include "device.h"
+#include "ll.h"
 #include "metrics_reply_msg.h"
 #include <inttypes.h>
 #include <stdint.h>
@@ -13,55 +12,103 @@
 
 #define metrics_service_suffix "/metrics"
 
+typedef struct {
+  const char *key;
+  MetricComponentDataCb cb;
+  size_t fields_count;
+} MetricComponentEntry;
+
+static LL metrics_components;
+static uint32_t metrics_component_count;
+
+typedef struct {
+  MetricsComponent *components;
+  size_t capacity;
+  size_t count;
+} MetricsCollectCtx;
+
+
+static BmErr metrics_collect_component(void *data, void *arg) {
+  MetricComponentEntry *entry = (MetricComponentEntry *)data;
+  MetricsCollectCtx *ctx = (MetricsCollectCtx *)arg;
+
+  if (ctx->count >= ctx->capacity) {
+    return BmOK;
+  }
+
+  const BmEncoderTableEntry_t *lut = NULL;
+  size_t num_fields = 0;
+  if (entry->cb(entry->key, &lut, &num_fields) != BmOK || lut == NULL) {
+    bm_debug("metrics: component %s produced no data\n", entry->key);
+    return BmOK; /* skip this component, keep the rest */
+  }
+
+  ctx->components[ctx->count].key = entry->key;
+  ctx->components[ctx->count].fields = lut;
+  ctx->components[ctx->count].num_fields = num_fields;
+  ctx->count++;
+  return BmOK;
+}
+
 static bool metrics_service_handler(size_t service_strlen, const char *service,
                                     size_t req_data_len, uint8_t *req_data,
                                     size_t *buffer_len, uint8_t *reply_data) {
     (void)req_data;
     (void)req_data_len;
     bool rval = false;
+    MetricsComponent *components = NULL;
     bm_debug("Data received on service: %.*s\n", (int)service_strlen, service);
     do {
-        NetworkDevice nd = bristlemouth_network_device();
-        if (nd.trait == NULL || nd.trait->port_stats == NULL) {
-            bm_debug("No network device / port_stats for metrics service\n");
+        MetricsCollectCtx ctx;
+        memset(&ctx, 0, sizeof(ctx));
+        if (metrics_component_count > 0) {
+          components = (MetricsComponent *)bm_malloc(metrics_component_count *
+                                                    sizeof(*components));
+          if (components == NULL) {
+            bm_debug("metrics: failed to allocate component list\n");
             break;
+          }
         }
+        ctx.components = components;
+        ctx.capacity = metrics_component_count;
+        ll_traverse(&metrics_components, metrics_collect_component, &ctx);
 
         MetricsReplyData d;
         memset(&d, 0, sizeof(d));
         d.version = METRICS_REPLY_VERSION;
         d.node_id = node_id();
         d.uptime_ms = bm_ticks_to_ms(bm_get_tick_count());
-
-        uint8_t nports = nd.trait->num_ports();
-        if (nports > METRICS_MAX_PORTS) {
-            nports = METRICS_MAX_PORTS;
-        }
-        d.num_ports = nports;
-
-        for (uint8_t p = 0; p < nports; p++) {
-            Adin2111PortStats st;
-            memset(&st, 0, sizeof(st));
-            if (nd.trait->port_stats(nd.self, p, &st) != BmOK) {
-                bm_debug("port_stats failed for port %u; reporting zeros\n", p);
-            }
-            d.ports[p].mse_val          = st.mse_link_quality.mseVal;
-            d.ports[p].sqi              = st.mse_link_quality.sqi;
-            d.ports[p].link_quality     = (uint8_t)st.mse_link_quality.linkQuality;
-            d.ports[p].rx_err_count     = st.frame_check_rx_error_count;
-            d.ports[p].symbol_err_count = st.frame_check_error_counters.SYMB_ERR_CNT;
-        }
+        d.components = ctx.components;
+        d.num_components = ctx.count;
 
         size_t encoded_len;
         if (metrics_reply_encode(&d, reply_data, *buffer_len, &encoded_len) != CborNoError) {
-            bm_debug("Failed to encode metrics service reply\n");
-            break;
+          bm_debug("Failed to encode metrics service reply\n");
+          break;
         }
         *buffer_len = encoded_len;
         rval = true;
-    } while (0);
+      } while (0);
 
-    return rval;
+      if (components != NULL) {
+        bm_free(components);
+      }
+      return rval;
+}
+
+
+BmErr metrics_service_add_component(const char *metric_key, MetricComponentDataCb cb,
+                                    size_t fields_count) {
+  BmErr err = BmEINVAL;
+  if (metric_key && cb) {
+    MetricComponentEntry entry = {metric_key, cb, fields_count};
+    LLItem *item = ll_create_item(NULL, &entry, sizeof(entry), metrics_component_count);
+    err = item ? ll_item_add(&metrics_components, item) : BmENOMEM;
+    if (err == BmOK) {
+      metrics_component_count++;
+    }
+  }
+  return err;
 }
 
 void metrics_service_init(void) {
