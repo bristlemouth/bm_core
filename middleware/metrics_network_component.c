@@ -3,7 +3,7 @@
 #include "bm_config.h"
 #include "bm_messages_helper.h"
 #include "bristlemouth.h"
-#include "metrics_component.h"
+#include "metrics_service.h"
 #include "network_device.h"
 #include <stddef.h>
 #include <stdint.h>
