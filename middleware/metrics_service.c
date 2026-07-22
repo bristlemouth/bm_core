@@ -37,7 +37,7 @@ static BmErr metrics_collect_component(void *data, void *arg) {
     return BmOK;
   }
 
-  const BmEncoderTableEntry_t *lut = NULL;
+  const BmEncoderTableEntry *lut = NULL;
   size_t num_fields = 0;
   if (entry->cb(entry->key, &lut, &num_fields) != BmOK || lut == NULL) {
     bm_debug("metrics: component %s produced no data\n", entry->key);

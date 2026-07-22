@@ -26,23 +26,23 @@ typedef struct {
 
 typedef struct {
   const char *name;
-  BmField_t type;
+  BmField type;
   size_t offset; // location of the value within NetPortValues
 } NetFieldDesc;
 
 static const NetFieldDesc net_fields[] = {
-    {"sqi", UINT8, offsetof(NetPortValues, sqi)},
-    {"mse", UINT16, offsetof(NetPortValues, mse)},
-    {"lq", UINT8, offsetof(NetPortValues, lq)},
-    {"rxe", UINT16, offsetof(NetPortValues, rxe)},
-    {"sye", UINT16, offsetof(NetPortValues, sye)},
-    {"fc", UINT16, offsetof(NetPortValues, fc)},
-    {"len", UINT16, offsetof(NetPortValues, len)},
-    {"algn", UINT16, offsetof(NetPortValues, algn)},
-    // {"osz",     UINT16, offsetof(NetPortValues, osz)},
-    // {"usz",     UINT16, offsetof(NetPortValues, usz)},
-    // {"odd",     UINT16, offsetof(NetPortValues, odd)},
-    // {"odd_pre", UINT16, offsetof(NetPortValues, odd_pre)},
+    {"sqi", BM_FIELD_UINT8, offsetof(NetPortValues, sqi)},
+    {"mse", BM_FIELD_UINT16, offsetof(NetPortValues, mse)},
+    {"lq", BM_FIELD_UINT8, offsetof(NetPortValues, lq)},
+    {"rxe", BM_FIELD_UINT16, offsetof(NetPortValues, rxe)},
+    {"sye", BM_FIELD_UINT16, offsetof(NetPortValues, sye)},
+    {"fc", BM_FIELD_UINT16, offsetof(NetPortValues, fc)},
+    {"len", BM_FIELD_UINT16, offsetof(NetPortValues, len)},
+    {"algn", BM_FIELD_UINT16, offsetof(NetPortValues, algn)},
+    // {"osz",     BM_FIELD_UINT16, offsetof(NetPortValues, osz)},
+    // {"usz",     BM_FIELD_UINT16, offsetof(NetPortValues, usz)},
+    // {"odd",     BM_FIELD_UINT16, offsetof(NetPortValues, odd)},
+    // {"odd_pre", BM_FIELD_UINT16, offsetof(NetPortValues, odd_pre)},
 };
 
 #define METRICS_NET_FIELDS_PER_PORT (sizeof(net_fields) / sizeof(net_fields[0]))
@@ -51,7 +51,7 @@ static const NetFieldDesc net_fields[] = {
 static uint8_t net_num_ports;
 static NetPortValues net_values[METRICS_NET_MAX_PORTS];
 static char net_keys[METRICS_NET_MAX_FIELDS][max_key_len];
-static BmEncoderTableEntry_t net_lut[METRICS_NET_MAX_FIELDS];
+static BmEncoderTableEntry net_lut[METRICS_NET_MAX_FIELDS];
 static size_t net_num_fields;
 
 static void refresh_port(uint8_t p, const Adin2111PortStats *st) {
@@ -67,7 +67,7 @@ static void refresh_port(uint8_t p, const Adin2111PortStats *st) {
 }
 
 static BmErr network_component_data(const char *metric_key,
-                                    const BmEncoderTableEntry_t **lut,
+                                    const BmEncoderTableEntry **lut,
                                     size_t *num_fields) {
   (void)metric_key;
   NetworkDevice nd = bristlemouth_network_device();
@@ -103,7 +103,7 @@ void metrics_network_component_init(void) {
 
   size_t idx = 0;
   net_lut[idx].key = "num_ports"; /* scalar, no port suffix */
-  net_lut[idx].type = UINT8;
+  net_lut[idx].type = BM_FIELD_UINT8;
   net_lut[idx].value_source = &net_num_ports;
   idx++;
 
