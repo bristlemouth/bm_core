@@ -26,6 +26,7 @@ set(NETWORK_DIR ${CMAKE_CURRENT_LIST_DIR}/../network)
 set(BCMP_DIR ${CMAKE_CURRENT_LIST_DIR}/../bcmp)
 set(INTEGRATIONS_DIR ${CMAKE_CURRENT_LIST_DIR}/../integrations)
 set(MIDDLEWARE_DIR ${CMAKE_CURRENT_LIST_DIR}/../middleware)
+set(BM_COMMON_MESSAGES_DIR ${CMAKE_CURRENT_LIST_DIR}/../bm_common_messages)
 set(COMMON_DIR ${CMAKE_CURRENT_LIST_DIR}/../common)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_LIST_DIR}/../third_party)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
@@ -388,6 +389,24 @@ set (CBOR_SEVICE_HELPER_SRCS
     ${STUB_DIR}/bm_os_stub.c
 )
 create_gtest("cbor_service_helper" "${CBOR_SEVICE_HELPER_SRCS}")
+
+# METRICS REPLY MSG TESTS
+set (METRICS_REPLY_MSG_SRCS
+    # File we're testing
+    ${BM_COMMON_MESSAGES_DIR}/metrics_reply_msg.c
+
+    # Supporting Files
+    ${BM_COMMON_MESSAGES_DIR}/bm_messages_helper.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
+    ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+)
+create_gtest("metrics_reply_msg" "${METRICS_REPLY_MSG_SRCS}")
 
 # ECHO SERVICE TESTS
 set (ECHO_SEVICE_SRCS
