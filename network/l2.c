@@ -621,18 +621,26 @@ BmErr bm_l2_link_output(void *buf, uint32_t length) {
   uint16_t port_mask = CTX.all_ports_mask;
 
   // if the application set an egress port, send only to that port
-  static const size_t egress_port_offset_in_dest_addr = 13;
-  const size_t egress_idx =
-      ipv6_destination_address_offset + egress_port_offset_in_dest_addr;
   uint8_t *eth_frame = (uint8_t *)bm_l2_get_payload(buf);
-  uint8_t egress_port = eth_frame[egress_idx];
+  uint8_t egress_port = 0;
+  size_t egress_idx = 0;
+
+  if (ipv6_get_next_header(eth_frame) == ip_proto_udp) {
+    static const size_t egress_port_offset_in_src_addr = 2;
+    egress_idx = ipv6_source_address_offset + egress_port_offset_in_src_addr;
+    egress_port = eth_frame[egress_idx] & 0x0F;
+  } else {
+    static const size_t egress_port_offset_in_dest_addr = 13;
+    egress_idx =
+        ipv6_destination_address_offset + egress_port_offset_in_dest_addr;
+    egress_port = eth_frame[egress_idx];
+    // clear the egress port set by the application reference 5.4.4.1 and 5.4.4.2
+    eth_frame[egress_idx] = 0;
+  }
 
   if (egress_port > 0 && egress_port <= CTX.num_ports) {
     port_mask = 1U << (egress_port - 1);
   }
-
-  // clear the egress port set by the application
-  eth_frame[egress_idx] = 0;
 
   bm_l2_tx_prep(buf, length);
 

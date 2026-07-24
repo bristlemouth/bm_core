@@ -1,6 +1,7 @@
 #ifndef __BM_UTIL_H__
 #define __BM_UTIL_H__
 
+#include "bm_config.h"
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -107,6 +108,7 @@ typedef struct {
 extern const BmIpAddr multicast_global_addr;
 extern const BmIpAddr multicast_ll_addr;
 
+const char *create_copy_null_string(const char *s, uint32_t len);
 bool is_global_multicast(const BmIpAddr *dst_ip);
 bool is_link_local_multicast(const BmIpAddr *dst_ip);
 bool is_link_local_neighbor_multicast(const BmIpAddr *dst_ip);

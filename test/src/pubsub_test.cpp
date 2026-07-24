@@ -116,8 +116,8 @@ protected:
     data->topic_len = strlen(str);
     memcpy((void *)data->topic, str, strlen(str));
     bm_udp_get_payload_fake.return_val = data;
-    bm_middleware_invoke_cb(4321, RND.rnd_int(UINT64_MAX, UINT32_MAX), buf,
-                            array_size(buf));
+    bm_middleware_invoke_rx_cb(4321, RND.rnd_int(UINT64_MAX, UINT32_MAX), buf,
+                               array_size(buf));
 
     bm_free(data);
   }
