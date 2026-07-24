@@ -39,8 +39,8 @@ static const char *increment_past_separator(const char *topic) {
   return topic;
 }
 
-static inline bool topic_has_wildcard(const char *topic) {
-  return (strchr(topic, '*') != NULL) || (strchr(topic, '?') != NULL);
+static inline bool topic_has_wildcard(const char *topic, BmTopicLength len) {
+  return (memchr(topic, '*', len) != NULL) || (memchr(topic, '?', len) != NULL);
 }
 
 static ResourceTrieElement *alloc_element(const char *segment,
@@ -174,14 +174,16 @@ static void remove_child(ResourceTrieRoot *root, ResourceTrieElement *parent,
 }
 
 static BmTopicLength calculate_shared_segments(const char *topic,
+                                               BmTopicLength topic_len,
                                                const char *segment,
                                                BmTopicLength *shared_length) {
   BmTopicLength segments = 0;
   BmTopicLength length = 0;
   char t_c = *topic;
   char t_s = *segment;
+  BmTopicLength max_len = bm_min(topic_len, BM_TOPIC_MAX_LEN);
 
-  while (length < BM_TOPIC_MAX_LEN && t_c && t_s && t_c == t_s) {
+  while (length < max_len && t_c && t_s && t_c == t_s) {
     length++;
     if (t_c == '/') {
       segments++;
@@ -197,13 +199,16 @@ static BmTopicLength calculate_shared_segments(const char *topic,
 
 static bool segment_consumed(const char *topic,
                              const ResourceTrieElement *current,
+                             BmTopicLength remaining,
                              BmTopicLength *shared_length,
                              BmTopicLength *shared_segments) {
   BmTopicLength segment_length = current->segment_length;
   const char *segment = current->segment;
 
-  *shared_segments = calculate_shared_segments(topic, segment, shared_length);
-  BmTopicLength topic_span = (BmTopicLength)strcspn(topic, "/");
+  *shared_segments =
+      calculate_shared_segments(topic, remaining, segment, shared_length);
+  const char *sep = memchr(topic, '/', remaining);
+  BmTopicLength topic_span = sep ? (BmTopicLength)(sep - topic) : remaining;
 
   // Full segment consumed
   if (segment_length >= topic_span && *shared_length == segment_length) {
@@ -283,15 +288,17 @@ static inline void remove_match_string_segment(ResourceTrieRoot *root,
 }
 
 static void match_wildcard(ResourceTrieRoot *root, const char *topic,
-                           MatchCb cb, void *arg) {
+                           BmTopicLength len, MatchCb cb, void *arg) {
 
+  const char *topic_start = topic;
   topic = increment_past_separator(topic);
+  len -= (BmTopicLength)(topic - topic_start);
 
   WildcardMatchCtx ctx = {
       .current = root->element.children,
       .match_length = 0,
-      .topic_length = (BmTopicLength)bm_strnlen(topic, BM_TOPIC_MAX_LEN),
-      .topic_wildcard = topic_has_wildcard(topic),
+      .topic_length = len,
+      .topic_wildcard = topic_has_wildcard(topic, len),
   };
   BmTopicLength sp = 0;
   ResourceTrieStack *stack = root->stack;
@@ -347,13 +354,15 @@ static void match_wildcard(ResourceTrieRoot *root, const char *topic,
 }
 
 static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
-                         ExactMatchCtx *ctx) {
+                         BmTopicLength len, ExactMatchCtx *ctx) {
   ctx->current = &root->element;
   const char *topic_local = *topic;
   ctx->found = false;
 
   topic_local = increment_past_separator(topic_local);
-  while (*topic_local) {
+  BmTopicLength remaining = len - (topic_local - *topic);
+
+  while (remaining) {
     ctx->found = false;
 
     ResourceTrieElement *child = ctx->current->children;
@@ -361,7 +370,7 @@ static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
 
       BmTopicLength shared_length = 0;
       BmTopicLength shared_segments = 0;
-      if (segment_consumed(topic_local, child, &shared_length,
+      if (segment_consumed(topic_local, child, remaining, &shared_length,
                            &shared_segments)) {
         if (ctx->cb.exact) {
           ctx->cb.exact(ctx, root);
@@ -392,6 +401,9 @@ static BmErr exact_match(ResourceTrieRoot *root, const char **topic,
       ctx->found = true;
       break;
     }
+
+    // Calculate the remaining bytes
+    remaining = len - (topic_local - *topic);
 
     if (!ctx->found) {
       break;
@@ -509,9 +521,12 @@ static BmErr split_topic(ExactMatchCtx *ctx, ResourceTrieElement *child,
                    wildcard resource's `port_mask`
                 2. The concrete topic's `wildcard_interest` is OR'd with the
                    wildcard resource's `local_interest`
+            A successfully created/found element is stored in the root->result
+            member.
 
  @param root Root instance for the resource trie
  @param topic Topic to add (or update if it already exists)
+ @param len Length of topic in bytes
  @param resource_id Resource ID associated with the topic
  @param port_mask Port mask associated with the topic
  @param local_interest Whether or not there is a local interest in the topic
@@ -521,16 +536,18 @@ static BmErr split_topic(ExactMatchCtx *ctx, ResourceTrieElement *child,
          BmENOMEM if there is invalid memory in the system
  */
 BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
-                        uint32_t resource_id, uint16_t port_mask,
-                        bool local_interest) {
-  if (!root || !topic || resource_id > max_resource_id) {
+                        BmTopicLength len, uint32_t resource_id,
+                        uint16_t port_mask, bool local_interest) {
+  if (!root || !topic || resource_id > max_resource_id || !len) {
     return BmEINVAL;
   }
 
+  memset(&root->result, 0, sizeof(ResourceTrieMatchResult));
+
   const char *topic_start = topic;
   topic = increment_past_separator(topic);
-  uint16_t topic_length = strlen(topic);
-  if (!topic_length || topic_length > BM_TOPIC_MAX_LEN) {
+  uint16_t len_check = bm_strnlen(topic, len);
+  if (!len_check) {
     return BmEINVAL;
   }
 
@@ -542,7 +559,9 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
       .arg = NULL,
       .found = false,
   };
-  BmErr err = exact_match(root, &topic, &ctx);
+
+  // Computed length here as topic pointer is update in increment_past_separator
+  BmErr err = exact_match(root, &topic, len_check, &ctx);
   if (err != BmOK) {
     return err;
   }
@@ -551,6 +570,8 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   ResourceTrieElement *current = ctx.current;
   // Update variables if found
   if (found) {
+    root->result.count = 1;
+    root->result.matches[0] = current;
     current->resource_id = resource_id;
     current->port_mask = port_mask;
     current->local_interest = local_interest;
@@ -573,13 +594,16 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   new->local_interest = local_interest;
 
   // Update elements in the resource trie based on the topic type
-  new->is_wildcard = topic_has_wildcard(topic_start);
+  new->is_wildcard = topic_has_wildcard(topic_start, strlen(topic_start));
   MatchCb cb = concrete_topic_update;
   if (new->is_wildcard) {
     cb = match_topic_update;
   }
 
-  match_wildcard(root, topic_start, cb, new);
+  match_wildcard(root, topic_start, strlen(topic_start), cb, new);
+
+  root->result.count = 1;
+  root->result.matches[0] = new;
 
   return BmOK;
 }
@@ -615,14 +639,54 @@ static bool match_result_update(ResourceTrieElement *current, void *arg) {
  @return BmOK on success, even if no matches are found
          BmEINVAL on invalid input arguments
  */
-BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic) {
-  if (!root || !topic) {
+BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
+                          BmTopicLength len) {
+  if (!root || !topic || !len) {
     return BmEINVAL;
   }
 
   memset(&root->result, 0, sizeof(ResourceTrieMatchResult));
 
-  match_wildcard(root, topic, match_result_update, &root->result);
+  match_wildcard(root, topic, len, match_result_update, &root->result);
+
+  return BmOK;
+}
+
+/*!
+ @brief Matches topic to exact element in resource trie
+
+ @details A successfully matched element is stored in the root->result member.
+          This matches a topic string exactly, meaning it will not also match
+          wildcard topics.
+
+ @see ResourceTrieMatchResult
+
+ @param root Root instance for the resource trie
+ @param topic Topic to match against
+
+ @return BmOK on success, even if no matches are found
+         BmEINVAL on invalid input arguments
+ */
+BmErr resource_trie_match_exact(ResourceTrieRoot *root, const char *topic,
+                                BmTopicLength len) {
+  if (!root || !topic || !len) {
+    return BmEINVAL;
+  }
+
+  memset(&root->result, 0, sizeof(ResourceTrieMatchResult));
+
+  ExactMatchCtx ctx = {0};
+  BmErr err = exact_match(root, &topic, len, &ctx);
+  if (err != BmOK) {
+    return err;
+  }
+
+  bool found = ctx.found;
+  ResourceTrieElement *current = ctx.current;
+  if (found) {
+    root->result.count = 1;
+    root->result.matches[0] = current;
+  }
 
   return BmOK;
 }
@@ -659,8 +723,9 @@ static BmErr track_ancestry(ExactMatchCtx *ctx, ResourceTrieRoot *root) {
          BmEINVAL on invalid input arguments
          BmENODATA if there were no elements that matched the desired topic
  */
-BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
-  if (!root || !topic) {
+BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic,
+                           BmTopicLength len) {
+  if (!root || !topic || !len) {
     return BmEINVAL;
   }
   BmErr err;
@@ -676,7 +741,7 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
       .found = false,
   };
   const char *t = topic;
-  err = exact_match(root, &t, &ctx);
+  err = exact_match(root, &t, len, &ctx);
   if (err != BmOK) {
     return err;
   }
@@ -702,9 +767,9 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
     }
 
     // Strip concrete nodes of wildcard interests
-    bool is_wildcard = topic_has_wildcard(topic);
+    bool is_wildcard = topic_has_wildcard(topic, len);
     if (is_wildcard) {
-      resource_trie_match(root, topic);
+      resource_trie_match(root, topic, len);
 
       ResourceTrieMatchResult *result = &root->result;
 
@@ -720,10 +785,12 @@ BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic) {
         match->wildcard_interest &= ~remove_local_interest;
 
         // Leverage obtaining the root->match_str
-        match_wildcard(root, topic, get_path, match);
+        match_wildcard(root, topic, len, get_path, match);
 
         // Update topic in case other wildcard share the same port mask and local interest
-        match_wildcard(root, root->match_str, concrete_topic_update, match);
+        match_wildcard(root, root->match_str,
+                       bm_strnlen(root->match_str, BM_TOPIC_MAX_LEN),
+                       concrete_topic_update, match);
       }
     }
 
