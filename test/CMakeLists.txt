@@ -618,6 +618,7 @@ set (PUBSUB_SRCS
     ${STUB_DIR}/bm_ip_stub.c
     ${STUB_DIR}/middleware_stub.c
     ${STUB_DIR}/resource_discovery_stub.c
+    ${STUB_DIR}/resource_based_routing_stub.c
 )
 create_gtest("pubsub" "${PUBSUB_SRCS}")
 

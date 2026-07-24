@@ -22,6 +22,7 @@ void *bm_udp_new(uint32_t size);
 void *bm_udp_get_payload(void *buf);
 BmErr bm_udp_reference_update(void *buf);
 void bm_udp_cleanup(void *buf);
-BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
-                        const BmIpAddr *addr, uint16_t port);
+BmErr bm_udp_tx_perform(void *pcb, const void *buf, uint32_t size,
+                        const BmIpAddr *src_addr, const BmIpAddr *dest_addr,
+                        uint16_t port);
 void bm_ip_buf_shrink(void *buf, uint32_t size);

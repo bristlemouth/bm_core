@@ -253,11 +253,13 @@ static err_t bm_l2_netif_init(struct netif *netif) {
   @return ERR_OK on success
   @return ERR_X on failure
  */
-static inline err_t safe_udp_sendto_if(struct udp_pcb *pcb, struct pbuf *pbuf,
-                                       const ip_addr_t *dst_ip, u16_t dst_port,
-                                       struct netif *netif) {
+static inline err_t safe_udp_sendto_if_src(struct udp_pcb *pcb,
+                                           struct pbuf *pbuf,
+                                           const ip_addr_t *dst_ip,
+                                           u16_t dst_port, struct netif *netif,
+                                           const ip_addr_t *src_ip) {
   LOCK_TCPIP_CORE();
-  err_t rval = udp_sendto_if(pcb, pbuf, dst_ip, dst_port, netif);
+  err_t rval = udp_sendto_if_src(pcb, pbuf, dst_ip, dst_port, netif, src_ip);
   UNLOCK_TCPIP_CORE();
 
   return rval;
@@ -673,15 +675,16 @@ void bm_udp_cleanup(void *buf) {
 
  @return 
  */
-BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
-                        const BmIpAddr *dest_addr, uint16_t port) {
+BmErr bm_udp_tx_perform(void *pcb, const void *buf, uint32_t size,
+                        const BmIpAddr *src_addr, const BmIpAddr *dest_addr,
+                        uint16_t port) {
   (void)size;
   BmErr err = BmEINVAL;
 
   if (buf && pcb && dest_addr) {
-    err = safe_udp_sendto_if((struct udp_pcb *)pcb, (struct pbuf *)buf,
-                             bm_ip_to_lwip_ip(dest_addr), port,
-                             CTX.netif) == ERR_OK
+    err = safe_udp_sendto_if_src((struct udp_pcb *)pcb, (struct pbuf *)buf,
+                                 bm_ip_to_lwip_ip(dest_addr), port, CTX.netif,
+                                 bm_ip_to_lwip_ip(src_addr)) == ERR_OK
               ? BmOK
               : BmEBADMSG;
   }
