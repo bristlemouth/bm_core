@@ -33,6 +33,7 @@ The following services are supported on Bristlemouth:
 - config_cbor_map
 - sys_info
 - power_info
+- metrics
 
 ### Config CBOR Map Service
 The replier to this service will generate a key-pair table of all configuration values on the system
@@ -95,3 +96,37 @@ Another example of this is if the power is on indefinitely for the time being,
 `POWER_SERVICE_UNDEFINED` shall be used to indicate that there is a potential for the bus power timing to change.
 In this use case,
 the requestor should continue to request the service to ensure this value does not change.
+
+### Metrics Service
+
+The metrics service reports diagnostic counters and gauges from a node.
+Rather than a fixed message,
+the reply is a generic envelope that carries any number of independent components,
+each contributing its own set of flat key/value fields.
+This allows new metric producers (network PHYs, sensors, subsystems)
+to be added without changing the message or the requestor.
+The service is available on the topic `<node_id>/metrics`.
+
+The reply contains three metadata fields (`version`, `node_id`, `uptime_ms`)
+and a `data` map keyed by component name,
+where each component's value is a map of that component's fields.
+For example, the ADIN2111 driver provides an `adin_port_stats` component,
+which a two-port node decodes as:
+
+    {
+      "version": 1,
+      "node_id": "a4bf32db19ba188c",
+      "uptime_ms": 92238,
+      "data": {
+        "adin_port_stats": {
+          "num_ports": 2,
+          "sqi_1": 7, "mse_1": 32, "lq_1": 2, "rxe_1": 0,
+          "sye_1": 0, "fc_1": 0, "len_1": 0, "algn_1": 0,
+          "sqi_2": 7, "mse_2": 0, "lq_2": 2, "rxe_2": 0,
+          "sye_2": 0, "fc_2": 0, "len_2": 0, "algn_2": 0
+        }
+      }
+    }
+
+Here the component reports its fields per port,
+flattened with a `_<port>` suffix (ports are 1-indexed). The set of fields and their semantics are defined by that component, not the service.

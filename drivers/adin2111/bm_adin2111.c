@@ -1,4 +1,5 @@
 #include "bm_adin2111.h"
+#include "adin2111_network_metrics.h"
 #include "aligned_malloc.h"
 #include "bm_config.h"
 #include "bm_os.h"
@@ -759,6 +760,9 @@ BmErr adin2111_init(void) {
   create_network_device();
   err = adin2111_netdevice_enable();
 
+  #if (bm_metrics_enabled != 0)
+    adin2111_network_metrics_init();
+  #endif
 end:
   return err;
 }

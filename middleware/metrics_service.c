@@ -83,7 +83,12 @@ static bool metrics_service_handler(size_t service_strlen, const char *service,
         d.num_components = ctx.count;
 
         size_t encoded_len;
-        if (metrics_reply_encode(&d, reply_data, *buffer_len, &encoded_len) != CborNoError) {
+        CborError enc = metrics_reply_encode(&d, reply_data, *buffer_len, &encoded_len);
+        if (enc == CborErrorOutOfMemory) {
+          bm_debug("metrics reply exceeds %u B service limit (%u components); dropping\n",
+                  (unsigned)*buffer_len, (unsigned)ctx.count);
+          break;
+        } else if (enc != CborNoError) {
           bm_debug("Failed to encode metrics service reply\n");
           break;
         }
