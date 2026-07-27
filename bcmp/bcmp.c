@@ -139,6 +139,65 @@ BmErr bcmp_init(NetworkDevice network_device) {
 
 void *bcmp_get_queue(void) { return CTX.queue; }
 
+static BmIpAddr encode_dest_output_port(uint8_t egress_port) {
+
+  uint8_t port_specific_dst[sizeof(multicast_ll_addr)];
+  memcpy(port_specific_dst, &multicast_ll_addr, sizeof(multicast_ll_addr));
+  // Encode egress port into byte 13 of the IPv6 destination address so that
+  // bm_l2_link_output() routes the frame to the correct port. Reference
+  // 5.4.4.2 of the Bristlemouth specification
+  ((uint32_t *)port_specific_dst)[3] = 0x1000000 | (egress_port << 8);
+
+  return *(BmIpAddr *)port_specific_dst;
+}
+
+/*!
+  @brief BCMP packet transmit function to specific port
+
+  @details Will serialize a BCMP packet, encode a port in the destination
+           address and send the packet on the wire.
+
+  @param ctx Transmission context information of packet
+
+  @return BmOK on success
+  @return BmErr on failure
+*/
+BmErr bcmp_tx_port(BcmpTxCtx ctx) {
+  BmErr err = BmEINVAL;
+  void *buf = NULL;
+
+  if (ctx.dst &&
+      (uint32_t)ctx.size + sizeof(BcmpHeartbeat) <= max_payload_len) {
+    buf = bm_ip_tx_new(ctx.dst, ctx.size + sizeof(BcmpHeader));
+    if (buf) {
+      err = serialize(buf, ctx.data, ctx.size, ctx.type, ctx.seq_num,
+                      ctx.reply_cb);
+
+      if (err == BmOK) {
+        BmIpAddr *dst_p = NULL;
+        BmIpAddr dst_encoded = {0};
+        if (ctx.egress_port) {
+          dst_encoded = encode_dest_output_port(ctx.egress_port);
+          dst_p = &dst_encoded;
+        }
+        err = bm_ip_tx_perform(buf, dst_p);
+        if (err != BmOK) {
+          bm_debug("Error sending BMCP packet %d\n", err);
+        }
+      } else {
+        bm_debug("Could not properly serialize message\n");
+      }
+
+      bm_ip_tx_cleanup(buf);
+    } else {
+      err = BmENOMEM;
+      bm_debug("Could not allocate memory for bcmp message\n");
+    }
+  }
+
+  return err;
+}
+
 /*!
   @brief BCMP packet transmit function. Header and checksum added and computer within
 
@@ -155,31 +214,7 @@ void *bcmp_get_queue(void) { return CTX.queue; }
 BmErr bcmp_tx(const BmIpAddr *dst, BcmpMessageType type, uint8_t *data,
               uint16_t size, uint32_t seq_num,
               BmErr (*reply_cb)(uint8_t *payload)) {
-  BmErr err = BmEINVAL;
-  void *buf = NULL;
-
-  if (dst && (uint32_t)size + sizeof(BcmpHeartbeat) <= max_payload_len) {
-    buf = bm_ip_tx_new(dst, size + sizeof(BcmpHeader));
-    if (buf) {
-      err = serialize(buf, data, size, type, seq_num, reply_cb);
-
-      if (err == BmOK) {
-        err = bm_ip_tx_perform(buf, NULL);
-        if (err != BmOK) {
-          bm_debug("Error sending BMCP packet %d\n", err);
-        }
-      } else {
-        bm_debug("Could not properly serialize message\n");
-      }
-
-      bm_ip_tx_cleanup(buf);
-    } else {
-      err = BmENOMEM;
-      bm_debug("Could not allocate memory for bcmp message\n");
-    }
-  }
-
-  return err;
+  return bcmp_tx_port((BcmpTxCtx){dst, type, data, size, seq_num, reply_cb, 0});
 }
 
 /*!
@@ -222,13 +257,8 @@ BmErr bcmp_ll_forward(BcmpHeader *header, void *payload, uint32_t size,
     header->checksum = packet_checksum(forward, size + sizeof(BcmpHeader));
     bm_ip_tx_copy(forward, header, sizeof(BcmpHeader), 0);
 
-    uint8_t port_specific_dst[sizeof(multicast_ll_addr)];
-    memcpy(port_specific_dst, &multicast_ll_addr, sizeof(multicast_ll_addr));
-    // Encode egress port into byte 13 of the IPv6 destination address so that
-    // bm_l2_link_output() routes the frame to the correct port.
-    ((uint32_t *)port_specific_dst)[3] = 0x1000000 | (egress_port << 8);
-
-    BmErr tx_err = bm_ip_tx_perform(forward, (BmIpAddr *)port_specific_dst);
+    BmIpAddr port_specific_dst = encode_dest_output_port(egress_port);
+    BmErr tx_err = bm_ip_tx_perform(forward, &port_specific_dst);
     if (tx_err != BmOK) {
       bm_debug("Error forwarding BCMP packet link-locally to port %u: %d\n",
                egress_port, tx_err);
