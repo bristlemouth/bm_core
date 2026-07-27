@@ -13,6 +13,11 @@ set(SOURCES
     bm_adin2111.c
 )
 
+# adin2111_network_metrics.c hardcodes the ADIN2111 network device; exclude on hosted builds.
+if(NOT BM_HOSTED)
+    list(APPEND SOURCES adin2111_network_metrics.c)
+endif()
+
 add_library(bmadin2111 ${SOURCES})
 
 target_link_libraries(bmadin2111 bmcommon)

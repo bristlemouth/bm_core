@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-void metrics_network_component_init(void);
+void adin2111_network_metrics_init(void);
 
 #ifdef __cplusplus
 }
