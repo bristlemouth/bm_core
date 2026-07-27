@@ -8,12 +8,15 @@
 #include "network_device.h"
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
-#define adin2111_network_metrics_key "adin_port_stats"
 #define ADIN_NET_MAX_PORTS (2)
-#define ADIN_NET_KEY_LEN (12)
+
+// One metrics component per ADIN port
+static const char *const port_component_keys[ADIN_NET_MAX_PORTS] = {
+    "adin_port_stats_1",
+    "adin_port_stats_2",
+};
 
 typedef struct {
   uint8_t sqi;   // signal quality indicator
@@ -44,13 +47,10 @@ static const AdinFieldDesc net_fields[] = {
 };
 
 #define ADIN_NET_FIELDS_PER_PORT array_size(net_fields)
-#define ADIN_NET_MAX_FIELDS (1 + ADIN_NET_MAX_PORTS * ADIN_NET_FIELDS_PER_PORT)
 
 static uint8_t net_num_ports;
 static AdinPortValues net_values[ADIN_NET_MAX_PORTS];
-static char net_keys[ADIN_NET_MAX_FIELDS][ADIN_NET_KEY_LEN];
-static BmEncoderTableEntry net_lut[ADIN_NET_MAX_FIELDS];
-static size_t net_num_fields;
+static BmEncoderTableEntry net_lut[ADIN_NET_MAX_PORTS][ADIN_NET_FIELDS_PER_PORT];
 
 static void refresh_port(uint8_t p, const Adin2111PortStats *st) {
   net_values[p].sqi = st->mse_link_quality.sqi;
@@ -63,29 +63,39 @@ static void refresh_port(uint8_t p, const Adin2111PortStats *st) {
   net_values[p].algn = st->frame_check_error_counters.ALGN_ERR_CNT;
 }
 
+static int port_from_key(const char *metric_key) {
+  for (uint8_t p = 0; p < net_num_ports; p++) {
+    if (strcmp(metric_key, port_component_keys[p]) == 0) {
+      return p;
+    }
+  }
+  return -1;
+}
+
 static BmErr adin2111_network_metrics_data(const char *metric_key,
                                     const BmEncoderTableEntry **lut,
                                     size_t *num_fields) {
-  (void)metric_key;
   NetworkDevice nd = bristlemouth_network_device();
   if (nd.trait == NULL || nd.trait->port_stats == NULL) {
     bm_debug("metrics: no network device / port_stats\n");
     return BmEINVAL;
   }
 
-  for (uint8_t p = 0; p < net_num_ports; p++) {
-    Adin2111PortStats st;
-    memset(&st, 0, sizeof(st));
-    if (nd.trait->port_stats(nd.self, p, &st) != BmOK) {
-      bm_debug("metrics: port_stats failed for port %u; reporting zeros\n", p);
-      memset(&net_values[p], 0, sizeof(net_values[p]));
-      continue;
-    }
+  int p = port_from_key(metric_key);
+  if (p < 0) {
+    return BmEINVAL;
+  }
+  Adin2111PortStats st;
+  memset(&st, 0, sizeof(st));
+  if (nd.trait->port_stats(nd.self, p, &st) != BmOK) {
+    bm_debug("metrics: port_stats failed for port %d; reporting zeros\n", p);
+    memset(&net_values[p], 0, sizeof(net_values[p]));
+  } else {
     refresh_port(p, &st);
   }
 
-  *lut = net_lut;
-  *num_fields = net_num_fields;
+  *lut = net_lut[p];
+  *num_fields = ADIN_NET_FIELDS_PER_PORT;
   return BmOK;
 }
 
@@ -101,26 +111,13 @@ void adin2111_network_metrics_init(void) {
   }
   net_num_ports = nports;
 
-  size_t idx = 0;
-  net_lut[idx].key = "num_ports"; /* scalar, no port suffix */
-  net_lut[idx].type = BM_FIELD_UINT8;
-  net_lut[idx].value_source = &net_num_ports;
-  idx++;
-
   for (uint8_t p = 0; p < nports; p++) {
-    uint8_t port_num = p + 1; /* Bristlemouth ports are 1-indexed */
     for (size_t f = 0; f < ADIN_NET_FIELDS_PER_PORT; f++) {
-      snprintf(net_keys[idx], ADIN_NET_KEY_LEN, "%s_%u", net_fields[f].name,
-               port_num);
-      net_lut[idx].key = net_keys[idx];
-      net_lut[idx].type = net_fields[f].type;
-      net_lut[idx].value_source =
-          (const uint8_t *)&net_values[p] + net_fields[f].offset;
-      idx++;
+      net_lut[p][f].key = net_fields[f].name; // flash literal, no copy
+      net_lut[p][f].type = net_fields[f].type;
+      net_lut[p][f].value_source = (const uint8_t *)&net_values[p] + net_fields[f].offset;
     }
+    metrics_service_add_component(port_component_keys[p], adin2111_network_metrics_data,
+                                  ADIN_NET_FIELDS_PER_PORT);
   }
-  net_num_fields = idx;
-
-  metrics_service_add_component(adin2111_network_metrics_key,
-                                adin2111_network_metrics_data, ADIN_NET_MAX_FIELDS);
 }

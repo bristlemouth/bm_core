@@ -110,7 +110,8 @@ The service is available on the topic `<node_id>/metrics`.
 The reply contains three metadata fields (`version`, `node_id`, `uptime_ms`)
 and a `data` map keyed by component name,
 where each component's value is a map of that component's fields.
-For example, the ADIN2111 driver provides an `adin_port_stats` component,
+For example, the ADIN2111 driver provides one component per port
+(`adin_port_stats_1`, `adin_port_stats_2`, ...),
 which a two-port node decodes as:
 
     {
@@ -118,15 +119,15 @@ which a two-port node decodes as:
       "node_id": "a4bf32db19ba188c",
       "uptime_ms": 92238,
       "data": {
-        "adin_port_stats": {
-          "num_ports": 2,
-          "sqi_1": 7, "mse_1": 32, "lq_1": 2, "rxe_1": 0,
-          "sye_1": 0, "fc_1": 0, "len_1": 0, "algn_1": 0,
-          "sqi_2": 7, "mse_2": 0, "lq_2": 2, "rxe_2": 0,
-          "sye_2": 0, "fc_2": 0, "len_2": 0, "algn_2": 0
+        "adin_port_stats_1": {
+          "sqi": 7, "mse": 32, "lq": 2, "rxe": 0,
+          "sye": 0, "fc": 0, "len": 0, "algn": 0
+        },
+        "adin_port_stats_2": {
+          "sqi": 7, "mse": 0, "lq": 2, "rxe": 0,
+          "sye": 0, "fc": 0, "len": 0, "algn": 0
         }
       }
     }
 
-Here the component reports its fields per port,
-flattened with a `_<port>` suffix (ports are 1-indexed). The set of fields and their semantics are defined by that component, not the service.
+The set of fields and their semantics are defined by that component, not the service.
