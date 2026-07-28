@@ -760,9 +760,9 @@ BmErr adin2111_init(void) {
   create_network_device();
   err = adin2111_netdevice_enable();
 
-  #if (bm_metrics_enabled != 0)
-    adin2111_network_metrics_init();
-  #endif
+#if (bm_metrics_enabled != 0)
+  bm_err_check(err, adin2111_network_metrics_init());
+#endif
 end:
   return err;
 }

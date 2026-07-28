@@ -54,52 +54,54 @@ static BmErr metrics_collect_component(void *data, void *arg) {
 static bool metrics_service_handler(size_t service_strlen, const char *service,
                                     size_t req_data_len, uint8_t *req_data,
                                     size_t *buffer_len, uint8_t *reply_data) {
-    (void)req_data;
-    (void)req_data_len;
-    bool rval = false;
-    MetricsComponent *components = NULL;
-    bm_debug("Data received on service: %.*s\n", (int)service_strlen, service);
-    do {
-        MetricsCollectCtx ctx;
-        memset(&ctx, 0, sizeof(ctx));
-        if (metrics_component_count > 0) {
-          components = (MetricsComponent *)bm_malloc(metrics_component_count *
-                                                    sizeof(*components));
-          if (components == NULL) {
-            bm_debug("metrics: failed to allocate component list\n");
-            break;
-          }
-        }
-        ctx.components = components;
-        ctx.capacity = metrics_component_count;
-        ll_traverse(&metrics_components, metrics_collect_component, &ctx);
-
-        MetricsReplyData d;
-        memset(&d, 0, sizeof(d));
-        d.version = METRICS_REPLY_VERSION;
-        d.node_id = node_id();
-        d.uptime_ms = bm_ticks_to_ms(bm_get_tick_count());
-        d.components = ctx.components;
-        d.num_components = ctx.count;
-
-        size_t encoded_len;
-        CborError enc = metrics_reply_encode(&d, reply_data, *buffer_len, &encoded_len);
-        if (enc == CborErrorOutOfMemory) {
-          bm_debug("metrics reply exceeds %u B service limit (%u components); dropping\n",
-                  (unsigned)*buffer_len, (unsigned)ctx.count);
-          break;
-        } else if (enc != CborNoError) {
-          bm_debug("Failed to encode metrics service reply\n");
-          break;
-        }
-        *buffer_len = encoded_len;
-        rval = true;
-      } while (0);
-
-      if (components != NULL) {
-        bm_free(components);
+  (void)req_data;
+  (void)req_data_len;
+  bool rval = false;
+  MetricsComponent *components = NULL;
+  bm_debug("Data received on service: %.*s\n", (int)service_strlen, service);
+  do {
+    MetricsCollectCtx ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    if (metrics_component_count > 0) {
+      components = (MetricsComponent *)bm_malloc(metrics_component_count *
+                                                 sizeof(*components));
+      if (components == NULL) {
+        bm_debug("metrics: failed to allocate component list\n");
+        break;
       }
-      return rval;
+    }
+    ctx.components = components;
+    ctx.capacity = metrics_component_count;
+    ll_traverse(&metrics_components, metrics_collect_component, &ctx);
+
+    MetricsReplyData d;
+    memset(&d, 0, sizeof(d));
+    d.version = METRICS_REPLY_VERSION;
+    d.node_id = node_id();
+    d.uptime_ms = bm_ticks_to_ms(bm_get_tick_count());
+    d.components = ctx.components;
+    d.num_components = ctx.count;
+
+    size_t encoded_len;
+    CborError enc =
+        metrics_reply_encode(&d, reply_data, *buffer_len, &encoded_len);
+    if (enc == CborErrorOutOfMemory) {
+      bm_debug("metrics reply exceeds %u B service limit (%u components); "
+               "dropping\n",
+               (unsigned)*buffer_len, (unsigned)ctx.count);
+      break;
+    } else if (enc != CborNoError) {
+      bm_debug("Failed to encode metrics service reply\n");
+      break;
+    }
+    *buffer_len = encoded_len;
+    rval = true;
+  } while (0);
+
+  if (components != NULL) {
+    bm_free(components);
+  }
+  return rval;
 }
 
 
@@ -117,31 +119,36 @@ BmErr metrics_service_add_component(const char *metric_key, MetricComponentDataC
   return err;
 }
 
-void metrics_service_init(void) {
-    static char metrics_service_str[BM_SERVICE_MAX_SERVICE_STRLEN];
-    size_t topic_strlen =
-        snprintf(metrics_service_str, sizeof(metrics_service_str),
-                "%016" PRIx64 "%s", node_id(), metrics_service_suffix);
-    if (topic_strlen > 0) {
-        bm_service_register(topic_strlen, metrics_service_str, metrics_service_handler);
-    } else {
-        bm_debug("Failed to register metrics service\n");
-    }
+BmErr metrics_service_init(void) {
+  static char metrics_service_str[BM_SERVICE_MAX_SERVICE_STRLEN];
+  size_t topic_strlen =
+      snprintf(metrics_service_str, sizeof(metrics_service_str),
+               "%016" PRIx64 "%s", node_id(), metrics_service_suffix);
+  if (topic_strlen == 0) {
+    bm_debug("Failed to build metrics service topic\n");
+    return BmEINVAL;
+  }
+  if (!bm_service_register(topic_strlen, metrics_service_str,
+                           metrics_service_handler)) {
+    bm_debug("Failed to register metrics service\n");
+    return BmEINVAL;
+  }
+  return BmOK;
 }
 
 bool metrics_service_request(uint64_t target_node_id,
                              BmServiceReplyCb reply_cb, uint32_t timeout_s) {
-    bool rval = false;
-    char *target_service_str = (char *)bm_malloc(BM_SERVICE_MAX_SERVICE_STRLEN);
-    if (target_service_str) {
-        size_t target_service_strlen =
-            snprintf(target_service_str, BM_SERVICE_MAX_SERVICE_STRLEN,
-                    "%016" PRIx64 "%s", target_node_id, metrics_service_suffix);
-        if (target_service_strlen > 0) {
-        rval = bm_service_request(target_service_strlen, target_service_str, 0,
-                                    NULL, reply_cb, timeout_s);
-        }
+  bool rval = false;
+  char *target_service_str = (char *)bm_malloc(BM_SERVICE_MAX_SERVICE_STRLEN);
+  if (target_service_str) {
+    size_t target_service_strlen =
+        snprintf(target_service_str, BM_SERVICE_MAX_SERVICE_STRLEN,
+                 "%016" PRIx64 "%s", target_node_id, metrics_service_suffix);
+    if (target_service_strlen > 0) {
+      rval = bm_service_request(target_service_strlen, target_service_str, 0,
+                                NULL, reply_cb, timeout_s);
     }
-    bm_free(target_service_str);
-    return rval;
+  }
+  bm_free(target_service_str);
+  return rval;
 }

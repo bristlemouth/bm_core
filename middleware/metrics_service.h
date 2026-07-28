@@ -8,7 +8,7 @@ extern "C" {
 #include "bm_messages_helper.h"
 #include "util.h"
 
-void metrics_service_init(void);
+BmErr metrics_service_init(void);
 bool metrics_service_request(uint64_t target_node_id,
                              BmServiceReplyCb reply_cb, uint32_t timeout_s);
 

@@ -99,12 +99,13 @@ static BmErr adin2111_network_metrics_data(const char *metric_key,
   return BmOK;
 }
 
-void adin2111_network_metrics_init(void) {
+BmErr adin2111_network_metrics_init(void) {
+  BmErr err = BmOK;
   NetworkDevice nd = bristlemouth_network_device();
   uint8_t nports = (nd.trait && nd.trait->num_ports) ? nd.trait->num_ports() : 0;
   if (nports == 0) {
     bm_debug("adin2111 network metrics: no ports reported; skipping registration\n");
-    return;
+    return BmOK;
   }
   if (nports > ADIN_NET_MAX_PORTS) {
     nports = ADIN_NET_MAX_PORTS;
@@ -113,11 +114,13 @@ void adin2111_network_metrics_init(void) {
 
   for (uint8_t p = 0; p < nports; p++) {
     for (size_t f = 0; f < ADIN_NET_FIELDS_PER_PORT; f++) {
-      net_lut[p][f].key = net_fields[f].name; // flash literal, no copy
+      net_lut[p][f].key = net_fields[f].name;
       net_lut[p][f].type = net_fields[f].type;
       net_lut[p][f].value_source = (const uint8_t *)&net_values[p] + net_fields[f].offset;
     }
-    metrics_service_add_component(port_component_keys[p], adin2111_network_metrics_data,
-                                  ADIN_NET_FIELDS_PER_PORT);
+    bm_err_check(err, metrics_service_add_component(
+                          port_component_keys[p], adin2111_network_metrics_data,
+                          ADIN_NET_FIELDS_PER_PORT));
   }
+  return err;
 }

@@ -4,7 +4,9 @@
 extern "C" {
 #endif
 
-void adin2111_network_metrics_init(void);
+#include "util.h"
+
+BmErr adin2111_network_metrics_init(void);
 
 #ifdef __cplusplus
 }

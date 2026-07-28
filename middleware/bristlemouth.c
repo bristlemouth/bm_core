@@ -22,9 +22,9 @@ BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb) {
   bm_err_check(err, bm_service_init());
   bm_err_check(err, bm_pubsub_init());
   bm_err_check(err, bm_middleware_init());
-  #if (bm_metrics_enabled != 0)
-    metrics_service_init();
-  #endif
+#if (bm_metrics_enabled != 0)
+  bm_err_check(err, metrics_service_init());
+#endif
   return err;
 }
 
