@@ -1,3 +1,4 @@
+#include "resource_trie.h"
 #include "util.h"
 
 // Reference figure 5.3 in Bristlemouth spec which describes the resource
@@ -37,16 +38,15 @@ typedef enum {
 typedef uint32_t ResourceId;
 
 BmErr routing_init(void);
-BmErr add_local_resource(const char *topic, uint8_t len, ResourceOptions opts);
-BmErr add_neighbor_resource(const char *topic, uint8_t len,
-                            ResourceId resource_id, uint8_t port_num,
-                            ResourceOptions opts);
-BmErr remove_local_resource(const char *topic, uint8_t len,
-                            ResourceOptions opts);
-BmErr remove_neighbor_resource(const char *topic, uint8_t len, uint8_t port_num,
-                               ResourceOptions opts);
-BmErr get_forward_port_mask(ResourceId resource_id, uint8_t port_num,
+BmErr add_local_resource(const char *topic, BmTopicLength len,
+                         ResourceId *resource_id);
+BmErr add_neighbor_resource(const char *topic, BmTopicLength len,
+                            ResourceId *resource_id, uint8_t port_num);
+BmErr remove_local_resource(const char *topic, BmTopicLength len);
+BmErr remove_neighbor_resource(const char *topic, BmTopicLength len,
+                               uint8_t port_num);
+BmErr get_forward_port_mask(ResourceId *resource_id, uint8_t port_num,
                             uint16_t *forward_mask, bool *local_interest,
                             ResourceOptions opts);
-BmErr get_topic_port_mask(const char *topic, uint8_t len,
-                          ResourceId *resource_id, uint16_t *port_mask);
+BmErr get_topic_element(const char *topic, BmTopicLength len,
+                        ResourceTrieElement *element);

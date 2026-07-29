@@ -34,13 +34,14 @@ typedef struct BcmpRequestElement {
 struct PacketInfo {
   BcmpPacketCb cb;
   bool initialized;
+  BcmpProcessData *data;
   BmSemaphore sequence_list_semaphore;
   BmTimer timer;
   LL sequence_list;
   LL packet_list;
 };
 
-static struct PacketInfo PACKET;
+static struct PacketInfo PACKET = {0};
 
 /*!
  @brief Determine if a sequenced request callback is valid
@@ -234,6 +235,8 @@ static void check_endianness(void *buf, BcmpMessageType type) {
       swap_16bit(&header->checksum);
       swap_32bit(&header->seq_num);
     } break;
+    default:
+      break;
     }
   }
 }

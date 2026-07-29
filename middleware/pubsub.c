@@ -4,6 +4,7 @@
 #include "bm_os.h"
 #include "messages/resource_discovery.h"
 #include "middleware.h"
+#include "packet.h"
 #include "resource_based_routing.h"
 #include "util.h"
 #include <string.h>
@@ -31,6 +32,25 @@ typedef struct BmSubNode {
 typedef struct {
   BmSubNode subscription_list;
 } PubSubCtx;
+
+static const BmIpAddr link_local_resource_addr = {{
+    0xFF,
+    0x02,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x02,
+}};
 
 static void bm_handle_msg(uint64_t node_id, void *buf, uint32_t size);
 static BmSubNode *delete_sub(const char *topic, uint16_t topic_len);
@@ -101,10 +121,13 @@ static bool resource_based_routing_cb(uint8_t ingress_port,
   ResourceId id = parse_resource_id(src);
   ResourceOptions opts = parse_resource_options(src);
   bool local_interest = false;
-  if (get_forward_port_mask(id, ingress_port, egress_ports, &local_interest,
+  if (get_forward_port_mask(&id, ingress_port, egress_ports, &local_interest,
                             opts) != BmOK) {
     return false;
   }
+
+  // Update with local ID so forwarded nodes can route the packet correctly
+  serialize_resource_id(src, id);
 
   return local_interest;
 }
@@ -129,7 +152,7 @@ BmErr bm_pubsub_init(void) {
   BmErr err = routing_init();
   bm_err_check(err,
                bm_middleware_add_application(
-                   resource_port, multicast_global_addr, bm_handle_msg,
+                   resource_port, link_local_resource_addr, bm_handle_msg,
                    resource_based_routing_tx_cb, resource_based_routing_cb));
   return err;
 }
@@ -257,19 +280,29 @@ BmErr bm_sub_wl(const char *topic, uint16_t topic_len,
     bm_debug("Subscribing to Topic: %.*s\n", topic_len, topic);
     err = bcmp_resource_discovery_add_resource(topic, topic_len, SUB,
                                                default_resource_add_timeout_ms);
-    err = err == BmEAGAIN ? BmOK : err;
-
-    // TODO: update options once Req/Reply functionality is available
-    ResourceOptions opts = {0};
-    opts.request_id = 0;
-    opts.timeout = 0;
-    opts.type = option_pubsub;
-    bm_err_check(err, add_local_resource(sub_node->sub.topic, topic_len, opts));
     if (err == BmOK) {
       bm_debug("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
     } else if (err != BmEAGAIN) {
       bm_debug("Error adding topic %.*s to BCMP resource table. Err: %d\n",
                topic_len, topic, err);
+    }
+
+    err = err == BmEAGAIN ? BmOK : err;
+    ResourceId id;
+    bm_err_check(err, add_local_resource(sub_node->sub.topic, topic_len, &id));
+    if (err == BmOK) {
+      uint16_t info_size = sizeof(ResourceInfo) + topic_len;
+      ResourceInfo *info = bm_malloc(info_size);
+      if (!info) {
+        return BmENOMEM;
+      }
+      info->length = topic_len;
+      info->resource_id = id;
+      //TODO: set when req/reply is supported
+      info->type = ResourceSubscription;
+      memcpy((void *)info->topic, topic, topic_len);
+      err = bcmp_resource_send_request(info);
+      bm_free(info);
     }
   } else {
     bm_debug("Unable to Subscribe to topic\n");
@@ -487,8 +520,21 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
     opts->timeout = 0;
     opts->type = option_pubsub;
 
-    uint16_t egress_mask = 0;
-    err = get_topic_port_mask(topic, topic_len, &ctx.id, &egress_mask);
+    ResourceTrieElement element = {0};
+    err = get_topic_element(topic, topic_len, &element);
+    if (err == BmENODATA) {
+      //TODO: if element.wildcard match with no egress port, start resource discovery and add a local resource with no interest here
+      //if (element.wildcard_port_mask) {
+      //  ...
+      //}
+    }
+    uint16_t egress_mask = element.port_mask;
+    ctx.id = element.resource_id;
+
+    if (bcmp_resource_discovery_add_resource(
+            topic, topic_len, PUB, default_resource_add_timeout_ms) == BmOK) {
+      bm_debug("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
+    }
 
     bm_err_check(err, bm_middleware_net_tx(resource_port, buf, message_size,
                                            egress_mask, &ctx));
@@ -497,11 +543,6 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
 
   if (err != BmOK) {
     bm_debug("Unable to publish to topic, err: %d\n", err);
-  } else {
-    if (bcmp_resource_discovery_add_resource(
-            topic, topic_len, PUB, default_resource_add_timeout_ms) == BmOK) {
-      bm_debug("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
-    }
   }
 
   return err;
