@@ -37,7 +37,6 @@ BmErr bcmp_init(NetworkDevice network_device);
 void *bcmp_get_queue(void);
 BmErr bcmp_tx_port(BcmpTxCtx ctx);
 BmErr bcmp_tx(const BmIpAddr *dst, BcmpMessageType type, uint8_t *data,
-              uint16_t size, uint32_t seq_num,
-              BmErr (*reply_cb)(uint8_t *payload));
+              uint16_t size, uint32_t seq_num, BcmpSequencedRequestCb cb);
 BmErr bcmp_ll_forward(BcmpHeader *header, void *data, uint32_t size,
                       uint8_t ingress_port);

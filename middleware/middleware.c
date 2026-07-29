@@ -254,12 +254,13 @@ BmErr bm_middleware_net_tx(uint16_t port, const void *buf, uint32_t size,
       // Ports start at index 1
       uint8_t port_num = pos + 1;
       set_ll_egress_port(&src_addr, port_num);
-      err = bm_udp_tx_perform(
+      BmErr tx_err = bm_udp_tx_perform(
           application->pcb, buf, size, (const void *)&src_addr,
           (const void *)&application->dest, application->port);
 
-      if (err != BmOK) {
-        break;
+      if (tx_err != BmOK) {
+        bm_debug("Could not transmit data on port %u, err: %d\n", port_num,
+                 tx_err);
       }
     }
   }

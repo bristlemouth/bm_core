@@ -1,6 +1,7 @@
 #ifndef __MESSAGES_H__
 #define __MESSAGES_H__
 
+#include "util.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -467,6 +468,22 @@ typedef struct {
 } __attribute__((packed)) BmConfigClearResponse;
 
 typedef enum {
+  ResourcePublication = 0x01,
+  ResourceSubscription = 0x02,
+  ResourceRequestPublication = 0x04,
+  ResourceRequestSubscription = 0x08,
+  ResourceReplyPublication = 0x10,
+  ResourceReplySubscription = 0x20,
+} ResourceMask;
+
+typedef struct {
+  uint8_t type;         // Interest as a bitmask as per spec, reference 5.4.4.4
+  uint32_t resource_id; // Resource ID associated with the topic
+  uint16_t length;      // Length of topic
+  const char topic[];   // Resource topic
+} __attribute__((packed)) ResourceInfo;
+
+typedef enum {
   BcmpAckMessage = 0x00,
   BcmpHeartbeatMessage = 0x01,
 
@@ -519,11 +536,12 @@ typedef enum {
   BcmpDFUBootCompleteMessage = 0xD9,
   BcmpDFULastMessageMessage = BcmpDFUBootCompleteMessage,
 
+  BcmpResourceRequestMessage = 0xE0,
+  BcmpResourceReplyMessage = 0xE1,
+
   BcmpHeaderMessage = 0xFFFF
 } BcmpMessageType;
 
-#endif
+typedef BmErr (*BcmpSequencedRequestCb)(uint8_t *payload);
 
-#define bcmp_header_offset                                                     \
-  (ipv6_destination_address_offset + ipv6_destination_address_size_bytes)
-#define min_bcmp_frame_size (bcmp_header_offset + sizeof(BcmpHeader))
+#endif

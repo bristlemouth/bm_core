@@ -22,3 +22,4 @@ BmErr bcmp_resource_discovery_send_request(uint64_t target_node_id,
                                            void (*cb)(void *));
 void bcmp_resource_discovery_print_resources(void);
 BcmpResourceTableReply *bcmp_resource_discovery_get_local_resources(void);
+BmErr bcmp_resource_send_request(const ResourceInfo *info);
