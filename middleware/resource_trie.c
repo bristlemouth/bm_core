@@ -594,13 +594,13 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   new->local_interest = local_interest;
 
   // Update elements in the resource trie based on the topic type
-  new->is_wildcard = topic_has_wildcard(topic_start, strlen(topic_start));
+  new->is_wildcard = topic_has_wildcard(topic_start, len);
   MatchCb cb = concrete_topic_update;
   if (new->is_wildcard) {
     cb = match_topic_update;
   }
 
-  match_wildcard(root, topic_start, strlen(topic_start), cb, new);
+  match_wildcard(root, topic_start, len, cb, new);
 
   root->result.count = 1;
   root->result.matches[0] = new;
