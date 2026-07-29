@@ -9,6 +9,7 @@ set(SOURCES
     power_info_service.c
     pubsub.c
     sys_info_service.c
+    metrics_service.c
 )
 
 # bristlemouth.c hardcodes the ADIN2111 network device; exclude on hosted builds.
