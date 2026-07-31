@@ -251,6 +251,8 @@ set (RESOURCE_SRCS
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
     ${STUB_DIR}/packet_stub.c
+    ${STUB_DIR}/resource_based_routing_stub.c
+    ${STUB_DIR}/l2_stub.c
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/bcmp_stub.c
 )

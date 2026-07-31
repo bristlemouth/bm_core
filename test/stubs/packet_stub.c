@@ -12,6 +12,7 @@ static struct PacketMeta PACKET_META = {0};
 DEFINE_FAKE_VALUE_FUNC(BmErr, packet_init, BcmpGetIPAddr, BcmpGetIPAddr,
                        BcmpGetData, BcmpGetChecksum);
 DEFINE_FAKE_VALUE_FUNC(uint16_t, packet_checksum, void *, uint32_t);
+DEFINE_FAKE_VALUE_FUNC(const BcmpProcessData *, packet_get_data);
 DEFINE_FAKE_VALUE_FUNC(BmErr, process_received_message, void *, uint32_t);
 DEFINE_FAKE_VALUE_FUNC(BmErr, serialize, void *, void *, uint32_t,
                        BcmpMessageType, uint32_t, BcmpSequencedRequestCb);
