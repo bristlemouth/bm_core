@@ -199,7 +199,7 @@ BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
 /*!
  @brief Set Link-Local Address egress port mask
 
- @details Mask is as offset of 20 bits in accordance to 5.4.4.3 of the
+ @details Mask is at offset of 20 bits in accordance to 5.4.4.3 of the
           Bristlemouth specification.
 
  @param addr source address
