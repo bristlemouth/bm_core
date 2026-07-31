@@ -8,6 +8,7 @@ set(SOURCES
     q.c
     timer_callback_handler.c
     util.c
+    resource_trie.c
 )
 
 add_library(bmcommon ${SOURCES})

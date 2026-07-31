@@ -113,7 +113,7 @@ create_gtest("q" "${Q_TEST_SRCS}")
 # Resource Trie unit tests
 set (RESOURCE_TRIE_TEST_SRCS
     # File we are testing
-    ${MIDDLEWARE_DIR}/resource_trie.c
+    ${COMMON_DIR}/resource_trie.c
 
     # Supporting files
     ${COMMON_DIR}/util.c

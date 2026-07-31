@@ -48,8 +48,12 @@ typedef struct {
 } ResourceTrieRoot;
 
 BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
-                        uint32_t resource_id, uint16_t port_mask,
-                        bool local_interest);
-BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic);
-BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic);
+                        BmTopicLength len, uint32_t resource_id,
+                        uint16_t port_mask, bool local_interest);
+BmErr resource_trie_match(ResourceTrieRoot *root, const char *topic,
+                          BmTopicLength len);
+BmErr resource_trie_match_exact(ResourceTrieRoot *root, const char *topic,
+                                BmTopicLength len);
+BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic,
+                           BmTopicLength len);
 BmErr resource_trie_purge(ResourceTrieRoot *root);
