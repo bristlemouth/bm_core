@@ -4,6 +4,7 @@
 #include "util.h"
 
 DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_init, NetworkDevice);
+DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_tx_port, BcmpTxCtx);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_tx, const BmIpAddr *, BcmpMessageType,
                         uint8_t *, uint16_t, uint32_t, BcmpSequencedRequestCb)
 DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_ll_forward, BcmpHeader *, void *, uint32_t,
