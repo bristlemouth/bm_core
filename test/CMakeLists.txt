@@ -123,6 +123,22 @@ set (RESOURCE_TRIE_TEST_SRCS
 )
 create_gtest("resource_trie" "${RESOURCE_TRIE_TEST_SRCS}")
 
+# Resource based routing unit tests
+set (RESOURCE_BASED_ROUTING_SRCS
+    # File we are testing
+    ${COMMON_DIR}/resource_based_routing.c
+
+    # Supporting files
+    ${COMMON_DIR}/util.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/l2_stub.c
+    ${STUB_DIR}/resource_trie_stub.c
+    ${STUB_DIR}/hash_stub.c
+)
+create_gtest("resource_based_routing" "${RESOURCE_BASED_ROUTING_SRCS}")
+
 # Hash unit tests
 set (HASH_TEST_SRCS
     # File we are testing
