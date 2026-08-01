@@ -1,3 +1,6 @@
+#ifndef __RESOURCE_TRIE_H__
+#define __RESOURCE_TRIE_H__
+
 #include "pubsub.h"
 #include "util.h"
 
@@ -57,3 +60,5 @@ BmErr resource_trie_match_exact(ResourceTrieRoot *root, const char *topic,
 BmErr resource_trie_remove(ResourceTrieRoot *root, const char *topic,
                            BmTopicLength len);
 BmErr resource_trie_purge(ResourceTrieRoot *root);
+
+#endif

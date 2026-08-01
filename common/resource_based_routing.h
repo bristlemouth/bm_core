@@ -38,6 +38,7 @@ typedef enum {
 typedef uint32_t ResourceId;
 
 BmErr routing_init(void);
+void routing_cleanup(void);
 BmErr add_local_resource(const char *topic, BmTopicLength len,
                          ResourceId *resource_id);
 BmErr add_neighbor_resource(const char *topic, BmTopicLength len,
