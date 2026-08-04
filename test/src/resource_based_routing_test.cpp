@@ -34,8 +34,8 @@ protected:
   }
   void TearDown() override {}
 
-  static BmErr fake_match_exact_found(ResourceTrieRoot *root, const char *topic,
-                                      BmTopicLength len) {
+  static BmErr fake_match_exact_success(ResourceTrieRoot *root,
+                                        const char *topic, BmTopicLength len) {
     (void)topic;
     (void)len;
     root->result.count = 1;
@@ -44,9 +44,8 @@ protected:
     return BmOK;
   }
 
-  static BmErr fake_match_exact_not_found(ResourceTrieRoot *root,
-                                          const char *topic,
-                                          BmTopicLength len) {
+  static BmErr fake_match_exact_failure(ResourceTrieRoot *root,
+                                        const char *topic, BmTopicLength len) {
     (void)topic;
     (void)len;
     root->result.count = 0;
@@ -64,6 +63,17 @@ protected:
     root->result.matches[0] = &WORKING_ELEMENT;
 
     return BmOK;
+  }
+
+  static BmErr fake_add_fail(ResourceTrieRoot *root, const char *topic,
+                             BmTopicLength len, ResourceId id,
+                             uint16_t port_mask, bool local_interest) {
+    (void)topic;
+    (void)len;
+    root->result.count = 0;
+    root->result.matches[0] = NULL;
+
+    return BmENOMEM;
   }
 };
 
@@ -109,7 +119,7 @@ TEST_F(resource_based_routing_test, add_local_resouce) {
   // Test existing path
   RESET_FAKE(resource_trie_match_exact);
   RESET_FAKE(resource_trie_add);
-  resource_trie_match_exact_fake.custom_fake = fake_match_exact_found;
+  resource_trie_match_exact_fake.custom_fake = fake_match_exact_success;
   err = add_local_resource(topic, topic_len, &id);
   ASSERT_EQ(err, BmOK);
   call_count = resource_trie_add_fake.call_count;
@@ -119,7 +129,7 @@ TEST_F(resource_based_routing_test, add_local_resouce) {
   // Test failure paths
   RESET_FAKE(resource_trie_match_exact);
   RESET_FAKE(resource_trie_add);
-  resource_trie_match_exact_fake.custom_fake = fake_match_exact_not_found;
+  resource_trie_match_exact_fake.custom_fake = fake_match_exact_failure;
   err = add_local_resource(topic, topic_len, &id);
   EXPECT_NE(err, BmOK);
   call_count = resource_trie_add_fake.call_count;
@@ -147,8 +157,10 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   const ResourceId neighbor_id = RND.rnd_int(0xFFFFF, 1);
   ResourceId id = neighbor_id;
   const uint8_t port_num = RND.rnd_int(16, 1);
+  uint16_t port_mask = 1 << (port_num - 1);
 
   bm_l2_get_port_count_fake.return_val = 16;
+  hash_look_up_fake.return_val = BmENODATA;
 
   // Test adding path
   RESET_FAKE(resource_trie_match_exact);
@@ -163,7 +175,6 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   EXPECT_EQ(call_count, 1);
   call_count = hash_insert_fake.call_count;
   EXPECT_EQ(call_count, 1);
-  uint16_t port_mask = 1 << (port_num - 1);
   EXPECT_TRUE(WORKING_ELEMENT.port_mask & port_mask);
   WORKING_ELEMENT.port_mask &= ~port_mask;
 
@@ -171,7 +182,7 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   RESET_FAKE(resource_trie_match_exact);
   RESET_FAKE(resource_trie_add);
   RESET_FAKE(hash_insert);
-  resource_trie_match_exact_fake.custom_fake = fake_match_exact_found;
+  resource_trie_match_exact_fake.custom_fake = fake_match_exact_success;
   hash_insert_fake.return_val = BmOK;
   err = add_neighbor_resource(topic, topic_len, &id, port_num);
   ASSERT_EQ(err, BmOK);
@@ -185,17 +196,65 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   // Test hash existing path
   RESET_FAKE(hash_insert);
   RESET_FAKE(hash_remove);
+  hash_look_up_fake.return_val = BmOK;
   hash_remove_fake.return_val = BmOK;
-  BmErr insert_return_values[2] = {BmEALREADY, BmOK};
-  SET_RETURN_SEQ(hash_insert, insert_return_values,
-                 array_size(insert_return_values));
   hash_insert_fake.return_val = BmOK;
   err = add_neighbor_resource(topic, topic_len, &id, port_num);
   ASSERT_EQ(err, BmOK);
   call_count = hash_remove_fake.call_count;
   EXPECT_EQ(call_count, 1);
   call_count = hash_insert_fake.call_count;
-  EXPECT_EQ(call_count, 2);
+  EXPECT_EQ(call_count, 1);
   EXPECT_TRUE(WORKING_ELEMENT.port_mask & port_mask);
   WORKING_ELEMENT.port_mask &= ~port_mask;
+
+  // Test failure to remove
+  RESET_FAKE(hash_insert);
+  RESET_FAKE(hash_remove);
+  hash_remove_fake.return_val = BmEINVAL;
+  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  ASSERT_EQ(err, BmEINVAL);
+  call_count = hash_insert_fake.call_count;
+  EXPECT_EQ(call_count, 0);
+  EXPECT_FALSE(WORKING_ELEMENT.port_mask & port_mask);
+
+  // Test failure to insert
+  RESET_FAKE(hash_insert);
+  RESET_FAKE(hash_remove);
+  id = neighbor_id;
+  hash_remove_fake.return_val = BmOK;
+  hash_insert_fake.return_val = BmEBADMSG;
+  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  ASSERT_EQ(err, BmEBADMSG);
+  call_count = hash_insert_fake.call_count;
+  EXPECT_EQ(call_count, 1);
+  EXPECT_EQ(id, neighbor_id);
+  EXPECT_FALSE(WORKING_ELEMENT.port_mask & port_mask);
+
+  // Test failure to match
+  RESET_FAKE(resource_trie_match_exact);
+  resource_trie_match_exact_fake.custom_fake = fake_match_exact_failure;
+  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  ASSERT_NE(err, BmOK);
+
+  // Test failure to add to trie
+  RESET_FAKE(resource_trie_match_exact);
+  RESET_FAKE(resource_trie_add);
+  resource_trie_match_exact_fake.return_val = BmOK;
+  resource_trie_add_fake.custom_fake = fake_add_fail;
+  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  ASSERT_NE(err, BmOK);
+  call_count = resource_trie_add_fake.call_count;
+  EXPECT_EQ(call_count, 1);
+  EXPECT_FALSE(WORKING_ELEMENT.port_mask & port_mask);
+
+  // Test invalid arguments
+  err = add_neighbor_resource(NULL, topic_len, &id, port_num);
+  ASSERT_EQ(err, BmEINVAL);
+  err = add_neighbor_resource(topic, 0, &id, port_num);
+  ASSERT_EQ(err, BmEINVAL);
+  err = add_neighbor_resource(topic, topic_len, NULL, port_num);
+  ASSERT_EQ(err, BmEINVAL);
+  err = add_neighbor_resource(topic, topic_len, &id, UINT8_MAX);
+  ASSERT_EQ(err, BmEINVAL);
 }

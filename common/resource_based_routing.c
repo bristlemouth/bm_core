@@ -124,7 +124,8 @@ BmErr add_local_resource(const char *topic, BmTopicLength len,
  */
 BmErr add_neighbor_resource(const char *topic, BmTopicLength len,
                             ResourceId *resource_id, uint8_t port_num) {
-  if (!port_num || port_num > bm_l2_get_port_count() || !topic) {
+  if (!port_num || port_num > bm_l2_get_port_count() || !topic || !len ||
+      !resource_id) {
     return BmEINVAL;
   }
 
@@ -144,14 +145,13 @@ BmErr add_neighbor_resource(const char *topic, BmTopicLength len,
   }
 
   ResourceTrieElement *element = ctx.trie.result.matches[0];
-  element->port_mask |= port_mask;
 
   Hash *hash = ctx.hash[port_num - 1];
   err = hash_look_up(hash, *resource_id, &element);
 
   if (err == BmOK) {
     // Remove from the hash table if the element does exist
-    err = hash_remove(hash, *resource_id);
+    bm_err_report(err, hash_remove(hash, *resource_id));
   } else {
     // couldn't be found in hash table, no problem
     err = BmOK;
@@ -160,6 +160,9 @@ BmErr add_neighbor_resource(const char *topic, BmTopicLength len,
   if (err != BmOK) {
     return err;
   }
+
+  // Update port mask if added to hash table correctly
+  element->port_mask |= port_mask;
 
   // Set the output resource ID now
   *resource_id = element->resource_id;
