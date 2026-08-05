@@ -170,6 +170,22 @@ BmErr add_neighbor_resource(const char *topic, BmTopicLength len,
   return err;
 }
 
+/*!
+ @brief Will remove resource information from data structures
+
+ @details If a resource is no longer of interest from a neighbor, it will be
+          removed from the associated hash table. If there are no ports that
+          express interest in this resource and the device itself does not,
+          then the resource will be removed from the trie.
+
+ @param topic topic string to be removed from trie
+ @param len length of topic in bytes
+ @param port_num port number the request to remove was received on, if set to
+                 0, the element is not removed from the hash table
+ @param element resource trie element to remove
+
+ @return 
+ */
 static BmErr remove_from_data_structs(const char *topic, BmTopicLength len,
                                       uint8_t port_num,
                                       ResourceTrieElement *element) {
