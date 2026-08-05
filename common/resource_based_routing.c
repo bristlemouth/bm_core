@@ -177,7 +177,11 @@ static BmErr remove_from_data_structs(const char *topic, BmTopicLength len,
 
   if (port_num) {
     Hash *hash = ctx.hash[port_num - 1];
-    err = hash_remove(hash, element->resource_id);
+    bm_err_report(err, hash_remove(hash, element->resource_id));
+  }
+
+  if (err != BmOK) {
+    return err;
   }
 
   if (element->port_mask || element->local_interest) {
@@ -189,8 +193,20 @@ static BmErr remove_from_data_structs(const char *topic, BmTopicLength len,
   return err;
 }
 
+/*!
+ @brief Remove a resource of local interest
+
+ @details Will remove the element from the resource trie if there are no
+          forwarding ports, otherwise just clears the local_interest flag.
+
+ @param topic topic string to remove
+ @param len length of topic string
+
+ @return BmOK on success
+         BmErr on failure
+ */
 BmErr remove_local_resource(const char *topic, BmTopicLength len) {
-  if (!topic) {
+  if (!topic || !len) {
     return BmEINVAL;
   }
 
@@ -209,9 +225,23 @@ BmErr remove_local_resource(const char *topic, BmTopicLength len) {
   return remove_from_data_structs(topic, len, 0, element);
 }
 
+/*!
+ @brief Remove a neighbors resource interest
+
+ @details Will only remove the element from the resource trie if there are no
+          other forwarding ports and there is not a local interest. Will also
+          remove the resource ID from the associated hash table.
+
+ @param topic topic string neighbor is requesting to remove
+ @param len length of topic string
+ @param port_num port number the neighbor is on
+
+ @return BmOK on success
+         BmErr on failure
+ */
 BmErr remove_neighbor_resource(const char *topic, BmTopicLength len,
                                uint8_t port_num) {
-  if (!port_num || port_num > bm_l2_get_port_count() || !topic) {
+  if (!port_num || port_num > bm_l2_get_port_count() || !len || !topic) {
     return BmEINVAL;
   }
 
@@ -254,7 +284,8 @@ BmErr get_forward_port_mask(ResourceId *resource_id, uint8_t port_num,
   //TODO: Implement options once req/reply is ready
   (void)opts;
 
-  if (!port_num || port_num > bm_l2_get_port_count() || !forward_mask) {
+  if (!port_num || port_num > bm_l2_get_port_count() || !forward_mask ||
+      !resource_id || !local_interest) {
     return BmEINVAL;
   }
 
