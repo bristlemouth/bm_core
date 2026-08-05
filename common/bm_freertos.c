@@ -11,6 +11,15 @@ void *bm_malloc(size_t size) { return pvPortMalloc(size); }
 
 void bm_free(void *ptr) { vPortFree(ptr); }
 
+void bm_heap_stats(BmHeapStats *stats) {
+  HeapStats_t heap_stats;
+  vPortGetHeapStats(&heap_stats);
+  stats->free_bytes = (uint32_t)heap_stats.xAvailableHeapSpaceInBytes;
+  stats->min_free_bytes = (uint32_t)heap_stats.xMinimumEverFreeBytesRemaining;
+  stats->largest_free_block =
+      (uint32_t)heap_stats.xSizeOfLargestFreeBlockInBytes;
+}
+
 BmQueue bm_queue_create(uint32_t queue_length, uint32_t item_size) {
   return xQueueCreate(queue_length, item_size);
 }

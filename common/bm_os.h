@@ -25,6 +25,14 @@ typedef void (*BmTask)(void *arg);
 // Memory functions - these may not necessarily be tied to the OS but I'm including them here for now
 void *bm_malloc(size_t size);
 void bm_free(void *ptr);
+typedef struct {
+  uint32_t free_bytes;
+  uint32_t min_free_bytes;
+  uint32_t largest_free_block;
+} BmHeapStats;
+
+// Snapshot of current heap usage, in bytes.
+void bm_heap_stats(BmHeapStats *stats);
 
 // Queue functions
 BmQueue bm_queue_create(uint32_t queue_length, uint32_t item_size);

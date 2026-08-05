@@ -5,6 +5,7 @@
 #include "bm_ip.h"
 #include "bm_service.h"
 #include "l2.h"
+#include "memory_metrics.h"
 #include "metrics_service.h"
 #include "middleware.h"
 #include "topology.h"
@@ -24,6 +25,7 @@ BmErr bristlemouth_init(NetworkDevicePowerCallback net_power_cb) {
   bm_err_check(err, bm_middleware_init());
 #if (bm_metrics_enabled != 0)
   bm_err_check(err, metrics_service_init());
+  bm_err_check(err, memory_metrics_init());
 #endif
   return err;
 }
