@@ -318,7 +318,7 @@ BmErr get_forward_port_mask(ResourceId *resource_id, uint8_t port_num,
  */
 BmErr get_topic_element(const char *topic, BmTopicLength len,
                         ResourceTrieElement *element) {
-  if (!topic || !element) {
+  if (!topic || !len || !element) {
     return BmEINVAL;
   }
 

@@ -13,6 +13,7 @@ extern "C" {
 }
 
 #include "util.h"
+#include <string.h>
 
 static ResourceTrieElement WORKING_ELEMENT;
 
@@ -417,5 +418,39 @@ TEST_F(resource_based_routing_test, get_forward_port_mask) {
   err = get_forward_port_mask(&id, port_num, NULL, &local_interest, opts);
   ASSERT_EQ(err, BmEINVAL);
   err = get_forward_port_mask(&id, port_num, &forward_mask, NULL, opts);
+  ASSERT_EQ(err, BmEINVAL);
+}
+
+TEST_F(resource_based_routing_test, get_topic_element) {
+  static constexpr char topic[] = "test/topic/1";
+  const BmTopicLength topic_len = strlen(topic);
+  ResourceTrieElement element;
+
+  // Test no match case
+  RESET_FAKE(resource_trie_match_exact);
+  resource_trie_match_exact_fake.return_val = BmOK;
+  BmErr err = get_topic_element(topic, topic_len, &element);
+  ASSERT_EQ(err, BmENODATA);
+
+  // Test success case
+  RESET_FAKE(resource_trie_match_exact);
+  resource_trie_match_exact_fake.custom_fake = fake_match_exact_success;
+  err = get_topic_element(topic, topic_len, &element);
+  ASSERT_EQ(err, BmOK);
+  int cmp = memcmp(&element, &WORKING_ELEMENT, sizeof(ResourceTrieElement));
+  ASSERT_EQ(cmp, 0);
+
+  // Test match failure
+  RESET_FAKE(resource_trie_match_exact);
+  resource_trie_match_exact_fake.custom_fake = fake_match_exact_failure;
+  err = get_topic_element(topic, topic_len, &element);
+  ASSERT_NE(err, BmOK);
+
+  // Test invalid inputs
+  err = get_topic_element(NULL, topic_len, &element);
+  ASSERT_EQ(err, BmEINVAL);
+  err = get_topic_element(topic, 0, &element);
+  ASSERT_EQ(err, BmEINVAL);
+  err = get_topic_element(topic, topic_len, NULL);
   ASSERT_EQ(err, BmEINVAL);
 }
