@@ -54,6 +54,11 @@ BmErr routing_init(void) {
   return err;
 }
 
+/*!
+ @brief Cleanup routing interface
+
+ @details Frees all memory associated with hash tables and trie
+ */
 void routing_cleanup(void) {
   uint8_t num_ports = bm_l2_get_port_count();
 
@@ -62,6 +67,8 @@ void routing_cleanup(void) {
     hash_delete(ctx.hash[port_free]);
   }
   bm_free(ctx.hash);
+
+  resource_trie_purge(&ctx.trie);
 }
 
 /*!
