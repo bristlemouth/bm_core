@@ -149,11 +149,11 @@ static void resource_based_routing_tx_cb(BmIpAddr *src, void *arg) {
          BmErr on failure
  */
 BmErr bm_pubsub_init(void) {
-  BmErr err = routing_init();
-  bm_err_check(err,
-               bm_middleware_add_application(
-                   resource_port, link_local_resource_addr, bm_handle_msg,
-                   resource_based_routing_tx_cb, resource_based_routing_cb));
+  BmErr err;
+  bm_err_report(err,
+                bm_middleware_add_application(
+                    resource_port, link_local_resource_addr, bm_handle_msg,
+                    resource_based_routing_tx_cb, resource_based_routing_cb));
   return err;
 }
 
