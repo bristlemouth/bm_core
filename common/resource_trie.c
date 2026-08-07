@@ -46,12 +46,8 @@ static inline bool topic_has_wildcard(const char *topic, BmTopicLength len) {
 static ResourceTrieElement *alloc_element(const char *segment,
                                           BmTopicLength segment_length) {
   ResourceTrieElement *element = bm_malloc(sizeof(ResourceTrieElement));
-  if (!element) {
+  if (!element || !segment_length) {
     return NULL;
-  }
-
-  if (!segment_length) {
-    segment_length = strlen(segment);
   }
 
   uint32_t segment_size = segment_length + 1;
@@ -582,7 +578,7 @@ BmErr resource_trie_add(ResourceTrieRoot *root, const char *topic,
   // - create a new element
   // - add it as a child to the current element
   // - assign associated variables
-  ResourceTrieElement *new = alloc_element(topic, 0);
+  ResourceTrieElement *new = alloc_element(topic, len - (topic - topic_start));
   if (!new) {
     return BmENOMEM;
   }
