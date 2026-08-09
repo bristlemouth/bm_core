@@ -600,7 +600,8 @@ BmErr bm_udp_tx_perform(void *pcb, const void *buf, uint32_t size,
 
   /* --- UDP payload (at offset 62) --- */
   if (size > 0) {
-    memcpy(frame + FRAME_HDR_LEN + UDP_HDR_LEN, bm_udp_get_payload(buf), size);
+    memcpy(frame + FRAME_HDR_LEN + UDP_HDR_LEN, bm_udp_get_payload((void *)buf),
+           size);
   }
 
   /* --- UDP checksum (mandatory for IPv6, RFC 2460 §8.1) --- */

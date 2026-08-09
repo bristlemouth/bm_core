@@ -4,7 +4,7 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, routing_init);
 DEFINE_FAKE_VALUE_FUNC(BmErr, add_local_resource, const char *, BmTopicLength,
                        ResourceId *);
 DEFINE_FAKE_VALUE_FUNC(BmErr, add_neighbor_resource, const char *,
-                       BmTopicLength, ResourceId *, uint8_t);
+                       BmTopicLength, ResourceId *, uint8_t, bool);
 DEFINE_FAKE_VALUE_FUNC(BmErr, remove_local_resource, const char *,
                        BmTopicLength);
 DEFINE_FAKE_VALUE_FUNC(BmErr, remove_neighbor_resource, const char *,

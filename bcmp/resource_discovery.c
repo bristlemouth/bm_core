@@ -246,8 +246,10 @@ static BmErr resource_discovery_reply_cb(uint8_t *payload) {
     return BmEBADMSG;
   }
 
-  return add_neighbor_resource(rep->topic, rep->length, &id,
-                               data->ingress_port);
+  bm_debug("TOpic: %.*s being added to port %d...\n", rep->length, rep->topic,
+           data->ingress_port);
+  return add_neighbor_resource(rep->topic, rep->length, &id, data->ingress_port,
+                               false);
 }
 
 /*!
@@ -266,7 +268,9 @@ static BmErr resource_discovery_reply_cb(uint8_t *payload) {
  */
 static BmErr add_resource_update_id(ResourceInfo *info, uint8_t port_num) {
   uint32_t id = info->resource_id;
-  BmErr err = add_neighbor_resource(info->topic, info->length, &id, port_num);
+  bm_debug("TOpic: %.*s being added...\n", info->length, info->topic);
+  BmErr err =
+      add_neighbor_resource(info->topic, info->length, &id, port_num, true);
 
   if (err == BmOK) {
     info->resource_id = id;

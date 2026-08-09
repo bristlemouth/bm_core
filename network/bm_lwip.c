@@ -681,13 +681,20 @@ BmErr bm_udp_tx_perform(void *pcb, const void *buf, uint32_t size,
   (void)size;
   BmErr err = BmEINVAL;
 
-  if (buf && pcb && dest_addr) {
-    err = safe_udp_sendto_if_src((struct udp_pcb *)pcb, (struct pbuf *)buf,
+  void *udp = bm_udp_new(size);
+  uint8_t *dst_data = bm_udp_get_payload(udp);
+  uint8_t *cpy_data = bm_udp_get_payload(buf);
+  memcpy(dst_data, cpy_data, size);
+
+  if (udp && pcb && dest_addr) {
+    err = safe_udp_sendto_if_src((struct udp_pcb *)pcb, (struct pbuf *)udp,
                                  bm_ip_to_lwip_ip(dest_addr), port, CTX.netif,
                                  bm_ip_to_lwip_ip(src_addr)) == ERR_OK
               ? BmOK
               : BmEBADMSG;
   }
+
+  bm_udp_cleanup(udp);
 
   return err;
 }

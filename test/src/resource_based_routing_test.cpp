@@ -180,7 +180,7 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   resource_trie_match_exact_fake.return_val = BmOK;
   resource_trie_add_fake.custom_fake = fake_add_success;
   hash_insert_fake.return_val = BmOK;
-  BmErr err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  BmErr err = add_neighbor_resource(topic, topic_len, &id, port_num, true);
   ASSERT_EQ(err, BmOK);
   uint8_t call_count = resource_trie_add_fake.call_count;
   EXPECT_EQ(call_count, 1);
@@ -189,13 +189,18 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   EXPECT_TRUE(WORKING_ELEMENT.port_mask & port_mask);
   WORKING_ELEMENT.port_mask &= ~port_mask;
 
+  // Test adding and not updating mask
+  err = add_neighbor_resource(topic, topic_len, &id, port_num, false);
+  ASSERT_EQ(err, BmOK);
+  EXPECT_FALSE(WORKING_ELEMENT.port_mask & port_mask);
+
   // Test trie existing path
   RESET_FAKE(resource_trie_match_exact);
   RESET_FAKE(resource_trie_add);
   RESET_FAKE(hash_insert);
   resource_trie_match_exact_fake.custom_fake = fake_match_exact_success;
   hash_insert_fake.return_val = BmOK;
-  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  err = add_neighbor_resource(topic, topic_len, &id, port_num, true);
   ASSERT_EQ(err, BmOK);
   call_count = resource_trie_add_fake.call_count;
   EXPECT_EQ(call_count, 0);
@@ -204,13 +209,18 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   EXPECT_TRUE(WORKING_ELEMENT.port_mask & port_mask);
   WORKING_ELEMENT.port_mask &= ~port_mask;
 
+  // Test trie existing path and not updating mask
+  err = add_neighbor_resource(topic, topic_len, &id, port_num, false);
+  ASSERT_EQ(err, BmOK);
+  EXPECT_FALSE(WORKING_ELEMENT.port_mask & port_mask);
+
   // Test hash existing path
   RESET_FAKE(hash_insert);
   RESET_FAKE(hash_remove);
   hash_look_up_fake.return_val = BmOK;
   hash_remove_fake.return_val = BmOK;
   hash_insert_fake.return_val = BmOK;
-  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  err = add_neighbor_resource(topic, topic_len, &id, port_num, true);
   ASSERT_EQ(err, BmOK);
   call_count = hash_remove_fake.call_count;
   EXPECT_EQ(call_count, 1);
@@ -223,7 +233,7 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   RESET_FAKE(hash_insert);
   RESET_FAKE(hash_remove);
   hash_remove_fake.return_val = BmEINVAL;
-  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  err = add_neighbor_resource(topic, topic_len, &id, port_num, true);
   ASSERT_EQ(err, BmEINVAL);
   call_count = hash_insert_fake.call_count;
   EXPECT_EQ(call_count, 0);
@@ -235,7 +245,7 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   id = neighbor_id;
   hash_remove_fake.return_val = BmOK;
   hash_insert_fake.return_val = BmEBADMSG;
-  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  err = add_neighbor_resource(topic, topic_len, &id, port_num, true);
   ASSERT_EQ(err, BmEBADMSG);
   call_count = hash_insert_fake.call_count;
   EXPECT_EQ(call_count, 1);
@@ -245,7 +255,7 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   // Test failure to match
   RESET_FAKE(resource_trie_match_exact);
   resource_trie_match_exact_fake.custom_fake = fake_match_exact_failure;
-  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  err = add_neighbor_resource(topic, topic_len, &id, port_num, true);
   ASSERT_NE(err, BmOK);
 
   // Test failure to add to trie
@@ -253,20 +263,20 @@ TEST_F(resource_based_routing_test, add_neighbor_resouce) {
   RESET_FAKE(resource_trie_add);
   resource_trie_match_exact_fake.return_val = BmOK;
   resource_trie_add_fake.custom_fake = fake_add_fail;
-  err = add_neighbor_resource(topic, topic_len, &id, port_num);
+  err = add_neighbor_resource(topic, topic_len, &id, port_num, true);
   ASSERT_NE(err, BmOK);
   call_count = resource_trie_add_fake.call_count;
   EXPECT_EQ(call_count, 1);
   EXPECT_FALSE(WORKING_ELEMENT.port_mask & port_mask);
 
   // Test invalid arguments
-  err = add_neighbor_resource(NULL, topic_len, &id, port_num);
+  err = add_neighbor_resource(NULL, topic_len, &id, port_num, true);
   ASSERT_EQ(err, BmEINVAL);
-  err = add_neighbor_resource(topic, 0, &id, port_num);
+  err = add_neighbor_resource(topic, 0, &id, port_num, true);
   ASSERT_EQ(err, BmEINVAL);
-  err = add_neighbor_resource(topic, topic_len, NULL, port_num);
+  err = add_neighbor_resource(topic, topic_len, NULL, port_num, true);
   ASSERT_EQ(err, BmEINVAL);
-  err = add_neighbor_resource(topic, topic_len, &id, UINT8_MAX);
+  err = add_neighbor_resource(topic, topic_len, &id, UINT8_MAX, true);
   ASSERT_EQ(err, BmEINVAL);
 }
 
