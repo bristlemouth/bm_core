@@ -42,7 +42,8 @@ void routing_cleanup(void);
 BmErr add_local_resource(const char *topic, BmTopicLength len,
                          ResourceId *resource_id);
 BmErr add_neighbor_resource(const char *topic, BmTopicLength len,
-                            ResourceId *resource_id, uint8_t port_num);
+                            ResourceId *resource_id, uint8_t port_num,
+                            bool update_mask);
 BmErr remove_local_resource(const char *topic, BmTopicLength len);
 BmErr remove_neighbor_resource(const char *topic, BmTopicLength len,
                                uint8_t port_num);

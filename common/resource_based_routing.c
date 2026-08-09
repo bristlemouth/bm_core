@@ -130,21 +130,27 @@ BmErr add_local_resource(const char *topic, BmTopicLength len,
          BmErr on failure
  */
 BmErr add_neighbor_resource(const char *topic, BmTopicLength len,
-                            ResourceId *resource_id, uint8_t port_num) {
+                            ResourceId *resource_id, uint8_t port_num,
+                            bool update_ports) {
   if (!port_num || port_num > bm_l2_get_port_count() || !topic || !len ||
       !resource_id) {
     return BmEINVAL;
   }
 
-  uint16_t port_mask = 1 << (port_num - 1);
+  uint16_t port_mask = 0;
+  if (update_ports) {
+    port_mask = 1 << (port_num - 1);
+  }
   BmErr err = resource_trie_match_exact(&ctx.trie, topic, len);
   if (err != BmOK) {
     return err;
   }
 
+  bm_debug("%s Topic found: %d\n", __func__, ctx.trie.result.count);
   if (!ctx.trie.result.count) {
     err = resource_trie_add(&ctx.trie, topic, len, ctx.local_id, port_mask,
                             false);
+    bm_debug("%s Topic err: %d, id: %lu\n", __func__, err, ctx.local_id);
     if (err != BmOK) {
       return err;
     }
@@ -350,6 +356,8 @@ BmErr get_topic_element(const char *topic, BmTopicLength len,
     return err;
   }
 
+  bm_debug("Match result: %d for topic: %.*s\n", ctx.trie.result.count, len,
+           topic);
   if (!ctx.trie.result.count) {
     return BmENODATA;
   }

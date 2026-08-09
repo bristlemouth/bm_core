@@ -182,6 +182,31 @@ TEST_F(resource_trie_test, match_concrete_split_sub_span) {
   EXPECT_EQ(matches[0]->port_mask, port_mask[1]);
 }
 
+TEST_F(resource_trie_test, double_match_update) {
+  const char *topic_3 = "hello/mate/how/are/you";
+  const char *topic_1 = "hello/mate";
+  const char *topic_2 = "hello/mate/how";
+
+  ASSERT_EQ(resource_trie_add(&ROOT, topic_3, strlen(topic_3), 3, 0x3, true),
+            BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, topic_1, strlen(topic_1), 1, 0x1, true),
+            BmOK);
+  ASSERT_EQ(resource_trie_add(&ROOT, topic_2, strlen(topic_2), 2, 0x2, true),
+            BmOK);
+
+  ASSERT_EQ(resource_trie_match_exact(&ROOT, topic_1, strlen(topic_1)), BmOK);
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 1);
+
+  ASSERT_EQ(resource_trie_match_exact(&ROOT, topic_2, strlen(topic_2)), BmOK);
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 2);
+
+  ASSERT_EQ(resource_trie_match_exact(&ROOT, topic_3, strlen(topic_3)), BmOK);
+  ASSERT_EQ(ROOT.result.count, 1);
+  EXPECT_EQ(ROOT.result.matches[0]->resource_id, 3);
+}
+
 TEST_F(resource_trie_test, match_concrete_split_substring) {
 
   // Second topic is a substring of the first added topic
