@@ -11,6 +11,9 @@ typedef struct {
   adi_phy_MseLinkQuality_t mse_link_quality;
   adi_phy_FrameChkErrorCounters_t frame_check_error_counters;
   uint16_t frame_check_rx_error_count;
+  uint32_t frame_check_frame_count;
+  adi_eth_MacStatCounters_t mac_stats;
+  adi_eth_LinkStatus_e link_status;
 } Adin2111PortStats;
 
 #ifdef __cplusplus

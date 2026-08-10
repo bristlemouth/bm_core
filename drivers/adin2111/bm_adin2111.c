@@ -648,6 +648,27 @@ static BmErr adin2111_port_stats(uint8_t port_index, Adin2111PortStats *stats) {
                                          &stats->frame_check_error_counters);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_FrameChkReadFrameCnt(&DEVICE_STRUCT, port_index,
+                                         &stats->frame_check_frame_count);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_GetStatCounters(&DEVICE_STRUCT, port_index,
+                                    &stats->mac_stats);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_GetLinkStatus(&DEVICE_STRUCT, port_index,
+                                  &stats->link_status);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
   }
 
 end:
