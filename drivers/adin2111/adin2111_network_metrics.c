@@ -19,6 +19,7 @@ static const char *const port_component_keys[ADIN_NET_MAX_PORTS] = {
 };
 
 typedef struct {
+  // PHY frame-check counters
   uint8_t sqi;   // signal quality indicator
   uint16_t mse;  // raw MSE_VAL register
   uint8_t lq;    // adi_phy_LinkQuality_e: 0 poor / 1 marginal / 2 good
@@ -27,6 +28,21 @@ typedef struct {
   uint16_t fc;   // FALSE_CARRIER_CNT
   uint16_t len;  // LEN_ERR_CNT
   uint16_t algn; // ALGN_ERR_CNT
+  uint32_t fcfrm; // FC_FRM_CNT: frames the checker validated (denominator)
+  uint8_t link;  // adi_eth_LinkStatus_e: 0 down / 1 up
+  // MAC traffic / flow (per port, per direction)
+  uint32_t rxfrm; // RX_FRM_CNT   total frames received
+  uint32_t txfrm; // TX_FRM_CNT   total frames transmitted
+  uint32_t rxbc;  // RX_BCAST_CNT broadcast rx (control-plane volume)
+  uint32_t txbc;  // TX_BCAST_CNT broadcast tx
+  uint32_t rxmc;  // RX_MCAST_CNT multicast rx (data-plane throughput)
+  uint32_t txmc;  // TX_MCAST_CNT multicast tx
+  // MAC drops / errors
+  uint32_t dropfull; // RX_DROP_FULL_CNT dropped, RX FIFO full
+  uint32_t dropfilt; // RX_DROP_FILT_CNT dropped by address filtering
+  uint32_t crc;   // RX_CRC_ERR_CNT
+  uint32_t lserr; // RX_LS_ERR_CNT   long/short framing errors
+  uint32_t phye;  // RX_PHY_ERR_CNT  MII RX_ER from PHY
 } AdinPortValues;
 
 typedef struct {
@@ -43,7 +59,20 @@ static const AdinFieldDesc net_fields[] = {
   {"sye", BM_FIELD_UINT16, offsetof(AdinPortValues, sye)},
   {"fc", BM_FIELD_UINT16, offsetof(AdinPortValues, fc)},
   {"len", BM_FIELD_UINT16, offsetof(AdinPortValues, len)},
-  {"algn", BM_FIELD_UINT16, offsetof(AdinPortValues, algn)}
+  {"algn", BM_FIELD_UINT16, offsetof(AdinPortValues, algn)},
+  {"fcfrm", BM_FIELD_UINT32, offsetof(AdinPortValues, fcfrm)},
+  {"link", BM_FIELD_UINT8, offsetof(AdinPortValues, link)},
+  {"rxfrm", BM_FIELD_UINT32, offsetof(AdinPortValues, rxfrm)},
+  {"txfrm", BM_FIELD_UINT32, offsetof(AdinPortValues, txfrm)},
+  {"rxbc", BM_FIELD_UINT32, offsetof(AdinPortValues, rxbc)},
+  {"txbc", BM_FIELD_UINT32, offsetof(AdinPortValues, txbc)},
+  {"rxmc", BM_FIELD_UINT32, offsetof(AdinPortValues, rxmc)},
+  {"txmc", BM_FIELD_UINT32, offsetof(AdinPortValues, txmc)},
+  {"dropfull", BM_FIELD_UINT32, offsetof(AdinPortValues, dropfull)},
+  {"dropfilt", BM_FIELD_UINT32, offsetof(AdinPortValues, dropfilt)},
+  {"crc", BM_FIELD_UINT32, offsetof(AdinPortValues, crc)},
+  {"lserr", BM_FIELD_UINT32, offsetof(AdinPortValues, lserr)},
+  {"phye", BM_FIELD_UINT32, offsetof(AdinPortValues, phye)}
 };
 
 #define ADIN_NET_FIELDS_PER_PORT array_size(net_fields)
@@ -61,6 +90,19 @@ static void refresh_port(uint8_t p, const Adin2111PortStats *st) {
   net_values[p].fc = st->frame_check_error_counters.FALSE_CARRIER_CNT;
   net_values[p].len = st->frame_check_error_counters.LEN_ERR_CNT;
   net_values[p].algn = st->frame_check_error_counters.ALGN_ERR_CNT;
+  net_values[p].fcfrm = st->frame_check_frame_count;
+  net_values[p].link = (uint8_t)st->link_status;
+  net_values[p].rxfrm = st->mac_stats.RX_FRM_CNT;
+  net_values[p].txfrm = st->mac_stats.TX_FRM_CNT;
+  net_values[p].rxbc = st->mac_stats.RX_BCAST_CNT;
+  net_values[p].txbc = st->mac_stats.TX_BCAST_CNT;
+  net_values[p].rxmc = st->mac_stats.RX_MCAST_CNT;
+  net_values[p].txmc = st->mac_stats.TX_MCAST_CNT;
+  net_values[p].dropfull = st->mac_stats.RX_DROP_FULL_CNT;
+  net_values[p].dropfilt = st->mac_stats.RX_DROP_FILT_CNT;
+  net_values[p].crc = st->mac_stats.RX_CRC_ERR_CNT;
+  net_values[p].lserr = st->mac_stats.RX_LS_ERR_CNT;
+  net_values[p].phye = st->mac_stats.RX_PHY_ERR_CNT;
 }
 
 static int port_from_key(const char *metric_key) {
