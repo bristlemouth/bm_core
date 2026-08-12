@@ -1,6 +1,7 @@
 #include "mock_bcmp.h"
 
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_init, NetworkDevice);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_tx_port, BcmpTxCtx);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_tx, const BmIpAddr *, BcmpMessageType,
                        uint8_t *, uint16_t, uint32_t, BcmpReplyCb)
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_ll_forward, BcmpHeader *, void *, uint32_t,

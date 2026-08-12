@@ -190,7 +190,7 @@ TEST_F(ResourceDiscovery, resource_process_reply) {
   // Initialize to cleanup list
   ASSERT_EQ(bcmp_resource_discovery_init(), BmOK);
   packet_cleanup();
-  free(reply);
+  bm_free(reply);
 }
 
 TEST_F(ResourceDiscovery, resource_adding_getting) {

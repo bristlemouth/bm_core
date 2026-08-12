@@ -545,8 +545,9 @@ BmErr bm_udp_reference_update(void *buf) {
 
 void bm_udp_cleanup(void *buf) { bm_l2_free(buf); }
 
-BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
-                        const BmIpAddr *dest_addr, uint16_t port) {
+BmErr bm_udp_tx_perform(void *pcb, const void *buf, uint32_t size,
+                        const BmIpAddr *src_addr, const BmIpAddr *dest_addr,
+                        uint16_t port) {
   BmErr err = BmEINVAL;
   if (!pcb || !buf || !dest_addr) {
     return err;
@@ -583,7 +584,7 @@ BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
   ip[5] = (uint8_t)(udp_total); /* payload length = UDP hdr + data */
   ip[6] = ip_proto_udp;         /* next header */
   ip[7] = 64;                   /* hop limit */
-  memcpy(ip + 8, CTX.ll_addr.addr, 16);
+  memcpy(ip + 8, src_addr, 16);
   memcpy(ip + 24, dest_addr->addr, 16);
 
   /* --- UDP header (8 bytes at offset 54) --- */
@@ -599,15 +600,14 @@ BmErr bm_udp_tx_perform(void *pcb, void *buf, uint32_t size,
 
   /* --- UDP payload (at offset 62) --- */
   if (size > 0) {
-    memcpy(frame + FRAME_HDR_LEN + UDP_HDR_LEN, bm_udp_get_payload(buf), size);
+    memcpy(frame + FRAME_HDR_LEN + UDP_HDR_LEN, bm_udp_get_payload((void *)buf),
+           size);
   }
 
   /* --- UDP checksum (mandatory for IPv6, RFC 2460 §8.1) --- */
   {
-    BmIpAddr src_addr;
-    memcpy(src_addr.addr, ip + 8, 16);
-    uint16_t cksum = ipv6_pseudo_checksum(&src_addr, dest_addr, ip_proto_udp,
-                                          udp_total, udp);
+    uint16_t cksum =
+        ipv6_pseudo_checksum(src_addr, dest_addr, ip_proto_udp, udp_total, udp);
     udp[6] = (uint8_t)(cksum >> 8);
     udp[7] = (uint8_t)(cksum);
   }

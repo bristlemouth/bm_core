@@ -3,8 +3,10 @@
 #include "bm_config.h"
 #include "bm_os.h"
 #include "device.h"
+#include "l2.h"
 #include "ll.h"
 #include "packet.h"
+#include "resource_based_routing.h"
 #include "string.h"
 #include <inttypes.h>
 #include <stdlib.h>
@@ -195,6 +197,199 @@ static BmErr bcmp_process_resource_discovery_reply(BcmpProcessData data) {
 }
 
 /*!
+ @brief Determine if resource info is valid
+
+ @details Compares info struct to the size reported from the data packet.
+
+ @param info resource info received 
+ @param size sizeo of data packet
+
+ @return true if packet size matches expectations
+         false otherwise
+ */
+static bool resource_info_valid(const ResourceInfo *info, uint32_t size) {
+  // Bounds checking on the message
+  if (size < sizeof(ResourceInfo) || info->length >= BM_TOPIC_MAX_LEN ||
+      info->length + sizeof(ResourceInfo) != size) {
+    return false;
+  }
+
+  return true;
+}
+
+/*!
+ @brief Handle a resource request message
+
+ @details Adds the resource info to the routing table.
+
+ @param payload incoming payload from replying device
+
+ @return BmOK on success
+         BmENODATA if full packet is not able to be retrieved from packet
+                   module
+         BmEBADMSG if the packet information is not valid
+         BmErr on failure to add resource
+ */
+static BmErr resource_discovery_reply_cb(uint8_t *payload) {
+  ResourceInfo *rep = (ResourceInfo *)payload;
+  if (!rep) {
+    return BmEINVAL;
+  }
+
+  uint32_t id = rep->resource_id;
+  const BcmpProcessData *data = packet_get_data();
+  if (!data) {
+    return BmENODATA;
+  }
+
+  if (!resource_info_valid(rep, data->size)) {
+    return BmEBADMSG;
+  }
+
+  bm_debug("TOpic: %.*s being added to port %d...\n", rep->length, rep->topic,
+           data->ingress_port);
+  return add_neighbor_resource(rep->topic, rep->length, &id, data->ingress_port,
+                               false);
+}
+
+/*!
+ @brief Adds to resource table and updates the resource ID to locally assigned
+
+ @details This is meant to add the resource for routing purposes and then
+          update the resource's ID to be used with propogated requests on other
+          ports and as a reply to the original requestor to inform those nodes
+          of the ID assigned to this node's resource.
+
+ @param info resource information to save and update the resource ID on
+ @param port_num ingress port number the resource was shared on
+
+ @return BmOK on success
+         BmErr on failure
+ */
+static BmErr add_resource_update_id(ResourceInfo *info, uint8_t port_num) {
+  uint32_t id = info->resource_id;
+  bm_debug("TOpic: %.*s being added...\n", info->length, info->topic);
+  BmErr err =
+      add_neighbor_resource(info->topic, info->length, &id, port_num, true);
+
+  if (err == BmOK) {
+    info->resource_id = id;
+  }
+
+  return err;
+}
+
+/*!
+ @brief Reply to resource request
+
+ @details Prepares reply message to send to requesting device.
+          add_resource_update_id must be invoked before this function.
+
+ @param data data from request with updated resource ID
+
+ @return BmOK on success
+         BmErr on failure
+ */
+static BmErr resource_reply(BcmpProcessData data) {
+  uint8_t *rep = data.payload;
+  uint16_t rep_size = data.size;
+  uint32_t seq_num = data.header->seq_num;
+  uint8_t port_num = data.ingress_port;
+
+  BcmpTxCtx ctx = {
+      .dst = data.dst,
+      .type = BcmpResourceReplyMessage,
+      .data = rep,
+      .size = rep_size,
+      .seq_num = seq_num,
+      .reply_cb = NULL,
+      .egress_port = port_num,
+  };
+
+  BmErr err;
+  bm_err_report(err, bcmp_tx_port(ctx));
+
+  return err;
+}
+
+/*!
+ @brief Propogate resource request to other nodes on network
+
+ @details Will request to send information info to all other online ports on
+          the network. add_resource_update_id must be invoked before this 
+          function.
+
+ @param data data from request with updated resource ID
+
+ @return BmOK on success
+         BmEBADMSG if the packet information is not valid
+         BmErr on failure
+ */
+static BmErr resource_propogate(BcmpProcessData data) {
+  uint8_t *rep = data.payload;
+  uint16_t rep_size = data.size;
+  uint8_t ingress_port = data.ingress_port;
+
+  uint8_t num_ports = bm_l2_get_port_count();
+  BcmpTxCtx ctx = {
+      .dst = data.dst,
+      .type = BcmpResourceRequestMessage,
+      .data = rep,
+      .size = rep_size,
+      .seq_num = 0,
+      .reply_cb = resource_discovery_reply_cb,
+      .egress_port = 1,
+  };
+
+  // Send request to all ports besides ingress port and offline ports
+  for (; ctx.egress_port <= num_ports; ctx.egress_port++) {
+    if (ctx.egress_port == ingress_port ||
+        !bm_l2_get_port_state(ctx.egress_port - 1)) {
+      continue;
+    }
+    BmErr tx_err = bcmp_tx_port(ctx);
+    if (tx_err != BmOK) {
+      bm_debug("Failed to forward bcmp resource request on port %u, error %d\n",
+               ctx.egress_port, tx_err);
+    };
+  }
+
+  return BmOK;
+}
+
+/*!
+ @brief Process an incoming resource request
+
+ @details Add requested resource to resource table. Also sends out requests to
+          other ports to propogate the resource of interest onto the network.
+
+ @param data
+
+ @return BmOK on success
+         
+         BmErr on failure
+ */
+static BmErr bcmp_process_resource_request(BcmpProcessData data) {
+  ResourceInfo *req = (ResourceInfo *)data.payload;
+  if (!resource_info_valid(req, data.size)) {
+    return BmEBADMSG;
+  }
+
+  // Copy over data to reply and let callback manipulate fields in reply
+  uint8_t port_num = data.ingress_port;
+  BmErr err;
+  bm_err_report(err, add_resource_update_id(req, port_num));
+
+  // Reply with the information needed from the requestor
+  bm_err_check(err, resource_reply(data));
+
+  // Propogate resource information down the network
+  bm_err_check(err, resource_propogate(data));
+
+  return err;
+}
+
+/*!
   @brief Init the bcmp resource discovery module.
 */
 BmErr bcmp_resource_discovery_init(void) {
@@ -209,6 +404,16 @@ BmErr bcmp_resource_discovery_init(void) {
       false,
       bcmp_process_resource_discovery_reply,
   };
+  BcmpPacketCfg exchange_request = {
+      false,
+      true,
+      bcmp_process_resource_request,
+  };
+  BcmpPacketCfg exchange_reply = {
+      true,
+      false,
+      NULL,
+  };
 
   PUB_LIST.start = NULL;
   PUB_LIST.end = NULL;
@@ -221,9 +426,13 @@ BmErr bcmp_resource_discovery_init(void) {
   if (PUB_LIST.lock && SUB_LIST.lock) {
     err = BmOK;
   }
+  bm_err_check(err, routing_init());
   bm_err_check(err,
                packet_add(&resource_request, BcmpResourceTableRequestMessage));
   bm_err_check(err, packet_add(&resource_reply, BcmpResourceTableReplyMessage));
+  bm_err_check(err, packet_add(&exchange_request, BcmpResourceRequestMessage));
+  bm_err_check(err, packet_add(&exchange_reply, BcmpResourceReplyMessage));
+
   return err;
 }
 
@@ -441,4 +650,43 @@ BcmpResourceTableReply *bcmp_resource_discovery_get_local_resources(void) {
     }
   }
   return reply_rval;
+}
+
+/*!
+ @brief Send a request to share a resource of interest on the network
+
+ @details Will send sequenced packets to each available port on the device.
+
+ @param info Resource information to share with neighbor
+
+ @return BmOK on success
+         BmErr upon failure
+ */
+BmErr bcmp_resource_send_request(const ResourceInfo *info) {
+  if (!info) {
+    return BmEINVAL;
+  }
+
+  uint16_t info_size = sizeof(ResourceInfo) + info->length;
+
+  uint8_t num_ports = bm_l2_get_port_count();
+  BcmpTxCtx ctx = {
+      .dst = &multicast_ll_addr,
+      .type = BcmpResourceRequestMessage,
+      .data = (uint8_t *)info,
+      .size = info_size,
+      .seq_num = 0,
+      .reply_cb = resource_discovery_reply_cb,
+      .egress_port = 1,
+  };
+
+  for (; ctx.egress_port <= num_ports; ctx.egress_port++) {
+    BmErr tx_err = bcmp_tx_port(ctx);
+    if (tx_err != BmOK) {
+      bm_debug("Failed to send bcmp resource request on port %u, error %d\n",
+               ctx.egress_port, tx_err);
+    }
+  }
+
+  return BmOK;
 }

@@ -26,4 +26,4 @@ DECLARE_FAKE_VALUE_FUNC(void *, bm_udp_get_payload, void *);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_udp_reference_update, void *);
 DECLARE_FAKE_VOID_FUNC(bm_udp_cleanup, void *);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bm_udp_tx_perform, void *, void *, uint32_t,
-                        const BmIpAddr *, uint16_t);
+                        const BmIpAddr *, const BmIpAddr *, uint16_t);

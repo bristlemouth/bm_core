@@ -15,7 +15,6 @@ typedef void *(*BcmpGetData)(void *payload);
 typedef BmIpAddr *(*BcmpGetIPAddr)(void *payload);
 typedef uint16_t (*BcmpGetChecksum)(void *payload, uint32_t size);
 typedef BmErr (*BcmpProcessCb)(BcmpProcessData data);
-typedef BmErr (*BcmpSequencedRequestCb)(uint8_t *payload);
 
 typedef struct {
   bool sequenced_reply;
@@ -27,6 +26,7 @@ BmErr packet_init(BcmpGetIPAddr src_ip, BcmpGetIPAddr dst_ip, BcmpGetData data,
                   BcmpGetChecksum checksum);
 BmErr packet_add(BcmpPacketCfg *cfg, BcmpMessageType type);
 uint16_t packet_checksum(void *payload, uint32_t size);
+const BcmpProcessData *packet_get_data(void);
 BmErr process_received_message(void *payload, uint32_t size);
 BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
                 uint32_t seq_num, BcmpSequencedRequestCb cb);

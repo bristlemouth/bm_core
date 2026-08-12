@@ -39,6 +39,29 @@ public:
     return ret;
   }
 
+  template <typename T> T *create_rnd_array(size_t count = 1) {
+    size_t size = sizeof(T) * count;
+    void *buf = malloc(size);
+    if (!buf) {
+      return NULL;
+    }
+
+    T *ret = static_cast<T *>(malloc(size));
+    if (!ret) {
+      free(buf);
+      return NULL;
+    }
+
+    rnd_array(static_cast<uint8_t *>(buf), size);
+
+    memcpy(ret, buf, size);
+
+    free(buf);
+
+    return ret;
+  }
+  template <typename T> void free_rnd_array(T *buf) { free(buf); }
+
   void rnd_array(uint8_t *buf, size_t size) {
     for (size_t i = 0U; i < size; i++) {
       buf[i] = rand() % UINT8_MAX;

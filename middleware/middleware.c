@@ -16,6 +16,7 @@ typedef struct {
   void *pcb;
   uint16_t port;
   BmMiddlewareRxCb rx_cb;
+  BmMiddlewareTxPrepCb tx_cb;
   BmMiddlewareRoutingCb routing_cb;
   BmIpAddr dest;
 } MiddlewareApplication;
@@ -170,6 +171,7 @@ BmErr bm_middleware_init(void) {
  */
 BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
                                     BmMiddlewareRxCb rx_cb,
+                                    BmMiddlewareTxPrepCb tx_cb,
                                     BmMiddlewareRoutingCb routing_cb) {
   LLItem *item = NULL;
 
@@ -182,6 +184,7 @@ BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
       .port = port,
       .dest = dest,
       .rx_cb = rx_cb,
+      .tx_cb = tx_cb,
       .routing_cb = routing_cb,
       .pcb = pcb,
   };
@@ -194,14 +197,36 @@ BmErr bm_middleware_add_application(uint16_t port, BmIpAddr dest,
 }
 
 /*!
+ @brief Set Link-Local Address egress port mask
+
+ @details Mask is at offset of 20 bits in accordance to 5.4.4.3 of the
+          Bristlemouth specification.
+
+ @param addr source address
+ @param egress_port_mask
+ */
+static inline void set_ll_egress_port(BmIpAddr *addr, uint8_t egress_port) {
+  addr->addr[2] = (addr->addr[2] & 0xF0) | (egress_port & 0x0F);
+}
+
+/*!
   @brief Middleware network transmit function
 
-  @param[in] *buf data to send over UDP
+  @details Will invoke the transmit preperation callback to serialize 
+           information in the source address. Sends the packet to all
+           ports specified in the egress mask.
+
+  @param port UDP application port to send data to
+  @param buf data to send over UDP
+  @param size size of buf in bytes
+  @param egress_mask port mask to send data to
+  @param arg argument to pass to the tx_cb
   
   @return BmOK on success
   @return BmErr on failure
 */
-BmErr bm_middleware_net_tx(uint16_t port, void *buf, uint32_t size) {
+BmErr bm_middleware_net_tx(uint16_t port, const void *buf, uint32_t size,
+                           uint16_t egress_mask, void *arg) {
   BmErr err;
   MiddlewareApplication *application = NULL;
 
@@ -213,9 +238,31 @@ BmErr bm_middleware_net_tx(uint16_t port, void *buf, uint32_t size) {
   // Don't try to transmit if the payload is too big
   err = BmEINVAL;
   if (buf && size <= max_payload_len_udp) {
-    err =
-        bm_udp_tx_perform(application->pcb, buf, size,
-                          (const void *)&application->dest, application->port);
+    err = BmOK;
+    // Use link-local address for routing purposes
+    BmIpAddr src_addr;
+    memcpy(&src_addr, bm_ip_get(0), sizeof(BmIpAddr));
+    if (application->tx_cb) {
+      application->tx_cb(&src_addr, arg);
+    }
+
+    for (uint8_t pos = 0; pos < bm_l2_get_port_count(); pos++) {
+      if (!(egress_mask & (1 << pos))) {
+        continue;
+      }
+
+      // Ports start at index 1
+      uint8_t port_num = pos + 1;
+      set_ll_egress_port(&src_addr, port_num);
+      BmErr tx_err = bm_udp_tx_perform(
+          application->pcb, buf, size, (const void *)&src_addr,
+          (const void *)&application->dest, application->port);
+
+      if (tx_err != BmOK) {
+        bm_debug("Could not transmit data on port %u, err: %d\n", port_num,
+                 tx_err);
+      }
+    }
   }
 
   return err;

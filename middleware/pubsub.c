@@ -4,6 +4,8 @@
 #include "bm_os.h"
 #include "messages/resource_discovery.h"
 #include "middleware.h"
+#include "packet.h"
+#include "resource_based_routing.h"
 #include "util.h"
 #include <string.h>
 
@@ -31,6 +33,25 @@ typedef struct {
   BmSubNode subscription_list;
 } PubSubCtx;
 
+static const BmIpAddr link_local_resource_addr = {{
+    0xFF,
+    0x02,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x02,
+}};
+
 static void bm_handle_msg(uint64_t node_id, void *buf, uint32_t size);
 static BmSubNode *delete_sub(const char *topic, uint16_t topic_len);
 static BmSubNode *get_sub(const char *topic, uint16_t topic_len,
@@ -38,6 +59,85 @@ static BmSubNode *get_sub(const char *topic, uint16_t topic_len,
 static BmSubNode *get_last_sub(void);
 static BmErr publish_data_locally(void *buf, uint32_t size);
 static PubSubCtx CTX;
+
+typedef struct {
+  ResourceId id;
+  ResourceOptions options;
+} PublishCtx;
+
+static inline ResourceId parse_resource_id(const BmIpAddr *src) {
+  ResourceId id = ((uint32_t)(src->addr[5] & 0x0F) << 16) |
+                  ((uint32_t)src->addr[6] << 8) | (uint32_t)src->addr[7];
+  return id;
+}
+
+static inline void serialize_resource_id(BmIpAddr *addr, ResourceId id) {
+  addr->addr[5] = (addr->addr[5] & 0xF0) | ((id >> 16) & 0x0F);
+  addr->addr[6] = (id >> 8) & 0xFF;
+  addr->addr[7] = id & 0xFF;
+}
+
+static inline ResourceOptions parse_resource_options(const BmIpAddr *src) {
+  uint32_t raw = ((uint32_t)src->addr[3] << 12) |
+                 ((uint32_t)src->addr[4] << 4) | (uint32_t)(src->addr[5] >> 4);
+
+  ResourceOptions opts = {0};
+  opts.timeout = (raw >> 16) & 0x0F;
+  opts.request_id = (raw >> 4) & 0xFFF;
+  opts.type = (raw >> 2) & 0x03;
+  opts.res = raw & 0x03;
+  return opts;
+}
+
+static inline void serialize_resource_options(BmIpAddr *addr,
+                                              ResourceOptions opts) {
+  uint32_t raw = ((uint32_t)opts.timeout << 16) |
+                 ((uint32_t)opts.request_id << 4) | ((uint32_t)opts.type << 2) |
+                 (uint32_t)opts.res;
+
+  addr->addr[3] = (raw >> 12) & 0xFF;
+  addr->addr[4] = (raw >> 4) & 0xFF;
+  addr->addr[5] = (addr->addr[5] & 0x0F) | ((raw & 0x0F) << 4);
+}
+
+/*!
+ @brief Determine if a pub/sub packet should get forwarded and/or submitted
+
+ @details If there is a local interest in this resource it is submitted up to
+          Middleware handling
+
+ @param ingress_port incoming port the packet was received on
+ @param egress_ports what ports to forward the packet on
+ @param src source address of the incoming packet, explains the resource
+            options and resource ID
+
+ @return true of the message should get routed
+         false otherwise
+ */
+static bool resource_based_routing_cb(uint8_t ingress_port,
+                                      uint16_t *egress_ports, BmIpAddr *src) {
+  // Reference 5.4.4.3 of the Bristlemouth spec on obtaining the resource ID
+  // and options for routing
+  ResourceId id = parse_resource_id(src);
+  ResourceOptions opts = parse_resource_options(src);
+  bool local_interest = false;
+  if (get_forward_port_mask(&id, ingress_port, egress_ports, &local_interest,
+                            opts) != BmOK) {
+    return false;
+  }
+
+  // Update with local ID so forwarded nodes can route the packet correctly
+  serialize_resource_id(src, id);
+
+  return local_interest;
+}
+
+static void resource_based_routing_tx_cb(BmIpAddr *src, void *arg) {
+  PublishCtx *ctx = (PublishCtx *)arg;
+
+  serialize_resource_options(src, ctx->options);
+  serialize_resource_id(src, ctx->id);
+}
 
 /*!
  @brief Initialize PubSub Module
@@ -49,10 +149,12 @@ static PubSubCtx CTX;
          BmErr on failure
  */
 BmErr bm_pubsub_init(void) {
-  // TODO: Add functionality for resource based routing as described in 5.4.4.3
-  // of the bristlemouth specification
-  return bm_middleware_add_application(resource_port, multicast_global_addr,
-                                       bm_handle_msg, NULL);
+  BmErr err;
+  bm_err_report(err,
+                bm_middleware_add_application(
+                    resource_port, link_local_resource_addr, bm_handle_msg,
+                    resource_based_routing_tx_cb, resource_based_routing_cb));
+  return err;
 }
 
 /*!
@@ -89,6 +191,7 @@ BmErr bm_sub(const char *topic, const BmPubSubCb callback) {
 BmErr bm_sub_wl(const char *topic, uint16_t topic_len,
                 const BmPubSubCb callback) {
   BmErr err = BmEINVAL;
+  BmSubNode *sub_node = NULL;
 
   do {
     // TODO - validate topic name if needed
@@ -108,7 +211,7 @@ BmErr bm_sub_wl(const char *topic, uint16_t topic_len,
 
     // Subscription already exists, add a new callback
     if (ptr) {
-
+      sub_node = ptr;
       BmPubSubNode *last_cb_node = ptr->sub.callbacks;
 
       // Go to last node (but stop if one already matches the requested callback)
@@ -168,6 +271,7 @@ BmErr bm_sub_wl(const char *topic, uint16_t topic_len,
 
         err = BmOK;
       }
+      sub_node = ptr->next;
     }
 
   } while (0);
@@ -182,7 +286,24 @@ BmErr bm_sub_wl(const char *topic, uint16_t topic_len,
       bm_debug("Error adding topic %.*s to BCMP resource table. Err: %d\n",
                topic_len, topic, err);
     }
+
     err = err == BmEAGAIN ? BmOK : err;
+    ResourceId id;
+    bm_err_check(err, add_local_resource(sub_node->sub.topic, topic_len, &id));
+    if (err == BmOK) {
+      uint16_t info_size = sizeof(ResourceInfo) + topic_len;
+      ResourceInfo *info = bm_malloc(info_size);
+      if (!info) {
+        return BmENOMEM;
+      }
+      info->length = topic_len;
+      info->resource_id = id;
+      //TODO: set when req/reply is supported
+      info->type = ResourceSubscription;
+      memcpy((void *)info->topic, topic, topic_len);
+      err = bcmp_resource_send_request(info);
+      bm_free(info);
+    }
   } else {
     bm_debug("Unable to Subscribe to topic\n");
   }
@@ -391,17 +512,37 @@ BmErr bm_pub_wl(const char *topic, uint16_t topic_len, const void *data,
       } while (0);
     }
 
-    err = bm_middleware_net_tx(resource_port, buf, message_size);
+    PublishCtx ctx = {0};
+
+    // TODO: update options once Req/Reply functionality is available
+    ResourceOptions *opts = &ctx.options;
+    opts->request_id = 0;
+    opts->timeout = 0;
+    opts->type = option_pubsub;
+
+    ResourceTrieElement element = {0};
+    err = get_topic_element(topic, topic_len, &element);
+    if (err == BmENODATA) {
+      //TODO: if element.wildcard match with no egress port, start resource discovery and add a local resource with no interest here
+      //if (element.wildcard_port_mask) {
+      //  ...
+      //}
+    }
+    uint16_t egress_mask = element.port_mask;
+    ctx.id = element.resource_id;
+
+    if (bcmp_resource_discovery_add_resource(
+            topic, topic_len, PUB, default_resource_add_timeout_ms) == BmOK) {
+      bm_debug("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
+    }
+
+    bm_err_check(err, bm_middleware_net_tx(resource_port, buf, message_size,
+                                           egress_mask, &ctx));
     bm_udp_cleanup(buf);
   } while (0);
 
   if (err != BmOK) {
     bm_debug("Unable to publish to topic, err: %d\n", err);
-  } else {
-    if (bcmp_resource_discovery_add_resource(
-            topic, topic_len, PUB, default_resource_add_timeout_ms) == BmOK) {
-      bm_debug("Added topic %.*s to BCMP resource table.\n", topic_len, topic);
-    }
   }
 
   return err;

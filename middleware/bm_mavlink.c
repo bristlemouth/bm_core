@@ -158,7 +158,7 @@ BmErr bm_mavlink_init(BmMavLinkInfo info, MAV_STATE init_state,
   }
 
   return bm_middleware_add_application(mavlink_port, link_local_mavlink_addr,
-                                       mavlink_rx_cb, mavlink_routing_cb);
+                                       mavlink_rx_cb, NULL, mavlink_routing_cb);
 }
 
 /*!
@@ -199,7 +199,8 @@ BmErr bm_mavlink_transmit(const mavlink_message_t *msg) {
   uint16_t mavlink_buf_len = mavlink_msg_to_send_buffer(mavlink_buf, msg);
   // Shrink buffer so MAVLINK_MAX_PACKET_LEN is not sent onto the line
   bm_ip_buf_shrink(udp_buf, mavlink_buf_len);
-  BmErr err = bm_middleware_net_tx(mavlink_port, udp_buf, mavlink_buf_len);
+  BmErr err = bm_middleware_net_tx(mavlink_port, udp_buf, mavlink_buf_len,
+                                   0xFFFF, NULL);
   bm_udp_cleanup(udp_buf);
 
   return err;
