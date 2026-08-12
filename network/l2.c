@@ -79,6 +79,14 @@ typedef struct {
 
 static BmL2Ctx CTX = {0};
 
+// Whether the underlying network device is powered/ready. Defaults to true so
+// callers who never touch bm_l2_set_device_live() (i.e. everyone except a
+// harness that power-cycles the device) see no behavior change. Guards
+// bm_l2_start_renegotiate_check() so its 100ms polling timer is never armed
+// against a device that is known to be unpowered or mid-reset - see
+// bm_l2_set_device_live().
+static bool s_device_live = true;
+
 /*!
   @brief Trigger a renegotiation event on the requested port
  
@@ -112,6 +120,10 @@ static void bm_l2_renegotiate(BmTimer timer) {
   @return BmErr on failure
  */
 static BmErr bm_l2_start_renegotiate_check(uint8_t port_num) {
+  if (!s_device_live) {
+    return BmENODEV;
+  }
+
   BmTimer timer = NULL;
   BmErr err = ll_get_item(&CTX.renegotiate_timer_list, port_num, &timer);
 
@@ -718,5 +730,38 @@ BmErr bm_l2_register_pcap_callback(L2PcapCb cb) {
   }
 
   CTX.pcap_cb = cb;
+  return BmOK;
+}
+
+/*!
+  @brief Tell L2 whether the underlying network device is powered/ready
+
+  @details Gates bm_l2_start_renegotiate_check() so its polling timer is never
+           armed against a device that is not live. Without this, a caller
+           that power-cycles the device (e.g. a bring-up harness) will still
+           have link_change(port, false) unconditionally (re)start the
+           renegotiate-check timer, which then polls PHY registers over SPI
+           from the Tmr Svc task every 100ms with no idea the chip is
+           unpowered or mid-reset - reads fail deterministically for the
+           entire down window.
+
+           Transitioning to not-live also stops any renegotiate timers
+           already running for every port, since link_change(false) may have
+           started one before the caller gets a chance to call this.
+           Transitioning to live is a simple ungate - timers are (re)started
+           the normal way, via a subsequent link_change(false) event.
+
+  @param live false when the device is known to be unpowered/not ready,
+              true when it is powered and ready again
+
+  @return BmOK
+ */
+BmErr bm_l2_set_device_live(bool live) {
+  s_device_live = live;
+  if (!live) {
+    for (uint8_t port_num = 1; port_num <= CTX.num_ports; port_num++) {
+      bm_l2_stop_renegotiate_check(port_num);
+    }
+  }
   return BmOK;
 }

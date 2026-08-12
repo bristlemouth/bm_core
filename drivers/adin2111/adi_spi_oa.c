@@ -30,6 +30,17 @@ static adi_eth_Result_e     oaSpiIntHandle          (adi_mac_Device_t *hDevice);
 static adi_eth_Result_e     oaPhyRegReadStart       (adi_mac_Device_t *hDevice, ADI_MAC_MDIOACC_0__t *mdioCmd, uint32_t prtad, uint32_t regAddr);
 static adi_eth_Result_e     oaPhyRegReadStep        (adi_mac_Device_t *hDevice, ADI_MAC_MDIOACC_0__t *mdioCmd);
 
+/* TEMPORARY DEBUG - REVERT BEFORE COMMIT.                                    */
+/* HAL_SpiReadWrite() invokes the registered SPI callback synchronously, at    */
+/* the end of its own body, on the caller's stack (adi_hal.c) - the vendor     */
+/* driver expects that callback to arrive from an ISR/DMA completion instead.  */
+/* So every state transition that issues another SPI transfer nests one more  */
+/* oaStateMachine()/HAL_SpiReadWrite() frame pair rather than unwinding, and   */
+/* the recursion only ends when the device has nothing left to move. These     */
+/* two counters measure how deep that actually gets under sustained RX load.   */
+volatile uint32_t g_oa_sm_depth;
+volatile uint32_t g_oa_sm_depth_max;
+
 /*!
  * @brief           MAC-PHY interrupt service routine.
  *
@@ -108,6 +119,14 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
     uint32_t                        Event = ADI_MAC_CALLBACK_STATUS_OK;
     uint8_t                         timestampBytes[8];
     static ADI_MAC_MDIOACC_0__t     mdioCmd;
+
+    /* TEMPORARY DEBUG - REVERT BEFORE COMMIT. Measures how deep the           */
+    /* synchronous re-entry of this function nests under RX load - see the      */
+    /* counters' declaration above.                                            */
+    if (++g_oa_sm_depth > g_oa_sm_depth_max)
+    {
+        g_oa_sm_depth_max = g_oa_sm_depth;
+    }
 
     exst = 0;
 
@@ -749,6 +768,13 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
             ADI_HAL_ENABLE_IRQ(hDevice->adinDevice);
             break;
     }
+
+    /* TEMPORARY DEBUG - REVERT BEFORE COMMIT. */
+    if (g_oa_sm_depth > 0)
+    {
+        g_oa_sm_depth--;
+    }
+
     return result;
 }
 

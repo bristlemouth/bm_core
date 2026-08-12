@@ -37,6 +37,16 @@ static HAL_Callback_t ADIN2111_MAC_INT_CALLBACK = NULL;
 static void *ADIN2111_MAC_INT_CALLBACK_PARAM = NULL;
 static struct LinkChange LINK_CHANGE = {NULL, ADIN2111_PORT_1};
 
+// True only while the ADIN2111 is powered and fully initialized - i.e.
+// between adin2111_netdevice_enable() succeeding and
+// adin2111_netdevice_disable() being called. bm_l2_start_renegotiate_check()
+// (l2.c) starts a 100 ms timer per down port with no knowledge of device
+// power state; without this gate, adin2111_netdevice_renegotiate() drives SPI
+// against DEVICE_STRUCT while it is powered off or mid-reset, which reads
+// back all zeros and surfaces as a spurious "Renegotiation failed, 0x13".
+// See eHdr-debug.txt for the investigation that found this.
+static volatile bool DEVICE_LIVE = false;
+
 /**************** Private Helper Functions ****************/
 /*!
   @brief Register interrupt pin callback for the ADIN2111 network device
@@ -182,6 +192,62 @@ static inline adin2111_Port_e driver_port(uint8_t port_num) {
   default:
     return ADIN2111_PORT_NUM;
   }
+}
+
+// ---------------------------------------------------------------------------
+// TEMPORARY DEBUG for src/apps/adin_init_time_testing - REVERT BEFORE COMMIT.
+//
+// Exposes adin2111_AutoNegotiateStatus() (otherwise static to this file) so
+// the harness can poll AN_STATUS/AN_STATUS_EXTRA while it waits for
+// link_change(up) to fire, to tell apart "AN itself is slow to resolve"
+// (link-up-issue-brainstorm.md hypothesis 1) from "AN resolved promptly but
+// the notification arrived late" (hypothesis 2). Gated on DEVICE_LIVE for the
+// same reason adin2111_netdevice_renegotiate() is: driving SPI while the rail
+// is down or mid-reset reads back all zeros, indistinguishable from a real
+// fault.
+BmErr adin2111_debug_get_an_status(uint8_t port_num, adi_phy_AnStatus_t *status) {
+  memset(status, 0, sizeof(*status));
+  if (!DEVICE_LIVE) {
+    return BmENODEV;
+  }
+
+  adin2111_Port_e port = driver_port(port_num);
+  if ((port != ADIN2111_PORT_1) && (port != ADIN2111_PORT_2)) {
+    return BmEINVAL;
+  }
+
+  adi_eth_Result_e result =
+      adin2111_AutoNegotiateStatus(&DEVICE_STRUCT, port, status);
+  return (result == ADI_ETH_SUCCESS) ? BmOK : BmENODEV;
+}
+
+// TEMPORARY DEBUG for src/apps/adin_init_time_testing - REVERT BEFORE COMMIT.
+//
+// Raw PHY register read, so the app can dump the same register set the RPi-side
+// phy-tools/adin_phy_dump reads and diff the two ends of the link directly.
+// reg_addr uses ADI's 0xDDRRRR encoding (MMD device address in the top byte),
+// i.e. exactly the ADDR_* macros in ADIN2111_phy_addr_rdef.h.
+//
+// DEVICE_LIVE-gated for the same reason as adin2111_debug_get_an_status(): with
+// the rail down or mid-reset every read returns 0, which is indistinguishable
+// from a register whose value is genuinely zero.
+BmErr adin2111_debug_phy_read(uint8_t port_num, uint32_t reg_addr,
+                              uint16_t *val) {
+  if (val == NULL) {
+    return BmEINVAL;
+  }
+  *val = 0;
+  if (!DEVICE_LIVE) {
+    return BmENODEV;
+  }
+
+  adin2111_Port_e port = driver_port(port_num);
+  if ((port != ADIN2111_PORT_1) && (port != ADIN2111_PORT_2)) {
+    return BmEINVAL;
+  }
+
+  adi_eth_Result_e result = adin2111_PhyRead(&DEVICE_STRUCT, port, reg_addr, val);
+  return (result == ADI_ETH_SUCCESS) ? BmOK : BmENODEV;
 }
 
 /*!
@@ -339,7 +405,9 @@ static BmErr adin2111_netdevice_enable(void) {
   }
 
 end:
-  if (err != BmOK && NETWORK_DEVICE.callbacks->power) {
+  if (err == BmOK) {
+    DEVICE_LIVE = true;
+  } else if (NETWORK_DEVICE.callbacks->power) {
     NETWORK_DEVICE.callbacks->power(false);
   }
 
@@ -371,6 +439,12 @@ inline static BmErr adin2111_netdevice_enable_(void *self) {
  */
 static BmErr adin2111_netdevice_disable(void) {
   BmErr err = BmEINVAL;
+
+  // Close the gate before touching the hardware, not after: the renegotiate
+  // timer must stop landing new SPI transactions before we start bringing the
+  // ports down, not merely before the rail is cut at the end of this
+  // function.
+  DEVICE_LIVE = false;
 
   for (int i = 1; i <= ADIN2111_PORT_NUM; i++) {
     err = adin2111_netdevice_disable_port(i);
@@ -421,6 +495,16 @@ inline static BmErr adin2111_netdevice_renegotiate(uint8_t port_num,
   adi_eth_Result_e result = ADI_ETH_SUCCESS;
   adi_phy_AnStatus_t status = {};
   adin2111_Port_e port = driver_port(port_num);
+
+  // The device is powered off or mid-(re)init - the renegotiate-check timer
+  // (l2.c) runs on a fixed period with no knowledge of that. Driving SPI here
+  // anyway reads back all zeros (indistinguishable from a real fault) and is
+  // never useful, so skip silently rather than reporting a spurious failure.
+  // See eHdr-debug.txt.
+  if (!DEVICE_LIVE) {
+    *renegotiated = false;
+    return BmOK;
+  }
 
   switch (port) {
   case ADIN2111_PORT_1:

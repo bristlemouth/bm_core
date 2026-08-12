@@ -29,6 +29,7 @@ BmErr bm_l2_netif_set_power(bool on);
 BmErr bm_l2_netif_enable_disable_port(uint8_t port_num, bool enable);
 BmErr bm_l2_register_link_local_routing_callback(L2LinkLocalRoutingCb cb);
 BmErr bm_l2_register_pcap_callback(L2PcapCb cb);
+BmErr bm_l2_set_device_live(bool live);
 
 #ifdef __cplusplus
 }
