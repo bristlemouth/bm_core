@@ -32,6 +32,7 @@ typedef enum {
   BmEALREADY = 114,
   BmEINPROGRESS = 115,
   BmECANCELED = 125,
+  BmENOSPC = 133,
   BmENOTINTREC = 140,
 } BmErr;
 
