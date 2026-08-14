@@ -351,7 +351,7 @@ TEST_F(PubSub, publish) {
       bm_pub_wl(topic, BM_TOPIC_MAX_LEN, buf, array_size(buf), type, version),
       BmOK);
 
-  free(message);
+  bm_free(message);
   RESET_FAKE(bcmp_resource_discovery_add_resource);
 }
 
