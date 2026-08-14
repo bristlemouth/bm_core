@@ -45,6 +45,11 @@ struct PacketInfo {
 
 static struct PacketInfo PACKET;
 
+static void swap_ftp_address(BmFtpAddress *address) {
+  swap_64bit(&address->src_node_id);
+  swap_64bit(&address->dst_node_id);
+}
+
 /*!
  @brief Check Endianness Of Message Type And Format Little Endian
 
@@ -194,6 +199,59 @@ static void check_endianness(void *buf, BcmpMessageType type) {
     case BcmpDFURebootMessage:
     case BcmpDFUBootCompleteMessage:
       break;
+    case BcmpFTPStartMessage: {
+      BmFtpStart *start = (BmFtpStart *)buf;
+      swap_ftp_address(&start->addresses);
+      swap_32bit(&start->transfer_id);
+      swap_32bit(&start->total_size);
+      swap_16bit(&start->requested_chunk_size);
+      swap_16bit(&start->crc16);
+      swap_16bit(&start->sink_spec_len);
+    } break;
+    case BcmpFTPAckMessage: {
+      BmFtpAck *ack = (BmFtpAck *)buf;
+      swap_ftp_address(&ack->addresses);
+      swap_32bit(&ack->transfer_id);
+      swap_32bit(&ack->total_size);
+      swap_16bit(&ack->crc16);
+      swap_16bit(&ack->chunk_size);
+    } break;
+    case BcmpFTPChunkReqMessage: {
+      BmFtpChunkRequest *request = (BmFtpChunkRequest *)buf;
+      swap_ftp_address(&request->addresses);
+      swap_32bit(&request->transfer_id);
+      swap_32bit(&request->offset);
+      swap_16bit(&request->length);
+      swap_16bit(&request->reserved);
+    } break;
+    case BcmpFTPChunkMessage: {
+      BmFtpChunk *chunk = (BmFtpChunk *)buf;
+      swap_ftp_address(&chunk->addresses);
+      swap_32bit(&chunk->transfer_id);
+      swap_32bit(&chunk->offset);
+      swap_16bit(&chunk->payload_length);
+      swap_16bit(&chunk->reserved);
+    } break;
+    case BcmpFTPEndMessage: {
+      BmFtpEnd *end = (BmFtpEnd *)buf;
+      swap_ftp_address(&end->addresses);
+      swap_32bit(&end->transfer_id);
+      swap_16bit(&end->reserved);
+      swap_32bit(&end->bytes_received);
+      swap_16bit(&end->running_crc16);
+      swap_16bit(&end->reserved2);
+    } break;
+    case BcmpFTPAbortMessage: {
+      BmFtpAbort *abort = (BmFtpAbort *)buf;
+      swap_ftp_address(&abort->addresses);
+      swap_32bit(&abort->transfer_id);
+    } break;
+    case BcmpFTPFetchMessage: {
+      BmFtpFetch *fetch = (BmFtpFetch *)buf;
+      swap_ftp_address(&fetch->addresses);
+      swap_32bit(&fetch->transfer_id);
+      swap_16bit(&fetch->source_spec_len);
+    } break;
     case BcmpHeaderMessage: {
       BcmpHeader *header = (BcmpHeader *)buf;
       swap_16bit(&header->type);

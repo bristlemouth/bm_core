@@ -26,7 +26,6 @@ set(NETWORK_DIR ${CMAKE_CURRENT_LIST_DIR}/../network)
 set(BCMP_DIR ${CMAKE_CURRENT_LIST_DIR}/../bcmp)
 set(INTEGRATIONS_DIR ${CMAKE_CURRENT_LIST_DIR}/../integrations)
 set(MIDDLEWARE_DIR ${CMAKE_CURRENT_LIST_DIR}/../middleware)
-set(BM_COMMON_MESSAGES_DIR ${CMAKE_CURRENT_LIST_DIR}/../bm_common_messages)
 set(COMMON_DIR ${CMAKE_CURRENT_LIST_DIR}/../common)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_LIST_DIR}/../third_party)
 set(MOCK_DIR ${CMAKE_CURRENT_LIST_DIR}/mocks)
@@ -152,8 +151,33 @@ set (PACKET_SRCS
 
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/ftp_stub.c
 )
 create_gtest("packet" "${PACKET_SRCS}")
+
+# FTP CORE TESTS
+set (FTP_CORE_TEST_SRCS
+    # File we're testing
+    ${BCMP_DIR}/ftp_core.c
+
+    # Supporting Files
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/device_stub.c
+    ${STUB_DIR}/packet_stub.c
+)
+create_gtest("ftp_core" "${FTP_CORE_TEST_SRCS}")
+
+# FTP ENDPOINT TESTS
+set (FTP_ENDPOINT_TEST_SRCS
+    # File we're testing
+    ${BCMP_DIR}/ftp_endpoint.c
+)
+create_gtest("ftp_endpoint" "${FTP_ENDPOINT_TEST_SRCS}")
 
 # BCMP TESTS
 set (BCMP_SRCS
@@ -178,6 +202,7 @@ set (BCMP_SRCS
     ${STUB_DIR}/neighbors_stub.c
     ${STUB_DIR}/bm_ip_stub.c
     ${STUB_DIR}/bm_adin2111_stub.c
+    ${STUB_DIR}/ftp_stub.c
 )
 create_gtest("bcmp" "${BCMP_SRCS}")
 
@@ -387,26 +412,9 @@ set (CBOR_SEVICE_HELPER_SRCS
 
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/ftp_stub.c
 )
 create_gtest("cbor_service_helper" "${CBOR_SEVICE_HELPER_SRCS}")
-
-# METRICS REPLY MSG TESTS
-set (METRICS_REPLY_MSG_SRCS
-    # File we're testing
-    ${BM_COMMON_MESSAGES_DIR}/metrics_reply_msg.c
-
-    # Supporting Files
-    ${BM_COMMON_MESSAGES_DIR}/bm_messages_helper.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborerrorstrings.c
-    ${THIRD_PARTY_DIR}/tinycbor/src/cborvalidation.c
-
-    # Stubs
-    ${STUB_DIR}/bm_os_stub.c
-)
-create_gtest("metrics_reply_msg" "${METRICS_REPLY_MSG_SRCS}")
 
 # ECHO SERVICE TESTS
 set (ECHO_SEVICE_SRCS
@@ -471,6 +479,7 @@ set (SYS_INFO_SERVICE_SRCS
     ${STUB_DIR}/sys_info_svc_reply_msg_stub.c
     ${STUB_DIR}/cbor_service_helper_stub.c
     ${STUB_DIR}/device_stub.c
+    ${STUB_DIR}/ftp_stub.c
 )
 create_gtest("sys_info_service" "${SYS_INFO_SERVICE_SRCS}")
 
@@ -515,6 +524,7 @@ set (CONFIGURATION_SRCS
 
     # Stubs
     ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/ftp_stub.c
     ${THIRD_PARTY_DIR}/tinycbor/src/cborparser.c
     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder_float.c
     ${THIRD_PARTY_DIR}/tinycbor/src/cborencoder.c
@@ -630,6 +640,7 @@ set(BRISTLEMOUTH_SRCS
     ${STUB_DIR}/bm_service_stub.c
     ${STUB_DIR}/pubsub_stub.c
     ${STUB_DIR}/topology_stub.c
+    ${STUB_DIR}/ftp_stub.c
 )
 create_gtest("bristlemouth" "${BRISTLEMOUTH_SRCS}")
 
