@@ -17,6 +17,8 @@ typedef BmErr (*BmFtpFinalizeFn)(void *context, uint32_t total_size,
 
 typedef struct {
   void *context;
+  uint32_t total_size;
+  uint16_t crc16;
   BmFtpReadAtFn read_at;
   BmFtpCloseFn close;
 } BmFtpSource;

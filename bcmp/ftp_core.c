@@ -148,7 +148,7 @@ BmErr bm_ftp_init(void) {
   if (!ftp_event_queue) {
     return BmENOMEM;
   }
-
+  bm_err_check(err, bm_ftp_coordinator_init());
   bm_err_check(err, bm_task_create(bm_ftp_event_thread, "FTP Event", 1024, NULL,
                                    BM_FTP_EVENT_TASK_PRIORITY, NULL));
   bm_err_check(err, packet_add(&packet, BcmpFTPStartMessage));

@@ -5,6 +5,7 @@ set(SOURCES
     dfu_core.c
     dfu_host.c
     ftp_core.c
+    ftp_coordinator.c
     ftp_endpoint.c
     heartbeat.c
     info.c

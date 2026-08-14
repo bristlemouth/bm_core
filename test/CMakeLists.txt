@@ -169,6 +169,7 @@ set (FTP_CORE_TEST_SRCS
     ${STUB_DIR}/bcmp_stub.c
     ${STUB_DIR}/device_stub.c
     ${STUB_DIR}/packet_stub.c
+    ${STUB_DIR}/ftp_coordinator_stub.c
 )
 create_gtest("ftp_core" "${FTP_CORE_TEST_SRCS}")
 
@@ -178,6 +179,25 @@ set (FTP_ENDPOINT_TEST_SRCS
     ${BCMP_DIR}/ftp_endpoint.c
 )
 create_gtest("ftp_endpoint" "${FTP_ENDPOINT_TEST_SRCS}")
+
+# FTP COORDINATOR TESTS
+set (FTP_COORDINATOR_TEST_SRCS
+    # Files we're testing
+    ${BCMP_DIR}/ftp_core.c
+    ${BCMP_DIR}/ftp_coordinator.c
+    ${BCMP_DIR}/ftp_endpoint.c
+
+    # Supporting Files
+    ${COMMON_DIR}/util.c
+    ${COMMON_DIR}/ll.c
+
+    # Stubs
+    ${STUB_DIR}/bm_os_stub.c
+    ${STUB_DIR}/bcmp_stub.c
+    ${STUB_DIR}/device_stub.c
+    ${STUB_DIR}/packet_stub.c
+)
+create_gtest("ftp_coordinator" "${FTP_COORDINATOR_TEST_SRCS}")
 
 # BCMP TESTS
 set (BCMP_SRCS

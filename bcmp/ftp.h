@@ -30,9 +30,16 @@ typedef struct {
 typedef BmErr (*BmFtpEventHandler)(const BmFtpEvent *event, void *context);
 
 BmErr bm_ftp_init(void);
+BmErr bm_ftp_coordinator_init(void);
+BmErr bm_ftp_coordinator_process_event(const BmFtpEvent *event, void *context);
 BmQueue bm_ftp_get_event_queue(void);
 void bm_ftp_set_event_handler(BmFtpEventHandler handler, void *context);
 
+BmErr bm_ftp_start_fetch(uint64_t source_node_id, uint32_t transfer_id,
+                         BmFtpEndpointKind source_kind,
+                         const uint8_t *source_spec, uint16_t source_spec_len,
+                         BmFtpEndpointKind sink_kind, const uint8_t *sink_spec,
+                         uint16_t sink_spec_len);
 BmErr bm_ftp_send_ack(uint64_t dst_node_id, uint32_t transfer_id, bool success,
                       BmFtpErr error, uint32_t total_size, uint16_t crc16,
                       uint16_t chunk_size);
@@ -40,6 +47,8 @@ BmErr bm_ftp_send_start(uint64_t dst_node_id, uint32_t transfer_id,
                         uint32_t total_size, uint16_t requested_chunk_size,
                         uint16_t crc16, BmFtpEndpointKind sink_kind,
                         const uint8_t *sink_spec, uint16_t sink_spec_len);
+BmErr bm_ftp_send_end(uint64_t dst_node_id, uint32_t transfer_id, bool success,
+                      BmFtpErr error, uint32_t bytes_received, uint16_t running_crc16);
 BmErr bm_ftp_send_fetch(uint64_t dst_node_id, uint32_t transfer_id,
                         BmFtpEndpointKind source_kind,
                         const uint8_t *source_spec, uint16_t source_spec_len);
