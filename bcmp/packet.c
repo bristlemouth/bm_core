@@ -9,7 +9,7 @@
 #include <string.h>
 
 #define default_message_timeout_ms 24
-#define message_timer_expiry_period_ms 12
+#define message_timer_expiry_period_ms 150
 
 /* This is to maintain backwards compatibility with older versions of
  * bm_core < v0.13.0, TODO: remove once resource based routing is
