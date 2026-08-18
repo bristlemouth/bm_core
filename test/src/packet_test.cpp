@@ -24,6 +24,9 @@ DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpProcessData);
 
 static rnd_gen RND;
 static bool fail_checksum;
+static uint32_t ref;
+static BmTimerCb timer_cb;
+static uint32_t send_count;
 
 class Packet : public ::testing::Test {
 public:
@@ -50,6 +53,24 @@ protected:
     PacketTestData *ret = (PacketTestData *)payload;
     return (BmIpAddr *)&ret->dst_addr;
   }
+  static void increment_ref(void *payload) {
+    (void)payload;
+    ref++;
+  }
+
+  static void decrement_ref(void *payload) {
+    (void)payload;
+    ref--;
+  }
+
+  static BmErr send_packet(void *payload) {
+    (void)payload;
+
+    send_count++;
+
+    return BmOK;
+  }
+
   static uint16_t calc_checksum(void *payload, uint32_t size) {
     if (fail_checksum) {
       return 100;
@@ -57,7 +78,23 @@ protected:
       return 0;
     }
   }
+
+  static BmTimer bm_timer_create_stub(const char *name, uint32_t period_ms,
+                                      bool auto_reload, void *time_id,
+                                      BmTimerCb cb) {
+    (void)name;
+    (void)period_ms;
+    (void)auto_reload;
+    (void)time_id;
+
+    timer_cb = cb;
+
+    return (BmTimer)bm_timer_create_fake.return_val;
+  }
+
   void SetUp() override {
+    ref = 0;
+    send_count = 0;
     fail_checksum = false;
     test_payload_size = RND.rnd_int(max_payload_size, min_payload_size);
     test_payload = (uint8_t *)calloc(test_payload_size, sizeof(uint8_t));
@@ -70,8 +107,18 @@ protected:
         (BmSemaphore)RND.rnd_int(UINT32_MAX, UINT16_MAX);
     bm_timer_create_fake.return_val =
         (BmTimer)RND.rnd_int(UINT32_MAX, UINT16_MAX);
+    bm_timer_create_fake.custom_fake = bm_timer_create_stub;
     bm_timer_start_fake.return_val = BmOK;
-    ASSERT_EQ(packet_init(src_ip, dst_ip, get_data, calc_checksum), BmOK);
+    ASSERT_EQ(packet_init((BcmpPacketCb){
+                  .src_ip = src_ip,
+                  .dst_ip = dst_ip,
+                  .data = get_data,
+                  .checksum = calc_checksum,
+                  .increment = increment_ref,
+                  .decrement = decrement_ref,
+                  .send = send_packet,
+              }),
+              BmOK);
 
     static BcmpPacketCfg heartbeat_packet = {
         false,
@@ -212,6 +259,7 @@ TEST_F(Packet, sequence_request) {
   BcmpHeader header;
   size_t iterations = RND.rnd_int(UINT16_MAX, UINT8_MAX);
 
+  bm_ticks_to_ms_fake.return_val = 0;
   data.payload = test_payload;
   RND.rnd_array((uint8_t *)data.src_addr, sizeof(data.src_addr));
   RND.rnd_array((uint8_t *)data.dst_addr, sizeof(data.dst_addr));
@@ -229,15 +277,19 @@ TEST_F(Packet, sequence_request) {
   bm_semaphore_take_fake.return_val = BmOK;
   bm_semaphore_give_fake.return_val = BmOK;
   for (size_t i = 0; i < iterations; i++) {
+    uint32_t ref_before = ref;
     ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
                         sizeof(request_neighbor_info),
                         BcmpNeighborProtoRequestMessage, 0,
                         bcmp_sequence_request),
               0);
     ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, i);
+    // Make sure reference gets updated
+    EXPECT_LT(ref_before, ref);
   }
 
   for (size_t i = 0; i < iterations; i++) {
+    uint32_t ref_before = ref;
     header = payload_stuffer(data.payload, (void *)&reply_neighbor_info,
                              sizeof(reply_neighbor_info),
                              BcmpNeighborProtoReplyMessage, i);
@@ -247,6 +299,8 @@ TEST_F(Packet, sequence_request) {
         BmOK);
     ASSERT_EQ(bcmp_sequence_request_fake.call_count, i + 1);
     ASSERT_EQ(bcmp_neighbor_info_fake.call_count, 0);
+    // Make sure reference gets updated
+    EXPECT_GT(ref_before, ref);
   }
 
   // Test without callback
@@ -273,6 +327,28 @@ TEST_F(Packet, sequence_request) {
     ASSERT_EQ(bcmp_sequence_request_fake.call_count, 0);
     ASSERT_EQ(bcmp_neighbor_info_fake.call_count, i + 1);
   }
+
+  // Test timeout and retry logic for sequenced request
+  ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
+                      sizeof(request_neighbor_info),
+                      BcmpNeighborProtoRequestMessage, 0, NULL),
+            BmOK);
+  uint32_t send_count_before = 0;
+  for (size_t i = 0; i < packet_retry_count; i++) {
+    send_count_before = send_count;
+    // Continue updating tick offset to force a timeout
+    bm_ticks_to_ms_fake.return_val += UINT16_MAX;
+    timer_cb(NULL);
+    EXPECT_GT(send_count, send_count_before);
+  }
+  // Should not send again
+  uint32_t ref_before = ref;
+  bm_ticks_to_ms_fake.return_val += UINT16_MAX;
+  send_count_before = send_count;
+  timer_cb(NULL);
+  EXPECT_EQ(send_count, send_count_before);
+  // Make sure reference gets decremented
+  EXPECT_GT(ref_before, ref);
 
   packet_remove(BcmpNeighborProtoRequestMessage);
   packet_remove(BcmpNeighborProtoReplyMessage);
