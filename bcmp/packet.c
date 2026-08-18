@@ -27,15 +27,12 @@ typedef struct BcmpRequestElement {
   uint32_t timeout_ms;
   uint32_t seq_num;
   BcmpSequencedRequestCb cb;
+  void *buf;
+  uint8_t retries;
 } BcmpRequestElement;
 
 struct PacketInfo {
-  struct {
-    BcmpGetIPAddr src_ip;
-    BcmpGetIPAddr dst_ip;
-    BcmpGetData data;
-    BcmpGetChecksum checksum;
-  } cb;
+  BcmpPacketCb cb;
   bool initialized;
   BmSemaphore sequence_list_semaphore;
   BmTimer timer;
@@ -219,9 +216,12 @@ static bool sequence_list_add_message(BcmpRequestElement message,
   if (bm_semaphore_take(PACKET.sequence_list_semaphore,
                         default_message_timeout_ms) == BmOK) {
     item = ll_create_item(item, &message, sizeof(BcmpRequestElement), seq_num);
-    if (item) {
-      ll_item_add(&PACKET.sequence_list, item);
+    if (item && ll_item_add(&PACKET.sequence_list, item) == BmOK) {
+      // Increase number of packet references
+      PACKET.cb.increment(message.buf);
       ret = true;
+    } else {
+      ll_delete_item(item);
     }
     bm_semaphore_give(PACKET.sequence_list_semaphore);
   }
@@ -237,6 +237,15 @@ static bool sequence_list_add_message(BcmpRequestElement message,
  @return false if message is not removed successfully
  */
 static bool sequence_list_remove_message(uint32_t seq_num) {
+  BcmpRequestElement *element = NULL;
+  if (ll_get_item(&PACKET.sequence_list, seq_num, (void **)&element) != BmOK) {
+    return false;
+  }
+
+  if (element->buf) {
+    PACKET.cb.decrement(element->buf);
+  }
+
   bool ret = false;
   if (ll_remove(&PACKET.sequence_list, seq_num) == BmOK) {
     ret = true;
@@ -255,37 +264,58 @@ static bool sequence_list_remove_message(uint32_t seq_num) {
  @return new item that has been added
  @return NULL if item is not able to be created
  */
-static BcmpRequestElement new_sequence_list_item(BcmpMessageType type,
-                                                 uint32_t timeout_ms,
-                                                 uint32_t seq_num,
-                                                 BcmpSequencedRequestCb cb) {
-  BcmpRequestElement element;
-  element.type = type;
-  element.timestamp_ms = bm_ticks_to_ms(bm_get_tick_count());
-  element.timeout_ms = timeout_ms;
-  element.cb = cb;
-  element.seq_num = seq_num;
+static BcmpRequestElement
+new_sequence_list_item(BcmpMessageType type, uint32_t timeout_ms,
+                       uint32_t seq_num, BcmpSequencedRequestCb cb, void *buf) {
+  BcmpRequestElement element = {
+      .type = type,
+      .timestamp_ms = bm_ticks_to_ms(bm_get_tick_count()),
+      .timeout_ms = timeout_ms,
+      .seq_num = seq_num,
+      .cb = cb,
+      .buf = buf,
+      .retries = 0,
+  };
   return element;
 }
 
 static BmErr timer_traverse_cb(void *data, void *arg) {
-  BmErr err = BmEINVAL;
-  BcmpRequestElement *element = NULL;
   (void)arg;
 
-  if (data) {
-    err = BmOK;
-    element = (BcmpRequestElement *)data;
-    if (bm_ticks_to_ms(bm_get_tick_count()) - element->timestamp_ms >
-        element->timeout_ms) {
-      if (element->cb) {
-        element->cb(NULL);
-      }
-      err = ll_remove(&PACKET.sequence_list, element->seq_num);
-    }
+  if (!data) {
+    return BmEINVAL;
   }
 
-  return err;
+  BcmpRequestElement *element = (BcmpRequestElement *)data;
+  uint32_t ms = bm_ticks_to_ms(bm_get_tick_count());
+  if (ms - element->timestamp_ms < element->timeout_ms) {
+    return BmOK;
+  }
+
+  if (element->retries++ < packet_retry_count) {
+    element->timestamp_ms = ms;
+    BmErr err = PACKET.cb.send(element->buf);
+    if (err == BmOK) {
+      bm_debug("Retrying packet request seq_num: %" PRIu32
+               ", retry_count: %u\n",
+               element->seq_num, element->retries);
+    } else {
+      bm_debug("Failed to send packet request seq_num: %" PRIu32 " err: %d\n",
+               element->seq_num, err);
+    }
+    return BmOK;
+  }
+
+  bm_debug("Failed to receive sequenced reply for: %" PRIu32 " \n",
+           element->seq_num);
+  if (element->cb) {
+    element->cb(NULL);
+  }
+
+  PACKET.cb.decrement(element->buf);
+  ll_remove(&PACKET.sequence_list, element->seq_num);
+
+  return BmOK;
 }
 
 /*!
@@ -306,15 +336,21 @@ static void sequence_list_timer_callback(BmTimer tmr) {
 }
 
 /*!
- @brief Find Sequenced Item In Linked List
+ @brief Claim A Sequenced Request's Reply Callback
 
- @param seq_num number if item to find in the linked list
+ @details Looks up the request, takes its callback and removes it
+          from the list under a single lock hold, so the returned
+          callback cannot be freed out from under the caller by
+          the timeout timer.
 
- @return item if it is found in linked list
- @return NULL if item is not able to found
+ @param seq_num sequence number of the request being replied to
+ @param cb where the claimed callback is written
+
+ @return BmOK on success
+         BmErr on failure
  */
-//TODO: this should be offloaded to another task
-static BcmpRequestElement *sequence_list_find_message(uint32_t seq_num) {
+static BmErr sequence_list_claim_message(uint32_t seq_num,
+                                         BcmpSequencedRequestCb *cb) {
   BmErr err = BmEINPROGRESS;
   BcmpRequestElement *element = NULL;
   if (bm_semaphore_take(PACKET.sequence_list_semaphore,
@@ -322,10 +358,12 @@ static BcmpRequestElement *sequence_list_find_message(uint32_t seq_num) {
     err = ll_get_item(&PACKET.sequence_list, seq_num, (void *)&element);
     if (err == BmOK && element) {
       bm_debug("Bcmp message with seq_num %" PRIu32 "\n", seq_num);
+      *cb = element->cb;
+      err = sequence_list_remove_message(seq_num) ? BmOK : BmEBADMSG;
     }
     bm_semaphore_give(PACKET.sequence_list_semaphore);
   }
-  return element;
+  return err;
 }
 
 /*!
@@ -339,14 +377,11 @@ static BcmpRequestElement *sequence_list_find_message(uint32_t seq_num) {
  @return BmOK on success
  @return BmError on failure
  */
-BmErr packet_init(BcmpGetIPAddr src_ip, BcmpGetIPAddr dst_ip, BcmpGetData data,
-                  BcmpGetChecksum checksum) {
+BmErr packet_init(BcmpPacketCb cb) {
   BmErr err = BmEINVAL;
-  if (src_ip && dst_ip && data && checksum) {
-    PACKET.cb.src_ip = src_ip;
-    PACKET.cb.dst_ip = dst_ip;
-    PACKET.cb.data = data;
-    PACKET.cb.checksum = checksum;
+  if (cb.src_ip && cb.dst_ip && cb.data && cb.checksum && cb.increment &&
+      cb.decrement && cb.send) {
+    PACKET.cb = cb;
     PACKET.initialized = true;
 
     // Create timer and semaphore for sequenced packet handling
@@ -431,7 +466,6 @@ BmErr process_received_message(void *payload, uint32_t size) {
   BmErr err = BmEINVAL;
   BcmpProcessData data = {0};
   BcmpSequencedRequestCb cb = NULL;
-  BcmpRequestElement *request_message = NULL;
   BcmpPacketCfg *cfg = NULL;
   void *buf = NULL;
   uint16_t checksum_read = 0;
@@ -474,17 +508,10 @@ BmErr process_received_message(void *payload, uint32_t size) {
 
       // Check if this message is a reply to a message we sent
       if (cfg->sequenced_reply && !cfg->sequenced_request) {
-        request_message = sequence_list_find_message(data.header->seq_num);
-        if (request_message) {
+        if (sequence_list_claim_message(data.header->seq_num, &cb) == BmOK) {
           bm_debug("BCMP - Received reply to our request message with seq_num "
                    "%" PRIu32 "\n",
                    data.header->seq_num);
-          if (bm_semaphore_take(PACKET.sequence_list_semaphore,
-                                default_message_timeout_ms) == BmOK) {
-            cb = request_message->cb;
-            sequence_list_remove_message(data.header->seq_num);
-            bm_semaphore_give(PACKET.sequence_list_semaphore);
-          }
         }
       }
 
@@ -556,8 +583,9 @@ BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
       } else if (cfg->sequenced_request) {
         // If we are sending a new request, use our own sequence number
         header->seq_num = message_count++;
-        request_message = new_sequence_list_item(
-            header->type, default_message_timeout_ms, header->seq_num, cb);
+        request_message =
+            new_sequence_list_item(header->type, default_message_timeout_ms,
+                                   header->seq_num, cb, payload);
         sequence_list_add_message(request_message, header->seq_num);
         bm_debug("BCMP - Serializing message with seq_num %" PRIu32 "\n",
                  header->seq_num);

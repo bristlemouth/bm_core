@@ -40,11 +40,13 @@ struct LwipCtx {
   struct netif *netif;
   struct raw_pcb *raw_pcb;
   LL udp_list;
+  BmSemaphore layout_mut;
 };
 typedef struct {
   struct pbuf *pbuf;
   const BmIpAddr *src;
   const BmIpAddr *dst;
+  uint32_t ref;
 } LwipLayout;
 
 static struct LwipCtx CTX;
@@ -122,6 +124,19 @@ static uint16_t message_get_checksum(void *payload, uint32_t size) {
   return ret;
 }
 
+static void message_increment_reference(void *payload) {
+  if (payload) {
+    LwipLayout *layout = (LwipLayout *)payload;
+    bm_semaphore_take(CTX.layout_mut, BM_MAX_DELAY_UINT32);
+    layout->ref++;
+    bm_semaphore_give(CTX.layout_mut);
+  }
+}
+
+static BmErr message_send_packet(void *payload) {
+  return bm_ip_tx_perform(payload, NULL);
+}
+
 /*!
   @brief LWIP raw_recv Callback For BCMP Packets
 
@@ -159,7 +174,7 @@ static uint8_t ip_recv(void *arg, struct raw_pcb *pcb, struct pbuf *pbuf,
     LwipLayout *layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
     memcpy(dst_ref, ip6_hdr->dest.addr, sizeof(BmIpAddr));
     memcpy(src_ref, src, sizeof(BmIpAddr));
-    *layout = (LwipLayout){pbuf, src_ref, dst_ref};
+    *layout = (LwipLayout){pbuf, src_ref, dst_ref, 1};
 
     BcmpQueueItem item = {BcmpEventRx, (void *)layout, layout->pbuf->len};
     if (bm_queue_send(queue, &item, 0) != BmOK) {
@@ -276,6 +291,11 @@ BmErr bm_ip_init(void) {
 
   CTX.netif = &netif;
 
+  CTX.layout_mut = bm_mutex_create();
+  if (!CTX.layout_mut) {
+    return BmENOMEM;
+  }
+
   tcpip_init(NULL, NULL);
   mac_address(CTX.netif->hwaddr, sizeof(CTX.netif->hwaddr));
   CTX.netif->hwaddr_len = sizeof(CTX.netif->hwaddr);
@@ -313,8 +333,13 @@ BmErr bm_ip_init(void) {
     raw_recv(CTX.raw_pcb, ip_recv, NULL);
     err = raw_bind(CTX.raw_pcb, IP_ADDR_ANY) == ERR_OK ? BmOK : BmEACCES;
     if (err == BmOK) {
-      err = packet_init(message_get_src_ip, message_get_dst_ip,
-                        message_get_data, message_get_checksum);
+      err = packet_init((BcmpPacketCb){.src_ip = message_get_src_ip,
+                                       .dst_ip = message_get_dst_ip,
+                                       .data = message_get_data,
+                                       .checksum = message_get_checksum,
+                                       .increment = message_increment_reference,
+                                       .decrement = bm_ip_tx_cleanup,
+                                       .send = message_send_packet});
     }
   }
   return err;
@@ -487,7 +512,7 @@ void *bm_ip_tx_new(const BmIpAddr *dst, uint32_t size) {
   if (dst) {
     pbuf = pbuf_alloc(PBUF_IP, size, PBUF_RAM);
     layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
-    *layout = (LwipLayout){pbuf, src, (const BmIpAddr *)dst};
+    *layout = (LwipLayout){pbuf, src, (const BmIpAddr *)dst, 1};
   }
 
   return (void *)layout;
@@ -551,9 +576,17 @@ BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
  @param payload abstracted payload object to be handled
  */
 void bm_ip_tx_cleanup(void *payload) {
-  LwipLayout *layout = NULL;
-  if (payload) {
-    layout = (LwipLayout *)payload;
+  if (!payload) {
+    return;
+  }
+  LwipLayout *layout = (LwipLayout *)payload;
+
+  bool destroy = false;
+  bm_semaphore_take(CTX.layout_mut, BM_MAX_DELAY_UINT32);
+  destroy = (--layout->ref == 0);
+  bm_semaphore_give(CTX.layout_mut);
+
+  if (destroy) {
     pbuf_free(layout->pbuf);
     bm_free(layout);
   }
