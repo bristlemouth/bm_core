@@ -32,6 +32,7 @@ typedef BmErr (*BmFtpEventHandler)(const BmFtpEvent *event, void *context);
 
 BmErr bm_ftp_init(void);
 BmErr bm_ftp_coordinator_init(void);
+BmErr bm_ftp_coordinator_process_event(const BmFtpEvent *event, void *context);
 BmQueue bm_ftp_get_event_queue(void);
 void bm_ftp_set_event_handler(BmFtpEventHandler handler, void *context);
 

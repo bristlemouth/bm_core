@@ -269,8 +269,7 @@ static BmErr bm_ftp_handle_abort(const BmFtpEvent *event) {
   return BmECANCELED;
 }
 
-static BmErr bm_ftp_coordinator_process_event(const BmFtpEvent *event,
-                                              void *context) {
+BmErr bm_ftp_coordinator_process_event(const BmFtpEvent *event, void *context) {
   (void)context;
   switch (event->type) {
   case BmFtpEventStart:
