@@ -84,7 +84,7 @@ TEST_F(Bcmp, bcmp_tx) {
   bm_ip_tx_new_fake.return_val = data;
   serialize_fake.return_val = BmOK;
   bm_ip_tx_perform_fake.return_val = BmOK;
-  ASSERT_EQ(bcmp_tx(&dst, type, data, size, seq_num, bcmp_tx_fake_cb), BmOK);
+  ASSERT_EQ(bcmp_tx(&dst, type, data, size, seq_num, packet_payload_cb(bcmp_tx_fake_cb)), BmOK);
   ASSERT_EQ(bm_ip_tx_cleanup_fake.call_count, 1);
   RESET_FAKE(bm_ip_tx_new);
   RESET_FAKE(serialize);
@@ -95,7 +95,7 @@ TEST_F(Bcmp, bcmp_tx) {
   bm_ip_tx_new_fake.return_val = data;
   serialize_fake.return_val = BmOK;
   bm_ip_tx_perform_fake.return_val = BmEBADMSG;
-  ASSERT_EQ(bcmp_tx(&dst, type, data, size, seq_num, bcmp_tx_fake_cb),
+  ASSERT_EQ(bcmp_tx(&dst, type, data, size, seq_num, packet_payload_cb(bcmp_tx_fake_cb)),
             BmEBADMSG);
   ASSERT_EQ(bm_ip_tx_cleanup_fake.call_count, 1);
   RESET_FAKE(bm_ip_tx_new);
@@ -106,7 +106,7 @@ TEST_F(Bcmp, bcmp_tx) {
   // Test failed to serialize
   bm_ip_tx_new_fake.return_val = data;
   serialize_fake.return_val = BmENODEV;
-  ASSERT_EQ(bcmp_tx(&dst, type, data, size, seq_num, bcmp_tx_fake_cb),
+  ASSERT_EQ(bcmp_tx(&dst, type, data, size, seq_num, packet_payload_cb(bcmp_tx_fake_cb)),
             BmENODEV);
   ASSERT_EQ(bm_ip_tx_cleanup_fake.call_count, 1);
   RESET_FAKE(bm_ip_tx_new);
@@ -115,16 +115,16 @@ TEST_F(Bcmp, bcmp_tx) {
 
   // Test no memory available to buffer message
   bm_ip_tx_new_fake.return_val = NULL;
-  ASSERT_EQ(bcmp_tx(&dst, type, data, size, seq_num, bcmp_tx_fake_cb),
+  ASSERT_EQ(bcmp_tx(&dst, type, data, size, seq_num, packet_payload_cb(bcmp_tx_fake_cb)),
             BmENOMEM);
   ASSERT_EQ(bm_ip_tx_cleanup_fake.call_count, 0);
   RESET_FAKE(bm_ip_tx_new);
 
   // Test improper inputs
-  ASSERT_EQ(bcmp_tx(NULL, type, data, size, seq_num, bcmp_tx_fake_cb),
+  ASSERT_EQ(bcmp_tx(NULL, type, data, size, seq_num, packet_payload_cb(bcmp_tx_fake_cb)),
             BmEINVAL);
   ASSERT_EQ(bcmp_tx(&dst, type, data, size + max_payload_len, seq_num,
-                    bcmp_tx_fake_cb),
+                    packet_payload_cb(bcmp_tx_fake_cb)),
             BmEINVAL);
 
   bm_free(data);

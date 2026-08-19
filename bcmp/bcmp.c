@@ -147,21 +147,20 @@ void *bcmp_get_queue(void) { return CTX.queue; }
   @param *data message buffer
   @param size message length in bytes
   @param seq_num The sequence number of the message
-  @param reply_cb A callback function to handle reply messages
+  @param cb A callback function to handle reply messages to a sequenced request
 
   @return BmOK on success
   @return BmErr on failure
 */
 BmErr bcmp_tx(const BmIpAddr *dst, BcmpMessageType type, uint8_t *data,
-              uint16_t size, uint32_t seq_num,
-              BmErr (*reply_cb)(uint8_t *payload)) {
+              uint16_t size, uint32_t seq_num, BcmpSequencedRequestCb cb) {
   BmErr err = BmEINVAL;
   void *buf = NULL;
 
   if (dst && (uint32_t)size + sizeof(BcmpHeartbeat) <= max_payload_len) {
     buf = bm_ip_tx_new(dst, size + sizeof(BcmpHeader));
     if (buf) {
-      err = serialize(buf, data, size, type, seq_num, reply_cb);
+      err = serialize(buf, data, size, type, seq_num, cb);
 
       if (err == BmOK) {
         err = bm_ip_tx_perform(buf, NULL);
