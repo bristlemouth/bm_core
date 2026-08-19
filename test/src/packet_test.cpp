@@ -21,12 +21,13 @@ extern "C" {
 
 DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpProcessData);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_process_heartbeat, BcmpProcessData);
+DECLARE_FAKE_VALUE_FUNC(BmErr, send_packet, void *);
+DEFINE_FAKE_VALUE_FUNC(BmErr, send_packet, void *);
 
 static rnd_gen RND;
 static bool fail_checksum;
 static uint32_t ref;
 static BmTimerCb timer_cb;
-static uint32_t send_count;
 
 class Packet : public ::testing::Test {
 public:
@@ -63,14 +64,6 @@ protected:
     ref--;
   }
 
-  static BmErr send_packet(void *payload) {
-    (void)payload;
-
-    send_count++;
-
-    return BmOK;
-  }
-
   static uint16_t calc_checksum(void *payload, uint32_t size) {
     if (fail_checksum) {
       return 100;
@@ -94,7 +87,6 @@ protected:
 
   void SetUp() override {
     ref = 0;
-    send_count = 0;
     fail_checksum = false;
     test_payload_size = RND.rnd_int(max_payload_size, min_payload_size);
     test_payload = (uint8_t *)calloc(test_payload_size, sizeof(uint8_t));
@@ -333,20 +325,19 @@ TEST_F(Packet, sequence_request) {
                       sizeof(request_neighbor_info),
                       BcmpNeighborProtoRequestMessage, 0, NULL),
             BmOK);
-  uint32_t send_count_before = 0;
   for (size_t i = 0; i < packet_retry_count; i++) {
-    send_count_before = send_count;
+    RESET_FAKE(send_packet);
     // Continue updating tick offset to force a timeout
     bm_ticks_to_ms_fake.return_val += UINT16_MAX;
     timer_cb(NULL);
-    EXPECT_GT(send_count, send_count_before);
+    EXPECT_EQ(send_packet_fake.call_count, 1);
   }
   // Should not send again
   uint32_t ref_before = ref;
   bm_ticks_to_ms_fake.return_val += UINT16_MAX;
-  send_count_before = send_count;
+  RESET_FAKE(send_packet);
   timer_cb(NULL);
-  EXPECT_EQ(send_count, send_count_before);
+  EXPECT_EQ(send_packet_fake.call_count, 0);
   // Make sure reference gets decremented
   EXPECT_GT(ref_before, ref);
 
