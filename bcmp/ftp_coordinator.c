@@ -51,24 +51,31 @@ static void bm_ftp_reset(void) {
 }
 
 static BmErr bm_ftp_reject(const BmFtpAddress *address, uint32_t transfer_id,
-                           BmFtpErr error) {
-  return bm_ftp_send_ack(address->src_node_id, transfer_id, false, error, 0, 0, 0);
+                           BmFtpErr error, uint32_t seq_num) {
+  return bm_ftp_send_ack(address->src_node_id, transfer_id, false, error, 0, 0,
+                         0, seq_num);
 }
 
-static BmErr bm_ftp_handle_start(const BmFtpStart *start) {
+static BmErr bm_ftp_handle_start(const BmFtpEvent *event) {
+  const BmFtpStart *start = (const BmFtpStart *)event->payload;
+  uint32_t seq_num = event->seq_num;
+
   if (coordinator.state != BmFtpCoordinatorIdle) {
-    return bm_ftp_reject(&start->addresses, start->transfer_id, BmFtpErrBusy);
+    return bm_ftp_reject(&start->addresses, start->transfer_id, BmFtpErrBusy,
+                         seq_num);
   }
   if (start->total_size == 0 || start->requested_chunk_size == 0 ||
       start->requested_chunk_size > bm_ftp_max_chunk_size) {
-    return bm_ftp_reject(&start->addresses, start->transfer_id, BmFtpErrTooLarge);
+    return bm_ftp_reject(&start->addresses, start->transfer_id,
+                         BmFtpErrTooLarge, seq_num);
   }
 
-  BmErr error = bm_ftp_sink_open((BmFtpEndpointKind)start->sink_kind, start->sink_spec,
-                                 start->sink_spec_len, start->total_size, &coordinator.sink);
+  BmErr error = bm_ftp_sink_open((BmFtpEndpointKind)start->sink_kind,
+                                 start->sink_spec, start->sink_spec_len,
+                                 start->total_size, &coordinator.sink);
   if (error != BmOK) {
     return bm_ftp_reject(&start->addresses, start->transfer_id,
-                         bm_ftp_error_from_bm_error(error));
+                         bm_ftp_error_from_bm_error(error), seq_num);
   }
 
   coordinator.state = BmFtpCoordinatorReceiving;
@@ -78,9 +85,9 @@ static BmErr bm_ftp_handle_start(const BmFtpStart *start) {
   coordinator.chunk_size = start->requested_chunk_size;
   coordinator.crc16 = start->crc16;
 
-  error = bm_ftp_send_ack(coordinator.peer_node_id, coordinator.transfer_id, true,
-                          BmFtpErrNone, coordinator.total_size, coordinator.crc16,
-                          coordinator.chunk_size);
+  error = bm_ftp_send_ack(coordinator.peer_node_id, coordinator.transfer_id,
+                          true, BmFtpErrNone, coordinator.total_size,
+                          coordinator.crc16, coordinator.chunk_size, seq_num);
   if (error != BmOK) {
     bm_ftp_reset();
     return error;
@@ -88,13 +95,17 @@ static BmErr bm_ftp_handle_start(const BmFtpStart *start) {
   uint16_t requested_length = coordinator.total_size < coordinator.chunk_size
                                   ? (uint16_t)coordinator.total_size
                                   : coordinator.chunk_size;
-  return bm_ftp_request_chunk(coordinator.peer_node_id, coordinator.transfer_id, 0,
-                              requested_length);
+  return bm_ftp_request_chunk(coordinator.peer_node_id, coordinator.transfer_id,
+                              0, requested_length);
 }
 
-static BmErr bm_ftp_handle_fetch(const BmFtpFetch *fetch) {
+static BmErr bm_ftp_handle_fetch(const BmFtpEvent *event) {
+  const BmFtpFetch *fetch = (const BmFtpFetch *)event->payload;
+  uint32_t seq_num = event->seq_num;
+
   if (coordinator.state != BmFtpCoordinatorIdle) {
-    return bm_ftp_reject(&fetch->addresses, fetch->transfer_id, BmFtpErrBusy);
+    return bm_ftp_reject(&fetch->addresses, fetch->transfer_id, BmFtpErrBusy,
+                         seq_num);
   }
 
   BmErr error = bm_ftp_source_open((BmFtpEndpointKind)fetch->source_kind,
@@ -102,7 +113,7 @@ static BmErr bm_ftp_handle_fetch(const BmFtpFetch *fetch) {
                                    &coordinator.source);
   if (error != BmOK) {
     return bm_ftp_reject(&fetch->addresses, fetch->transfer_id,
-                         bm_ftp_error_from_bm_error(error));
+                         bm_ftp_error_from_bm_error(error), seq_num);
   }
 
   coordinator.state = BmFtpCoordinatorServing;
@@ -114,19 +125,21 @@ static BmErr bm_ftp_handle_fetch(const BmFtpFetch *fetch) {
 
   if (coordinator.total_size == 0) {
     bm_ftp_reset();
-    return bm_ftp_reject(&fetch->addresses, fetch->transfer_id, BmFtpErrInvalidSpec);
+    return bm_ftp_reject(&fetch->addresses, fetch->transfer_id,
+                         BmFtpErrInvalidSpec, seq_num);
   }
 
-  error = bm_ftp_send_ack(coordinator.peer_node_id, coordinator.transfer_id, true,
-                          BmFtpErrNone, coordinator.total_size, coordinator.crc16,
-                          coordinator.chunk_size);
+  error = bm_ftp_send_ack(coordinator.peer_node_id, coordinator.transfer_id,
+                          true, BmFtpErrNone, coordinator.total_size,
+                          coordinator.crc16, coordinator.chunk_size, seq_num);
   if (error != BmOK) {
     bm_ftp_reset();
   }
   return error;
 }
 
-static BmErr bm_ftp_handle_ack(const BmFtpAck *ack) {
+static BmErr bm_ftp_handle_ack(const BmFtpEvent *event) {
+  const BmFtpAck *ack = (const BmFtpAck *)event->payload;
   if (coordinator.state != BmFtpCoordinatorWaitingAck ||
       ack->addresses.src_node_id != coordinator.peer_node_id ||
       ack->transfer_id != coordinator.transfer_id) {
@@ -142,10 +155,9 @@ static BmErr bm_ftp_handle_ack(const BmFtpAck *ack) {
     return BmEBADMSG;
   }
 
-  BmErr error = bm_ftp_sink_open(coordinator.pending_sink_kind,
-                                 coordinator.pending_sink_spec,
-                                 coordinator.pending_sink_spec_len,
-                                 ack->total_size, &coordinator.sink);
+  BmErr error = bm_ftp_sink_open(
+      coordinator.pending_sink_kind, coordinator.pending_sink_spec,
+      coordinator.pending_sink_spec_len, ack->total_size, &coordinator.sink);
   if (error != BmOK) {
     bm_ftp_send_abort(coordinator.peer_node_id, coordinator.transfer_id,
                       bm_ftp_error_from_bm_error(error));
@@ -159,44 +171,51 @@ static BmErr bm_ftp_handle_ack(const BmFtpAck *ack) {
   uint16_t requested_length = coordinator.total_size < coordinator.chunk_size
                                   ? (uint16_t)coordinator.total_size
                                   : coordinator.chunk_size;
-  return bm_ftp_request_chunk(coordinator.peer_node_id, coordinator.transfer_id, 0,
-                              requested_length);
+  return bm_ftp_request_chunk(coordinator.peer_node_id, coordinator.transfer_id,
+                              0, requested_length);
 }
 
-static BmErr bm_ftp_handle_chunk_request(const BmFtpChunkRequest *request) {
+static BmErr bm_ftp_handle_chunk_request(const BmFtpEvent *event) {
+  const BmFtpChunkRequest *request = (const BmFtpChunkRequest *)event->payload;
+  uint32_t seq_num = event->seq_num;
+
   if (coordinator.state != BmFtpCoordinatorServing ||
       request->addresses.src_node_id != coordinator.peer_node_id ||
       request->transfer_id != coordinator.transfer_id || request->length == 0 ||
-      request->length > coordinator.chunk_size || request->offset >= coordinator.total_size ||
+      request->length > coordinator.chunk_size ||
+      request->offset >= coordinator.total_size ||
       request->length > coordinator.total_size - request->offset) {
     return BmEBADMSG;
   }
 
   uint8_t buffer[bm_ftp_max_chunk_size];
-  BmErr error = bm_ftp_source_read_at(&coordinator.source, request->offset, buffer,
-                                      request->length);
+  BmErr error = bm_ftp_source_read_at(&coordinator.source, request->offset,
+                                      buffer, request->length);
   if (error != BmOK) {
     bm_ftp_send_abort(coordinator.peer_node_id, coordinator.transfer_id,
                       bm_ftp_error_from_bm_error(error));
     bm_ftp_reset();
     return error;
   }
-  return bm_ftp_send_chunk(coordinator.peer_node_id, coordinator.transfer_id, request->offset,
-                           buffer, request->length);
+  return bm_ftp_send_chunk(coordinator.peer_node_id, coordinator.transfer_id,
+                           request->offset, buffer, request->length, seq_num);
 }
 
-static BmErr bm_ftp_handle_chunk(const BmFtpChunk *chunk) {
+static BmErr bm_ftp_handle_chunk(const BmFtpEvent *event) {
+  const BmFtpChunk *chunk = (const BmFtpChunk *)event->payload;
   if (coordinator.state != BmFtpCoordinatorReceiving ||
       chunk->addresses.src_node_id != coordinator.peer_node_id ||
       chunk->transfer_id != coordinator.transfer_id ||
-      chunk->offset != coordinator.bytes_received || chunk->payload_length == 0 ||
+      chunk->offset != coordinator.bytes_received ||
+      chunk->payload_length == 0 ||
       chunk->payload_length > coordinator.chunk_size ||
-      chunk->payload_length > coordinator.total_size - coordinator.bytes_received) {
+      chunk->payload_length >
+          coordinator.total_size - coordinator.bytes_received) {
     return BmEBADMSG;
   }
 
-  BmErr error = bm_ftp_sink_write_at(&coordinator.sink, chunk->offset, chunk->payload,
-                                     chunk->payload_length);
+  BmErr error = bm_ftp_sink_write_at(&coordinator.sink, chunk->offset,
+                                     chunk->payload, chunk->payload_length);
   if (error != BmOK) {
     bm_ftp_send_abort(coordinator.peer_node_id, coordinator.transfer_id,
                       bm_ftp_error_from_bm_error(error));
@@ -206,22 +225,27 @@ static BmErr bm_ftp_handle_chunk(const BmFtpChunk *chunk) {
   }
   coordinator.bytes_received += chunk->payload_length;
   if (coordinator.bytes_received == coordinator.total_size) {
-    error = bm_ftp_sink_finalize(&coordinator.sink, coordinator.total_size, coordinator.crc16);
-    BmFtpErr ftp_error = error == BmOK ? BmFtpErrNone : bm_ftp_error_from_bm_error(error);
-    bm_ftp_send_end(coordinator.peer_node_id, coordinator.transfer_id, error == BmOK, ftp_error,
-                    coordinator.bytes_received, coordinator.crc16);
+    error = bm_ftp_sink_finalize(&coordinator.sink, coordinator.total_size,
+                                 coordinator.crc16);
+    BmFtpErr ftp_error =
+        error == BmOK ? BmFtpErrNone : bm_ftp_error_from_bm_error(error);
+    bm_ftp_send_end(coordinator.peer_node_id, coordinator.transfer_id,
+                    error == BmOK, ftp_error, coordinator.bytes_received,
+                    coordinator.crc16);
     bm_ftp_reset();
     return error;
   }
 
   uint32_t remaining = coordinator.total_size - coordinator.bytes_received;
-  uint16_t requested_length = remaining < coordinator.chunk_size ? (uint16_t)remaining
-                                                                   : coordinator.chunk_size;
+  uint16_t requested_length = remaining < coordinator.chunk_size
+                                  ? (uint16_t)remaining
+                                  : coordinator.chunk_size;
   return bm_ftp_request_chunk(coordinator.peer_node_id, coordinator.transfer_id,
                               coordinator.bytes_received, requested_length);
 }
 
-static BmErr bm_ftp_handle_end(const BmFtpEnd *end) {
+static BmErr bm_ftp_handle_end(const BmFtpEvent *event) {
+  const BmFtpEnd *end = (const BmFtpEnd *)event->payload;
   if (coordinator.state != BmFtpCoordinatorServing ||
       end->addresses.src_node_id != coordinator.peer_node_id ||
       end->transfer_id != coordinator.transfer_id) {
@@ -231,7 +255,8 @@ static BmErr bm_ftp_handle_end(const BmFtpEnd *end) {
   return end->success ? BmOK : BmECANCELED;
 }
 
-static BmErr bm_ftp_handle_abort(const BmFtpAbort *abort) {
+static BmErr bm_ftp_handle_abort(const BmFtpEvent *event) {
+  const BmFtpAbort *abort = (const BmFtpAbort *)event->payload;
   if (coordinator.state == BmFtpCoordinatorIdle ||
       abort->addresses.src_node_id != coordinator.peer_node_id ||
       abort->transfer_id != coordinator.transfer_id) {
@@ -244,23 +269,24 @@ static BmErr bm_ftp_handle_abort(const BmFtpAbort *abort) {
   return BmECANCELED;
 }
 
-BmErr bm_ftp_coordinator_process_event(const BmFtpEvent *event, void *context) {
+static BmErr bm_ftp_coordinator_process_event(const BmFtpEvent *event,
+                                              void *context) {
   (void)context;
   switch (event->type) {
   case BmFtpEventStart:
-    return bm_ftp_handle_start((const BmFtpStart *)event->payload);
+    return bm_ftp_handle_start(event);
   case BmFtpEventFetch:
-    return bm_ftp_handle_fetch((const BmFtpFetch *)event->payload);
+    return bm_ftp_handle_fetch(event);
   case BmFtpEventAck:
-    return bm_ftp_handle_ack((const BmFtpAck *)event->payload);
+    return bm_ftp_handle_ack(event);
   case BmFtpEventChunkRequest:
-    return bm_ftp_handle_chunk_request((const BmFtpChunkRequest *)event->payload);
+    return bm_ftp_handle_chunk_request(event);
   case BmFtpEventChunk:
-    return bm_ftp_handle_chunk((const BmFtpChunk *)event->payload);
+    return bm_ftp_handle_chunk(event);
   case BmFtpEventEnd:
-    return bm_ftp_handle_end((const BmFtpEnd *)event->payload);
+    return bm_ftp_handle_end(event);
   case BmFtpEventAbort:
-    return bm_ftp_handle_abort((const BmFtpAbort *)event->payload);
+    return bm_ftp_handle_abort(event);
   default:
     return BmOK;
   }
@@ -273,9 +299,10 @@ BmErr bm_ftp_coordinator_init(void) {
 }
 
 BmErr bm_ftp_start_fetch(uint64_t source_node_id, uint32_t transfer_id,
-                         BmFtpEndpointKind source_kind, const uint8_t *source_spec,
-                         uint16_t source_spec_len, BmFtpEndpointKind sink_kind,
-                         const uint8_t *sink_spec, uint16_t sink_spec_len) {
+                         BmFtpEndpointKind source_kind,
+                         const uint8_t *source_spec, uint16_t source_spec_len,
+                         BmFtpEndpointKind sink_kind, const uint8_t *sink_spec,
+                         uint16_t sink_spec_len) {
   if (coordinator.state != BmFtpCoordinatorIdle ||
       (source_spec_len && !source_spec) || (sink_spec_len && !sink_spec) ||
       sink_spec_len > bm_ftp_max_endpoint_spec_len) {
@@ -291,8 +318,8 @@ BmErr bm_ftp_start_fetch(uint64_t source_node_id, uint32_t transfer_id,
     memcpy(coordinator.pending_sink_spec, sink_spec, sink_spec_len);
   }
 
-  BmErr error = bm_ftp_send_fetch(source_node_id, transfer_id, source_kind, source_spec,
-                                  source_spec_len);
+  BmErr error = bm_ftp_send_fetch(source_node_id, transfer_id, source_kind,
+                                  source_spec, source_spec_len);
   if (error != BmOK) {
     bm_ftp_reset();
   }
