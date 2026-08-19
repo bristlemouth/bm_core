@@ -137,7 +137,8 @@ bool bcmp_config_get(uint64_t target_node_id, BmConfigPartition partition,
         get_msg->key_length = key_len;
         memcpy(get_msg->key, key, key_len);
         *err = bcmp_tx(&multicast_ll_addr, BcmpConfigGetMessage,
-                       (uint8_t *)get_msg, msg_size, 0, reply_cb);
+                       (uint8_t *)get_msg, msg_size, 0,
+                       packet_payload_cb(reply_cb));
         if (*err == BmOK) {
           rval = true;
         }
@@ -185,7 +186,8 @@ bool bcmp_config_set(uint64_t target_node_id, BmConfigPartition partition,
         set_msg->data_length = value_size;
         memcpy(&set_msg->keyAndData[key_len], val, value_size);
         *err = bcmp_tx(&multicast_ll_addr, BcmpConfigSetMessage,
-                       (uint8_t *)set_msg, msg_len, 0, reply_cb);
+                       (uint8_t *)set_msg, msg_len, 0,
+                       packet_payload_cb(reply_cb));
         if (*err == BmOK) {
           rval = true;
         }
@@ -220,7 +222,8 @@ bool bcmp_config_commit(uint64_t target_node_id, BmConfigPartition partition,
     commit_msg->header.source_node_id = node_id();
     commit_msg->partition = partition;
     *err = bcmp_tx(&multicast_ll_addr, BcmpConfigCommitMessage,
-                   (uint8_t *)commit_msg, sizeof(BmConfigCommit), 0, NULL);
+                   (uint8_t *)commit_msg, sizeof(BmConfigCommit), 0,
+                   packet_null_cb());
     if (*err == BmOK) {
       rval = true;
     }
@@ -254,7 +257,7 @@ bool bcmp_config_status_request(uint64_t target_node_id,
     status_req_msg->partition = partition;
     *err = bcmp_tx(&multicast_ll_addr, BcmpConfigStatusRequestMessage,
                    (uint8_t *)status_req_msg, sizeof(BmConfigStatusRequest), 0,
-                   reply_cb);
+                   packet_payload_cb(reply_cb));
     if (*err == BmOK) {
       rval = true;
     }
@@ -291,7 +294,8 @@ bool bcmp_config_del_key(uint64_t target_node_id, BmConfigPartition partition,
       del_msg->key_length = key_len;
       memcpy(del_msg->key, key, key_len);
       BmErr err = bcmp_tx(&multicast_ll_addr, BcmpConfigDeleteRequestMessage,
-                          (uint8_t *)(del_msg), msg_size, 0, reply_cb);
+                          (uint8_t *)(del_msg), msg_size, 0,
+                          packet_payload_cb(reply_cb));
       rval = (err == BmOK);
       bm_free(del_msg);
     }
@@ -322,7 +326,7 @@ bool bcmp_config_clear_partition(uint64_t target_node_id,
     clear_msg.partition = partition;
     ret = bcmp_tx(&multicast_ll_addr, BcmpConfigClearRequestMessage,
                   (uint8_t *)&clear_msg, sizeof(BmConfigClearRequest), 0,
-                  reply_cb) == BmOK;
+                  packet_payload_cb(reply_cb)) == BmOK;
   }
 
   return ret;
@@ -361,7 +365,8 @@ static bool bcmp_config_status_response(uint64_t target_node_id,
         key_data += keys[i].key_len;
       }
       *err = bcmp_tx(&multicast_ll_addr, BcmpConfigStatusResponseMessage,
-                     (uint8_t *)status_resp_msg, msg_size, seq_num, NULL);
+                     (uint8_t *)status_resp_msg, msg_size, seq_num,
+                     packet_null_cb());
       if (*err == BmOK) {
         rval = true;
       }
@@ -410,7 +415,7 @@ static bool bcmp_config_send_value(uint64_t target_node_id,
       value_msg->data_length = data_length;
       memcpy(value_msg->data, data, data_length);
       *err = bcmp_tx(&multicast_ll_addr, BcmpConfigValueMessage,
-                     (uint8_t *)value_msg, msg_len, seq_num, NULL);
+                     (uint8_t *)value_msg, msg_len, seq_num, packet_null_cb());
       if (*err == BmOK) {
         rval = true;
       }
@@ -583,7 +588,8 @@ static bool bcmp_config_send_del_key_response(uint64_t target_node_id,
       memcpy(del_resp->key, key, key_len);
       del_resp->success = success;
       if (bcmp_tx(&multicast_ll_addr, BcmpConfigDeleteResponseMessage,
-                  (uint8_t *)del_resp, msg_size, seq_num, NULL) == BmOK) {
+                  (uint8_t *)del_resp, msg_size, seq_num,
+                  packet_null_cb()) == BmOK) {
         rval = true;
       }
       bm_free(del_resp);
@@ -648,7 +654,7 @@ static bool bcmp_send_clear_response_message(uint64_t target_node_id,
 
   ret = bcmp_tx(&multicast_ll_addr, BcmpConfigClearResponseMessage,
                 (uint8_t *)&clear_resp, sizeof(BmConfigClearResponse), seq_num,
-                NULL) == BmOK;
+                packet_null_cb()) == BmOK;
 
   return ret;
 }
