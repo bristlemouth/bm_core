@@ -2,8 +2,7 @@
 #include "packet.h"
 #include "util.h"
 
-DECLARE_FAKE_VALUE_FUNC(BmErr, packet_init, BcmpGetIPAddr, BcmpGetIPAddr,
-                        BcmpGetData, BcmpGetChecksum);
+DECLARE_FAKE_VALUE_FUNC(BmErr, packet_init, BcmpPacketCb);
 DECLARE_FAKE_VALUE_FUNC(BmErr, packet_add, BcmpPacketCfg *, BcmpMessageType);
 DECLARE_FAKE_VALUE_FUNC(uint16_t, packet_checksum, void *, uint32_t);
 DECLARE_FAKE_VALUE_FUNC(BmErr, process_received_message, void *, uint32_t);
