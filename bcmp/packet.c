@@ -43,6 +43,41 @@ struct PacketInfo {
 static struct PacketInfo PACKET;
 
 /*!
+ @brief Determine if a sequenced request callback is valid
+
+ @param cb callback structure to determine if valid
+
+ @return true if valid
+         false if invalid
+ */
+static inline bool cb_is_valid(BcmpSequencedRequestCb cb) {
+  return cb.full || cb.payload;
+}
+
+/*!
+ @brief Will invoke the configured sequence request callback
+
+ @details If no callback is available will return BmEIO.
+
+ @param cb callback structure to invoke callback
+ @param data processed data to pass to callback
+
+ @return BmOK on success
+         BmErr on failure
+ */
+static inline BmErr invoke_cb(BcmpSequencedRequestCb cb, BcmpProcessData data) {
+  if (cb.full) {
+    return cb.full(data);
+  }
+
+  if (cb.payload) {
+    return cb.payload(data.payload);
+  }
+
+  return BmEIO;
+}
+
+/*!
  @brief Check Endianness Of Message Type And Format Little Endian
 
  @details This must get updated whenever there is a new message added to the spec
@@ -308,8 +343,8 @@ static BmErr timer_traverse_cb(void *data, void *arg) {
 
   bm_debug("Failed to receive sequenced reply for: %" PRIu32 " \n",
            element->seq_num);
-  if (element->cb) {
-    element->cb(NULL);
+  if (cb_is_valid(element->cb)) {
+    invoke_cb(element->cb, (BcmpProcessData){0});
   }
 
   PACKET.cb.decrement(element->buf);
@@ -465,7 +500,7 @@ BmErr packet_remove(BcmpMessageType type) {
 BmErr process_received_message(void *payload, uint32_t size) {
   BmErr err = BmEINVAL;
   BcmpProcessData data = {0};
-  BcmpSequencedRequestCb cb = NULL;
+  BcmpSequencedRequestCb cb = {0};
   BcmpPacketCfg *cfg = NULL;
   void *buf = NULL;
   uint16_t checksum_read = 0;
@@ -515,9 +550,9 @@ BmErr process_received_message(void *payload, uint32_t size) {
         }
       }
 
-      if (cb) {
+      if (cb_is_valid(cb)) {
         // If message is a reply, utilize associated cb
-        err = cb(data.payload);
+        err = invoke_cb(cb, data);
       } else {
         // Utilize parsing callback
         if (cfg->process && (err = cfg->process(data)) != BmOK) {
@@ -581,6 +616,12 @@ BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
         // if we are replying to a message, use the sequence number from the received message
         header->seq_num = seq_num;
       } else if (cfg->sequenced_request) {
+
+        // If invalid callback, assign full callback to process
+        if (!cb_is_valid(cb)) {
+          cb.full = cfg->process;
+        }
+
         // If we are sending a new request, use our own sequence number
         header->seq_num = message_count++;
         request_message =

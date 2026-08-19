@@ -170,7 +170,7 @@ TEST_F(Packet, serialize) {
   };
 
   ASSERT_EQ(serialize((void *)&data, (void *)&hb, sizeof(hb),
-                      BcmpHeartbeatMessage, 0, NULL),
+                      BcmpHeartbeatMessage, 0, packet_null_cb()),
             BmOK);
   ASSERT_EQ(((BcmpHeader *)data.payload)->type, BcmpHeartbeatMessage);
   ASSERT_EQ(memcmp((void *)(data.payload + sizeof(BcmpHeader)), (void *)&hb,
@@ -212,6 +212,8 @@ TEST_F(Packet, process) {
             BmOK);
 }
 
+DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_sequence_request_full, BcmpProcessData);
+DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_sequence_request_full, BcmpProcessData);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_sequence_request, uint8_t *);
 DEFINE_FAKE_VALUE_FUNC(BmErr, bcmp_sequence_request, uint8_t *);
 DECLARE_FAKE_VALUE_FUNC(BmErr, bcmp_neighbor_info, BcmpProcessData);
@@ -273,7 +275,7 @@ TEST_F(Packet, sequence_request) {
     ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
                         sizeof(request_neighbor_info),
                         BcmpNeighborProtoRequestMessage, 0,
-                        bcmp_sequence_request),
+                        packet_payload_cb(bcmp_sequence_request)),
               0);
     ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, i);
     // Make sure reference gets updated
@@ -304,7 +306,7 @@ TEST_F(Packet, sequence_request) {
   for (size_t i = 0; i < iterations; i++) {
     ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
                         sizeof(request_neighbor_info),
-                        BcmpNeighborProtoRequestMessage, 0, NULL),
+                        BcmpNeighborProtoRequestMessage, 0, packet_null_cb()),
               0);
     ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, i + iterations);
   }
@@ -320,10 +322,12 @@ TEST_F(Packet, sequence_request) {
     ASSERT_EQ(bcmp_neighbor_info_fake.call_count, i + 1);
   }
 
+  iterations *= 2;
   // Test timeout and retry logic for sequenced request
+  RESET_FAKE(bcmp_neighbor_info);
   ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
                       sizeof(request_neighbor_info),
-                      BcmpNeighborProtoRequestMessage, 0, NULL),
+                      BcmpNeighborProtoRequestMessage, 0, packet_null_cb()),
             BmOK);
   for (size_t i = 0; i < packet_retry_count; i++) {
     RESET_FAKE(send_packet);
@@ -340,6 +344,30 @@ TEST_F(Packet, sequence_request) {
   EXPECT_EQ(send_packet_fake.call_count, 0);
   // Make sure reference gets decremented
   EXPECT_GT(ref_before, ref);
+  // Make sure process callback is invoked after timeout
+  ASSERT_EQ(bcmp_neighbor_info_fake.call_count, 1);
+  BcmpProcessData expected_timeout_data = {0};
+  int cmp = memcmp(&bcmp_neighbor_info_fake.arg0_val, &expected_timeout_data,
+                   sizeof(BcmpProcessData));
+  EXPECT_EQ(cmp, 0);
+
+  // Test full callback logic
+  RESET_FAKE(bcmp_sequence_request_full);
+  ASSERT_EQ(serialize((void *)&data, (void *)&request_neighbor_info,
+                      sizeof(request_neighbor_info),
+                      BcmpNeighborProtoRequestMessage, 0,
+                      packet_full_cb(bcmp_sequence_request_full)),
+            BmOK);
+  // Make sure sequence number is updated to match request
+  iterations++;
+  header = payload_stuffer(data.payload, (void *)&reply_neighbor_info,
+                           sizeof(reply_neighbor_info),
+                           BcmpNeighborProtoReplyMessage, iterations);
+  bcmp_sequence_request_full_fake.return_val = BmOK;
+  ASSERT_EQ(
+      process_received_message((void *)&data, sizeof(reply_neighbor_info)),
+      BmOK);
+  EXPECT_EQ(bcmp_sequence_request_full_fake.call_count, 1);
 
   packet_remove(BcmpNeighborProtoRequestMessage);
   packet_remove(BcmpNeighborProtoReplyMessage);
@@ -367,7 +395,7 @@ TEST_F(Packet, sequence_reply) {
 
   ASSERT_EQ(serialize((void *)&data, (void *)&reply_neighbor_info,
                       sizeof(reply_neighbor_info),
-                      BcmpNeighborProtoReplyMessage, 0, NULL),
+                      BcmpNeighborProtoReplyMessage, 0, packet_null_cb()),
             0);
   ASSERT_EQ(((BcmpHeader *)data.payload)->seq_num, 0);
 }
