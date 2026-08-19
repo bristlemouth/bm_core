@@ -42,10 +42,29 @@ struct PacketInfo {
 
 static struct PacketInfo PACKET;
 
+/*!
+ @brief Determine if a sequenced request callback is valid
+
+ @param cb callback structure to determine if valid
+
+ @return true if valid
+         false if invalid
+ */
 static inline bool cb_is_valid(BcmpSequencedRequestCb cb) {
   return cb.full || cb.payload;
 }
 
+/*!
+ @brief Will invoke the configured sequence request callback
+
+ @details If no callback is available will return BmEIO.
+
+ @param cb callback structure to invoke callback
+ @param data processed data to pass to callback
+
+ @return BmOK on success
+         BmErr on failure
+ */
 static inline BmErr invoke_cb(BcmpSequencedRequestCb cb, BcmpProcessData data) {
   if (cb.full) {
     return cb.full(data);

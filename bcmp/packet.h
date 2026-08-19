@@ -54,6 +54,18 @@ BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
                 uint32_t seq_num, BcmpSequencedRequestCb cb);
 BmErr packet_remove(BcmpMessageType type);
 
+/*!
+ @brief Set Reply Handler For A Sequenced Request
+                                                                                
+ @details Set exactly one member.
+          full    - Receives the whole BcmpProcessData (header, src/dst, size).
+                    It can identify which request a reply or timeout belongs to
+                    as the incoming data will be zeroed out.
+          payload - Receives only the payload pointer. A NULL payload means a
+                    time out.
+          null    - Will use the BcmpProcessCb callback passed into packet_add.
+                    Zeroed out incoming data indicates a timedout message
+ */
 static inline BcmpSequencedRequestCb packet_full_cb(BcmpRequestFullCb cb) {
   return (BcmpSequencedRequestCb){.full = cb, .payload = NULL};
 }

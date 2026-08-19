@@ -346,6 +346,10 @@ TEST_F(Packet, sequence_request) {
   EXPECT_GT(ref_before, ref);
   // Make sure process callback is invoked after timeout
   ASSERT_EQ(bcmp_neighbor_info_fake.call_count, 1);
+  BcmpProcessData expected_timeout_data = {0};
+  int cmp = memcmp(&bcmp_neighbor_info_fake.arg0_val, &expected_timeout_data,
+                   sizeof(BcmpProcessData));
+  EXPECT_EQ(cmp, 0);
 
   // Test full callback logic
   RESET_FAKE(bcmp_sequence_request_full);
