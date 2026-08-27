@@ -57,7 +57,9 @@ static inline bool cb_is_valid(BcmpSequencedRequestCb cb) {
 /*!
  @brief Will invoke the configured sequence request callback
 
- @details If no callback is available will return BmEIO.
+ @details If no callback is available will return BmEIO. If a reply_cb is
+          not specified in serialize, the default BcmpProcessCb will be
+          utilized from packet_add.
 
  @param cb callback structure to invoke callback
  @param data processed data to pass to callback
@@ -551,7 +553,9 @@ BmErr process_received_message(void *payload, uint32_t size) {
       }
 
       if (cb_is_valid(cb)) {
-        // If message is a reply, utilize associated cb
+        // If message is a reply to a sequenced request, utilize associated cb
+        // will use packet_add's process callback if a reply_cb is not
+        // specified
         err = invoke_cb(cb, data);
       } else {
         // Utilize parsing callback
