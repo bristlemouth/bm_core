@@ -55,9 +55,25 @@ BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
 BmErr packet_remove(BcmpMessageType type);
 
 /*!
+ @brief Determine If Sequenced Request Packet Timeout Has Occurred
+
+ @details This function is used to determine if a timeout has occurred in a
+          sequenced request callback function (BcmpRequestFullCb). The caller
+          can then perform necessary actions to handle the timeout.
+
+ @param data Pointer to the process data to evaluate
+
+ @return True if a timeout has occurred
+         False otherwise.
+ */
+static inline bool packet_timeout_occurred(const BcmpProcessData *data) {
+  return !data->header && !data->payload && !data->src && !data->dst;
+}
+
+/*!
  @brief Set Reply Handler For A Sequenced Request
                                                                                 
- @details Set exactly one member.
+ @details Set exactly one callback member.
           full    - Receives the whole BcmpProcessData (header, src/dst, size).
                     It can identify which request a reply or timeout belongs to
                     as the incoming data will be zeroed out.
@@ -65,6 +81,12 @@ BmErr packet_remove(BcmpMessageType type);
                     time out.
           null    - Will use the BcmpProcessCb callback passed into packet_add.
                     Zeroed out incoming data indicates a timedout message
+          This supports legacy sequenced request callbacks, these callbacks
+          provide only the packet's payload as an argument, labelled payload
+          in BcmpSequencedRequestCb. Newer sequenced request callback SHOULD
+          use the full callback, providing all of BcmpProcessData.
+ 
+ @return Callback structure requred for serialization of message.
  */
 static inline BcmpSequencedRequestCb packet_full_cb(BcmpRequestFullCb cb) {
   return (BcmpSequencedRequestCb){.full = cb, .payload = NULL};

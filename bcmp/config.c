@@ -706,6 +706,10 @@ static BmErr bcmp_process_config_message(BcmpProcessData data) {
   bool should_forward = false;
   BmConfigHeader *msg_header = (BmConfigHeader *)data.payload;
 
+  if (packet_timeout_occurred(&data)) {
+    return BmETIMEDOUT;
+  }
+
   if (msg_header->target_node_id != node_id()) {
     should_forward = true;
   } else {
