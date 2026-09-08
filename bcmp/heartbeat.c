@@ -20,7 +20,7 @@ BmErr bcmp_send_heartbeat(uint32_t lease_duration_s) {
                                  bm_ticks_to_ms(bm_get_tick_count()) * 1000,
                              .liveliness_lease_dur_s = lease_duration_s};
   return bcmp_tx(&multicast_ll_addr, BcmpHeartbeatMessage,
-                 (uint8_t *)&heartbeat, sizeof(heartbeat), 0, NULL);
+                 (uint8_t *)&heartbeat, sizeof(heartbeat), 0, packet_null_cb());
 }
 
 /*!

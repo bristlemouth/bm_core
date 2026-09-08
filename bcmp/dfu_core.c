@@ -429,9 +429,9 @@ void bm_dfu_send_ack(uint64_t dst_node_id, uint8_t success, BmDfuErr err_code) {
   ack_msg.ack.addresses.src_node_id = dfu_ctx.self_node_id;
   ack_msg.header.frame_type = BcmpDFUAckMessage;
 
-  BmErr err = bcmp_tx(&multicast_global_addr,
-                      (BcmpMessageType)(ack_msg.header.frame_type),
-                      (uint8_t *)(&ack_msg), sizeof(ack_msg), 0, NULL);
+  BmErr err = bcmp_tx(
+      &multicast_global_addr, (BcmpMessageType)(ack_msg.header.frame_type),
+      (uint8_t *)(&ack_msg), sizeof(ack_msg), 0, packet_null_cb());
   if (err == BmOK) {
     bm_debug("Message %d sent \n", ack_msg.header.frame_type);
   } else {
@@ -456,10 +456,10 @@ void bm_dfu_req_next_chunk(uint64_t dst_node_id, uint16_t chunk_num) {
   chunk_req_msg.chunk_req.addresses.dst_node_id = dst_node_id;
   chunk_req_msg.header.frame_type = BcmpDFUPayloadReqMessage;
 
-  BmErr err =
-      bcmp_tx(&multicast_global_addr,
-              (BcmpMessageType)(chunk_req_msg.header.frame_type),
-              (uint8_t *)(&chunk_req_msg), sizeof(chunk_req_msg), 0, NULL);
+  BmErr err = bcmp_tx(&multicast_global_addr,
+                      (BcmpMessageType)(chunk_req_msg.header.frame_type),
+                      (uint8_t *)(&chunk_req_msg), sizeof(chunk_req_msg), 0,
+                      packet_null_cb());
   if (err == BmOK) {
     bm_debug("Message %d sent \n", chunk_req_msg.header.frame_type);
   } else {
@@ -487,10 +487,10 @@ void bm_dfu_update_end(uint64_t dst_node_id, uint8_t success,
   update_end_msg.result.addresses.src_node_id = dfu_ctx.self_node_id;
   update_end_msg.header.frame_type = BcmpDFUEndMessage;
 
-  BmErr err =
-      bcmp_tx(&multicast_global_addr,
-              (BcmpMessageType)(update_end_msg.header.frame_type),
-              (uint8_t *)(&update_end_msg), sizeof(update_end_msg), 0, NULL);
+  BmErr err = bcmp_tx(&multicast_global_addr,
+                      (BcmpMessageType)(update_end_msg.header.frame_type),
+                      (uint8_t *)(&update_end_msg), sizeof(update_end_msg), 0,
+                      packet_null_cb());
   if (err == BmOK) {
     bm_debug("Message %d sent \n", update_end_msg.header.frame_type);
   } else {
@@ -511,10 +511,10 @@ void bm_dfu_send_heartbeat(uint64_t dst_node_id) {
   heartbeat_msg.addr.src_node_id = dfu_ctx.self_node_id;
   heartbeat_msg.header.frame_type = BcmpDFUHeartbeatMessage;
 
-  BmErr err =
-      bcmp_tx(&multicast_global_addr,
-              (BcmpMessageType)(heartbeat_msg.header.frame_type),
-              (uint8_t *)(&heartbeat_msg), sizeof(heartbeat_msg), 0, NULL);
+  BmErr err = bcmp_tx(&multicast_global_addr,
+                      (BcmpMessageType)(heartbeat_msg.header.frame_type),
+                      (uint8_t *)(&heartbeat_msg), sizeof(heartbeat_msg), 0,
+                      packet_null_cb());
   if (err == BmOK) {
     bm_debug("Message %d sent \n", heartbeat_msg.header.frame_type);
   } else {
