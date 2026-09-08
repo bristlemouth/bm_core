@@ -82,5 +82,5 @@ TEST_F(FtpCore, send_fetch_encodes_source_descriptor) {
 TEST_F(FtpCore, send_helpers_reject_missing_variable_payload) {
   EXPECT_EQ(bm_ftp_send_start(1, 1, 1, 1, 1, BmFtpEndpointNvm, nullptr, 1), BmEINVAL);
   EXPECT_EQ(bm_ftp_send_fetch(1, 1, BmFtpEndpointFlash, nullptr, 1), BmEINVAL);
-  EXPECT_EQ(bm_ftp_send_chunk(1, 1, 0, nullptr, 1), BmEINVAL);
+  EXPECT_EQ(bm_ftp_send_chunk(1, 1, 0, nullptr, 1, 0), BmEINVAL);
 }

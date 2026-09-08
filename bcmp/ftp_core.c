@@ -54,7 +54,7 @@ static void bm_ftp_event_thread(void *parameters) {
                  event.type == BmFtpEventFetch) {
         BmFtpAddress *address = (BmFtpAddress *)event.payload;
         bm_ftp_send_ack(address->src_node_id, bm_ftp_event_transfer_id(&event),
-                        false, BmFtpErrUnsupported, 0, 0, 0);
+                        false, BmFtpErrUnsupported, 0, 0, 0, event.seq_num);
       }
       bm_free(event.payload);
     }
@@ -126,6 +126,7 @@ static BmErr bm_ftp_process_message(BcmpProcessData data) {
 
   BmFtpEvent event = {
       .type = bm_ftp_event_type(type),
+      .seq_num = data.header->seq_num,
       .payload = payload,
       .payload_len = data.size,
   };
@@ -143,6 +144,17 @@ BmErr bm_ftp_init(void) {
       .sequenced_request = false,
       .process = bm_ftp_process_message,
   };
+  BcmpPacketCfg request = {
+      .sequenced_reply = false,
+      .sequenced_request = true,
+      .process = bm_ftp_process_message,
+  };
+
+  BcmpPacketCfg reply = {
+      .sequenced_reply = true,
+      .sequenced_request = false,
+      .process = bm_ftp_process_message,
+  };
 
   ftp_event_queue = bm_queue_create(bm_ftp_event_queue_len, sizeof(BmFtpEvent));
   if (!ftp_event_queue) {
@@ -151,13 +163,13 @@ BmErr bm_ftp_init(void) {
   bm_err_check(err, bm_ftp_coordinator_init());
   bm_err_check(err, bm_task_create(bm_ftp_event_thread, "FTP Event", 1024, NULL,
                                    BM_FTP_EVENT_TASK_PRIORITY, NULL));
-  bm_err_check(err, packet_add(&packet, BcmpFTPStartMessage));
-  bm_err_check(err, packet_add(&packet, BcmpFTPAckMessage));
-  bm_err_check(err, packet_add(&packet, BcmpFTPChunkReqMessage));
-  bm_err_check(err, packet_add(&packet, BcmpFTPChunkMessage));
+  bm_err_check(err, packet_add(&request, BcmpFTPStartMessage));
+  bm_err_check(err, packet_add(&reply, BcmpFTPAckMessage));
+  bm_err_check(err, packet_add(&request, BcmpFTPChunkReqMessage));
+  bm_err_check(err, packet_add(&reply, BcmpFTPChunkMessage));
   bm_err_check(err, packet_add(&packet, BcmpFTPEndMessage));
   bm_err_check(err, packet_add(&packet, BcmpFTPAbortMessage));
-  bm_err_check(err, packet_add(&packet, BcmpFTPFetchMessage));
+  bm_err_check(err, packet_add(&request, BcmpFTPFetchMessage));
   return err;
 }
 
@@ -170,7 +182,7 @@ void bm_ftp_set_event_handler(BmFtpEventHandler handler, void *context) {
 
 BmErr bm_ftp_send_ack(uint64_t dst_node_id, uint32_t transfer_id, bool success,
                       BmFtpErr error, uint32_t total_size, uint16_t crc16,
-                      uint16_t chunk_size) {
+                      uint16_t chunk_size, uint32_t seq_num) {
   BmFtpAck ack = {
       .addresses = {.src_node_id = node_id(), .dst_node_id = dst_node_id},
       .transfer_id = transfer_id,
@@ -182,13 +194,13 @@ BmErr bm_ftp_send_ack(uint64_t dst_node_id, uint32_t transfer_id, bool success,
   };
 
   return bcmp_tx(&multicast_global_addr, BcmpFTPAckMessage, (uint8_t *)&ack,
-                 sizeof(ack), 0, NULL);
+                 sizeof(ack), seq_num, NULL);
 }
 
-BmErr bm_ftp_send_start(uint64_t dst_node_id, uint32_t transfer_id, uint32_t total_size,
-                        uint16_t requested_chunk_size, uint16_t crc16,
-                        BmFtpEndpointKind sink_kind, const uint8_t *sink_spec,
-                        uint16_t sink_spec_len) {
+BmErr bm_ftp_send_start(uint64_t dst_node_id, uint32_t transfer_id,
+                        uint32_t total_size, uint16_t requested_chunk_size,
+                        uint16_t crc16, BmFtpEndpointKind sink_kind,
+                        const uint8_t *sink_spec, uint16_t sink_spec_len) {
   if (sink_spec_len && !sink_spec) {
     return BmEINVAL;
   }
@@ -210,15 +222,15 @@ BmErr bm_ftp_send_start(uint64_t dst_node_id, uint32_t transfer_id, uint32_t tot
   if (sink_spec_len) {
     memcpy(start->sink_spec, sink_spec, sink_spec_len);
   }
-  BmErr err = bcmp_tx(&multicast_global_addr, BcmpFTPStartMessage, (uint8_t *)start,
-                      message_len, 0, NULL);
+  BmErr err = bcmp_tx(&multicast_global_addr, BcmpFTPStartMessage,
+                      (uint8_t *)start, message_len, 0, NULL);
   bm_free(start);
   return err;
 }
 
 BmErr bm_ftp_send_fetch(uint64_t dst_node_id, uint32_t transfer_id,
-                        BmFtpEndpointKind source_kind, const uint8_t *source_spec,
-                        uint16_t source_spec_len) {
+                        BmFtpEndpointKind source_kind,
+                        const uint8_t *source_spec, uint16_t source_spec_len) {
   if (source_spec_len && !source_spec) {
     return BmEINVAL;
   }
@@ -237,14 +249,14 @@ BmErr bm_ftp_send_fetch(uint64_t dst_node_id, uint32_t transfer_id,
   if (source_spec_len) {
     memcpy(fetch->source_spec, source_spec, source_spec_len);
   }
-  BmErr err = bcmp_tx(&multicast_global_addr, BcmpFTPFetchMessage, (uint8_t *)fetch,
-                      message_len, 0, NULL);
+  BmErr err = bcmp_tx(&multicast_global_addr, BcmpFTPFetchMessage,
+                      (uint8_t *)fetch, message_len, 0, NULL);
   bm_free(fetch);
   return err;
 }
 
-BmErr bm_ftp_request_chunk(uint64_t dst_node_id, uint32_t transfer_id, uint32_t offset,
-                           uint16_t length) {
+BmErr bm_ftp_request_chunk(uint64_t dst_node_id, uint32_t transfer_id,
+                           uint32_t offset, uint16_t length) {
   BmFtpChunkRequest request = {
       .addresses = {.src_node_id = node_id(), .dst_node_id = dst_node_id},
       .transfer_id = transfer_id,
@@ -252,12 +264,13 @@ BmErr bm_ftp_request_chunk(uint64_t dst_node_id, uint32_t transfer_id, uint32_t 
       .length = length,
       .reserved = 0,
   };
-  return bcmp_tx(&multicast_global_addr, BcmpFTPChunkReqMessage, (uint8_t *)&request,
-                 sizeof(request), 0, NULL);
+  return bcmp_tx(&multicast_global_addr, BcmpFTPChunkReqMessage,
+                 (uint8_t *)&request, sizeof(request), 0, NULL);
 }
 
-BmErr bm_ftp_send_chunk(uint64_t dst_node_id, uint32_t transfer_id, uint32_t offset,
-                        const uint8_t *payload, uint16_t payload_len) {
+BmErr bm_ftp_send_chunk(uint64_t dst_node_id, uint32_t transfer_id,
+                        uint32_t offset, const uint8_t *payload,
+                        uint16_t payload_len, uint32_t seq_num) {
   if (payload_len && !payload) {
     return BmEINVAL;
   }
@@ -276,14 +289,15 @@ BmErr bm_ftp_send_chunk(uint64_t dst_node_id, uint32_t transfer_id, uint32_t off
   if (payload_len) {
     memcpy(chunk->payload, payload, payload_len);
   }
-  BmErr err = bcmp_tx(&multicast_global_addr, BcmpFTPChunkMessage, (uint8_t *)chunk,
-                      message_len, 0, NULL);
+  BmErr err = bcmp_tx(&multicast_global_addr, BcmpFTPChunkMessage,
+                      (uint8_t *)chunk, message_len, seq_num, NULL);
   bm_free(chunk);
   return err;
 }
 
 BmErr bm_ftp_send_end(uint64_t dst_node_id, uint32_t transfer_id, bool success,
-                      BmFtpErr error, uint32_t bytes_received, uint16_t running_crc16) {
+                      BmFtpErr error, uint32_t bytes_received,
+                      uint16_t running_crc16) {
   BmFtpEnd end = {
       .addresses = {.src_node_id = node_id(), .dst_node_id = dst_node_id},
       .transfer_id = transfer_id,
@@ -294,11 +308,12 @@ BmErr bm_ftp_send_end(uint64_t dst_node_id, uint32_t transfer_id, bool success,
       .running_crc16 = running_crc16,
       .reserved2 = 0,
   };
-  return bcmp_tx(&multicast_global_addr, BcmpFTPEndMessage, (uint8_t *)&end, sizeof(end), 0,
-                 NULL);
+  return bcmp_tx(&multicast_global_addr, BcmpFTPEndMessage, (uint8_t *)&end,
+                 sizeof(end), 0, NULL);
 }
 
-BmErr bm_ftp_send_abort(uint64_t dst_node_id, uint32_t transfer_id, BmFtpErr error) {
+BmErr bm_ftp_send_abort(uint64_t dst_node_id, uint32_t transfer_id,
+                        BmFtpErr error) {
   BmFtpAbort abort = {
       .addresses = {.src_node_id = node_id(), .dst_node_id = dst_node_id},
       .transfer_id = transfer_id,
