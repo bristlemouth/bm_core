@@ -6,6 +6,7 @@
 
 #include "configuration.h"
 #include "dfu_message_structs.h"
+#include "ftp_message_structs.h"
 
 typedef struct {
   uint16_t type;
@@ -518,6 +519,15 @@ typedef enum {
   BcmpDFURebootMessage = 0xD8,
   BcmpDFUBootCompleteMessage = 0xD9,
   BcmpDFULastMessageMessage = BcmpDFUBootCompleteMessage,
+
+  BcmpFTPStartMessage = 0xE0,
+  BcmpFTPAckMessage = 0xE1,
+  BcmpFTPChunkReqMessage = 0xE2,
+  BcmpFTPChunkMessage = 0xE3,
+  BcmpFTPEndMessage = 0xE4,
+  BcmpFTPAbortMessage = 0xE5,
+  BcmpFTPFetchMessage = 0xE6,
+  BcmpFTPLastMessage = BcmpFTPFetchMessage,
 
   BcmpHeaderMessage = 0xFFFF
 } BcmpMessageType;
