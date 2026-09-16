@@ -11,10 +11,11 @@ extern "C" {
 #define USE_TIMESTAMP 1
 #define NO_TIMESTAMP 0
 
-typedef enum {
+typedef uint8_t BmSerialNetworkType;
+enum {
   BmNetworkTypeCellularIriFallback = (1 << 0),
   BmNetworkTypeCellularOnly = (1 << 1),
-} BmSerialNetworkType;
+};
 
 typedef struct {
   // Network type to send over.
