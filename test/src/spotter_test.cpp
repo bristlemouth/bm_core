@@ -78,3 +78,40 @@ TEST_F(Spotter, tx_data) {
             BmENOMEM);
   ASSERT_EQ(spotter_tx_data(buf, 100, BmNetworkTypeCellularOnly), BmENOMEM);
 }
+
+// Capture of the last buffer handed to bm_pub, so we can inspect the bytes
+// that actually go out on the wire before spotter_tx_data frees them.
+static uint8_t LAST_PUB_BUF[64];
+static uint16_t LAST_PUB_LEN;
+
+static BmErr capture_pub(const char *topic, const void *data, uint16_t data_len,
+                         uint8_t type, uint8_t version) {
+  (void)topic;
+  (void)type;
+  (void)version;
+  LAST_PUB_LEN = data_len;
+  memcpy(LAST_PUB_BUF, data,
+         data_len < sizeof(LAST_PUB_BUF) ? data_len : sizeof(LAST_PUB_BUF));
+  return BmOK;
+}
+
+TEST_F(Spotter, tx_data_network_type_is_one_byte) {
+  ASSERT_EQ(sizeof(BmSerialNetworkType), 1U);
+  ASSERT_EQ(sizeof(BmSerialNetworkDataHeader), 1U);
+  ASSERT_EQ(offsetof(BmSerialNetworkDataHeader, data), 1U);
+
+  const uint8_t payload[] = {0xDE, 0xAD, 0xBE, 0xEF};
+  LAST_PUB_LEN = 0;
+  memset(LAST_PUB_BUF, 0, sizeof(LAST_PUB_BUF));
+  bm_pub_fake.custom_fake = capture_pub;
+
+  ASSERT_EQ(
+      spotter_tx_data(payload, sizeof(payload), BmNetworkTypeCellularOnly),
+      BmOK);
+
+  bm_pub_fake.custom_fake = NULL;
+
+  ASSERT_EQ(LAST_PUB_LEN, 1U + sizeof(payload));
+  ASSERT_EQ(LAST_PUB_BUF[0], BmNetworkTypeCellularOnly);
+  ASSERT_EQ(memcmp(&LAST_PUB_BUF[1], payload, sizeof(payload)), 0);
+}
