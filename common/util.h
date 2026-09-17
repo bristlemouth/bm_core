@@ -65,6 +65,7 @@ typedef struct {
 #define ms_to_s(x) (x / 1000)
 #define bm_min(a, b) (((a) < (b)) ? (a) : (b))
 #define bm_max(a, b) (((a) > (b)) ? (a) : (b))
+#define uint_safe_decrement(x) (x ? x - 1 : 0)
 
 uint32_t time_remaining(uint32_t start, uint32_t current, uint32_t timeout);
 uint32_t utc_from_date_time(uint16_t year, uint8_t month, uint8_t day,
