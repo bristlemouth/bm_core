@@ -6,8 +6,11 @@ set(SOURCES
     ll.c
     pcap.c
     q.c
+    hash.c
     timer_callback_handler.c
     util.c
+    resource_based_routing.c
+    resource_trie.c
 )
 
 add_library(bmcommon ${SOURCES})

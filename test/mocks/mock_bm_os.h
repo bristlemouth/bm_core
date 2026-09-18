@@ -52,6 +52,13 @@ DECLARE_FAKE_VALUE_FUNC(BmErr, bm_task_create, BmTaskCb, const char *, uint32_t,
                         void *, uint32_t, BmTaskHandle);
 DECLARE_FAKE_VOID_FUNC(bm_task_delete, BmTaskHandle);
 
+<<<<<<< HEAD
+size_t bm_get_alloc_mem(void);
+=======
+>>>>>>> 3befa7a (Add Hash Table Module)
+void bm_malloc_fail_on_attempt(uint8_t attempts);
+void bm_malloc_fail_reset(void);
+
 #ifdef __cplusplus
 }
 #endif

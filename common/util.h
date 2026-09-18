@@ -1,6 +1,7 @@
 #ifndef __BM_UTIL_H__
 #define __BM_UTIL_H__
 
+#include "bm_config.h"
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -32,6 +33,7 @@ typedef enum {
   BmEALREADY = 114,
   BmEINPROGRESS = 115,
   BmECANCELED = 125,
+  BmENOSPC = 133,
   BmENOTINTREC = 140,
 } BmErr;
 
@@ -65,6 +67,7 @@ typedef struct {
 #define ms_to_s(x) (x / 1000)
 #define bm_min(a, b) (((a) < (b)) ? (a) : (b))
 #define bm_max(a, b) (((a) > (b)) ? (a) : (b))
+#define uint_safe_decrement(x) (x ? x - 1 : 0)
 
 uint32_t time_remaining(uint32_t start, uint32_t current, uint32_t timeout);
 uint32_t utc_from_date_time(uint16_t year, uint8_t month, uint8_t day,
@@ -105,6 +108,7 @@ typedef struct {
 extern const BmIpAddr multicast_global_addr;
 extern const BmIpAddr multicast_ll_addr;
 
+const char *create_copy_null_string(const char *s, uint32_t len);
 bool is_global_multicast(const BmIpAddr *dst_ip);
 bool is_link_local_multicast(const BmIpAddr *dst_ip);
 bool is_link_local_neighbor_multicast(const BmIpAddr *dst_ip);

@@ -34,13 +34,14 @@ typedef struct BcmpRequestElement {
 struct PacketInfo {
   BcmpPacketCb cb;
   bool initialized;
+  BcmpProcessData *data;
   BmSemaphore sequence_list_semaphore;
   BmTimer timer;
   LL sequence_list;
   LL packet_list;
 };
 
-static struct PacketInfo PACKET;
+static struct PacketInfo PACKET = {0};
 
 /*!
  @brief Determine if a sequenced request callback is valid
@@ -234,6 +235,8 @@ static void check_endianness(void *buf, BcmpMessageType type) {
       swap_16bit(&header->checksum);
       swap_32bit(&header->seq_num);
     } break;
+    default:
+      break;
     }
   }
 }
@@ -601,9 +604,6 @@ BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
   BcmpRequestElement request_message;
 
   if (payload && data && PACKET.initialized) {
-    // Check endianness of type and place into little endian form
-    check_endianness(data, type);
-
     // Determine if there is a sequenced reply/request and if packet exists
     if ((err = ll_get_item(&PACKET.packet_list, type, (void *)&cfg)) == BmOK &&
         cfg) {
@@ -641,7 +641,10 @@ BmErr serialize(void *payload, void *data, uint32_t size, BcmpMessageType type,
 
       // Format header in little endian format and append data onto payload
       check_endianness(header, BcmpHeaderMessage);
-      memcpy(((uint8_t *)header) + sizeof(BcmpHeader), data, size);
+      uint8_t *data_copy = ((uint8_t *)header) + sizeof(BcmpHeader);
+      memcpy(data_copy, data, size);
+      // Check endianness of type and place into little endian form
+      check_endianness(data_copy, type);
 
       header->checksum = packet_checksum(payload, size + sizeof(BcmpHeader));
     }
