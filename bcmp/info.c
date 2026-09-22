@@ -63,8 +63,9 @@ static BmErr bcmp_send_info(void *dst) {
     bm_err_check(err, firmware_version(&dev_info->info.ver_major,
                                        &dev_info->info.ver_minor,
                                        &dev_info->info.ver_rev));
-    bm_err_check(err, bcmp_tx(dst, BcmpDeviceInfoReplyMessage,
-                              (uint8_t *)dev_info, info_len, 0, NULL));
+    bm_err_check(err,
+                 bcmp_tx(dst, BcmpDeviceInfoReplyMessage, (uint8_t *)dev_info,
+                         info_len, 0, packet_null_cb()));
 
     bm_free(dev_info);
   }
@@ -229,7 +230,8 @@ BmErr bcmp_request_info(uint64_t target_node_id, const void *addr,
     BcmpDeviceInfoRequest info_req = {.target_node_id = target_node_id};
 
     bm_err_check(err, bcmp_tx(addr, BcmpDeviceInfoRequestMessage,
-                              (uint8_t *)&info_req, sizeof(info_req), 0, NULL));
+                              (uint8_t *)&info_req, sizeof(info_req), 0,
+                              packet_null_cb()));
     if (err != BmOK) {
       ll_remove(&INFO_REQUEST_LIST, target_node_id);
     }

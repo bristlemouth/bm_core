@@ -24,7 +24,7 @@ BmErr bcmp_time_set_time(uint64_t target_node_id, uint64_t utc_us) {
   set_msg.header.source_node_id = source_node_id;
   set_msg.utc_time_us = utc_us;
   if (bcmp_tx(&multicast_ll_addr, BcmpSystemTimeSetMessage, (uint8_t *)&set_msg,
-              sizeof(set_msg), 0, NULL) != BmOK) {
+              sizeof(set_msg), 0, packet_null_cb()) != BmOK) {
     bm_debug("Failed to send system time response\n");
     err = BmEINVAL;
   }
@@ -46,7 +46,8 @@ BmErr bcmp_time_get_time(uint64_t target_node_id) {
   get_msg.header.target_node_id = target_node_id;
   get_msg.header.source_node_id = source_node_id;
   if (bcmp_tx(&multicast_ll_addr, BcmpSystemTimeRequestMessage,
-              (uint8_t *)&get_msg, sizeof(get_msg), 0, NULL) != BmOK) {
+              (uint8_t *)&get_msg, sizeof(get_msg), 0,
+              packet_null_cb()) != BmOK) {
     bm_debug("Failed to send system time response\n");
     err = BmEINVAL;
   }
@@ -68,7 +69,8 @@ static void bcmp_time_send_response(uint64_t target_node_id, uint64_t utc_us) {
   response.header.source_node_id = source_node_id;
   response.utc_time_us = utc_us;
   if (bcmp_tx(&multicast_ll_addr, BcmpSystemTimeResponseMessage,
-              (uint8_t *)&response, sizeof(response), 0, NULL) != BmOK) {
+              (uint8_t *)&response, sizeof(response), 0,
+              packet_null_cb()) != BmOK) {
     bm_debug("Failed to send system time response\n");
   }
 }

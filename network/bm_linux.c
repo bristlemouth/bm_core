@@ -257,6 +257,14 @@ BM_LINUX_STATIC uint16_t message_get_checksum(void *payload, uint32_t size) {
                               message_get_data(payload));
 }
 
+BM_LINUX_STATIC void message_increment_reference(void *payload) {
+  bm_l2_tx_prep(payload, 0);
+}
+
+BM_LINUX_STATIC BmErr message_send_packet(void *payload) {
+  return bm_ip_tx_perform(payload, NULL);
+}
+
 // ---------------------------------------------------------------------------
 // Initialization
 // ---------------------------------------------------------------------------
@@ -282,8 +290,13 @@ BmErr bm_ip_init(void) {
   memset(&CTX.udp_list, 0, sizeof(CTX.udp_list));
 
   /* Register BCMP packet accessor callbacks. */
-  return packet_init(message_get_src_ip, message_get_dst_ip, message_get_data,
-                     message_get_checksum);
+  return packet_init((BcmpPacketCb){.src_ip = message_get_src_ip,
+                                    .dst_ip = message_get_dst_ip,
+                                    .data = message_get_data,
+                                    .checksum = message_get_checksum,
+                                    .increment = message_increment_reference,
+                                    .decrement = bm_ip_tx_cleanup,
+                                    .send = message_send_packet});
 }
 
 void *bm_l2_new(uint32_t size) {
@@ -490,13 +503,8 @@ BmErr bm_ip_tx_perform(void *payload, const BmIpAddr *dst) {
     memcpy(ip + 24, effective_dst->addr, 16);
   }
 
-  err = bm_l2_link_output(buf, buf->len);
-  if (err != BmOK) {
-    bm_l2_free(buf);
-  }
-
   // Caller is expected to invoke bm_ip_tx_cleanup
-  return err;
+  return bm_l2_link_output(buf, buf->len);
 }
 
 void bm_ip_tx_cleanup(void *payload) {

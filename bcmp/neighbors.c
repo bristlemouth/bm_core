@@ -66,7 +66,8 @@ static BmErr bcmp_send_neighbor_table(void *addr) {
         neighbor, num_neighbors);
 
     err = bcmp_tx(addr, BcmpNeighborTableReplyMessage,
-                  (uint8_t *)neighbor_table_reply, neighbor_table_len, 0, NULL);
+                  (uint8_t *)neighbor_table_reply, neighbor_table_len, 0,
+                  packet_null_cb());
 
     bm_free(neighbor_table_reply_buff);
   }
@@ -464,7 +465,7 @@ BmErr bcmp_request_neighbor_table(uint64_t target_node_id, const void *addr,
     err = bm_timer_start(NEIGHBOR_TIMER, 10);
     bm_err_check(err, bcmp_tx(addr, BcmpNeighborTableRequestMessage,
                               (uint8_t *)&neighbor_table_req,
-                              sizeof(neighbor_table_req), 0, NULL));
+                              sizeof(neighbor_table_req), 0, packet_null_cb()));
     NEIGHBOR_REQUEST_CB = request;
   } else {
     err = BmENOMEM;

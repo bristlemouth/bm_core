@@ -62,7 +62,7 @@ BmErr bcmp_send_ping_request(uint64_t node, const void *addr,
              echo_req->target_node_id, echo_req->payload_len);
 
     err = bcmp_tx(addr, BcmpEchoRequestMessage, (uint8_t *)echo_req, echo_len,
-                  0, NULL);
+                  0, packet_null_cb());
 
     PING_REQUEST_TIMEOUT = bm_ticks_to_ms(bm_get_tick_count());
 
@@ -85,7 +85,7 @@ static BmErr bcmp_send_ping_reply(BcmpEchoReply *echo_reply, void *addr,
                                   uint16_t seq_num) {
 
   return bcmp_tx(addr, BcmpEchoReplyMessage, (uint8_t *)echo_reply,
-                 sizeof(*echo_reply) + echo_reply->payload_len, seq_num, NULL);
+                 sizeof(*echo_reply) + echo_reply->payload_len, seq_num, packet_null_cb());
 }
 
 /*!
