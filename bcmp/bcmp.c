@@ -3,6 +3,7 @@
 #include "bm_ip.h"
 #include "bm_os.h"
 #include "dfu.h"
+#include "ftp.h"
 #include "l2.h"
 #include "messages/config.h"
 #include "messages/heartbeat.h"
@@ -122,6 +123,7 @@ BmErr bcmp_init(NetworkDevice network_device) {
   bm_err_check(err, ping_init());
   bm_err_check(err, time_init());
   bm_err_check(err, bm_dfu_init());
+  bm_err_check(err, bm_ftp_init());
   bm_err_check(err, bcmp_config_init());
   bm_err_check(err, bcmp_neighbor_init(network_device.trait->num_ports()));
   bm_err_check(err, bcmp_device_info_init());
