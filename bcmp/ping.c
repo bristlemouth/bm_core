@@ -75,6 +75,9 @@ BmErr bcmp_send_ping_request(uint64_t node, const void *addr,
 /*!
   @brief Send ping reply
 
+  @details echo_reply->payload_len is echoed back onto the wire, so the caller
+           must have already checked that many payload bytes are present.
+
   @param *echo_reply echo reply message
   @param *addr ip address to send ping reply to
 
@@ -85,7 +88,8 @@ static BmErr bcmp_send_ping_reply(BcmpEchoReply *echo_reply, void *addr,
                                   uint16_t seq_num) {
 
   return bcmp_tx(addr, BcmpEchoReplyMessage, (uint8_t *)echo_reply,
-                 sizeof(*echo_reply) + echo_reply->payload_len, seq_num, packet_null_cb());
+                 sizeof(*echo_reply) + echo_reply->payload_len, seq_num,
+                 packet_null_cb());
 }
 
 /*!
@@ -101,6 +105,19 @@ static BmErr bcmp_send_ping_reply(BcmpEchoReply *echo_reply, void *addr,
 static BmErr bcmp_process_ping_request(BcmpProcessData data) {
   BcmpEchoRequest *echo_req = (BcmpEchoRequest *)data.payload;
   BmErr err = BmENOTINTREC;
+
+  // payload_len is chosen by the sender and the reply echoes payload_len bytes
+  // starting at this message, so it must fit in the bytes that arrived.
+  // data.size counts body bytes only, the BcmpHeader is already subtracted.
+  // The second test only runs once the fixed fields are known to be present.
+  if (data.size < sizeof(BcmpEchoRequest) ||
+      (uint32_t)sizeof(BcmpEchoRequest) + echo_req->payload_len > data.size) {
+    bm_debug("Dropping ping request: declared payload does not fit a %" PRIu32
+             " byte message\n",
+             data.size);
+    return BmEBADMSG;
+  }
+
   if ((echo_req->target_node_id == 0) ||
       (node_id() == echo_req->target_node_id)) {
     echo_req->target_node_id = node_id();
@@ -125,6 +142,16 @@ static BmErr bcmp_process_ping_request(BcmpProcessData data) {
 static BmErr bcmp_process_ping_reply(BcmpProcessData data) {
   BmErr err = BmENOTINTREC;
   BcmpEchoReply *echo_reply = (BcmpEchoReply *)data.payload;
+
+  // payload_len bounds a memcmp and a debug loop below, so it must fit in the
+  // bytes that arrived. See bcmp_process_ping_request.
+  if (data.size < sizeof(BcmpEchoReply) ||
+      (uint32_t)sizeof(BcmpEchoReply) + echo_reply->payload_len > data.size) {
+    bm_debug("Dropping ping reply: declared payload does not fit a %" PRIu32
+             " byte message\n",
+             data.size);
+    return BmEBADMSG;
+  }
 
   // TODO - once we have random numbers working we can then use a static number to check
   if (EXPECTED_PAYLOAD_LEN == echo_reply->payload_len &&
