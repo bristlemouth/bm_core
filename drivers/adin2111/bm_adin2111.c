@@ -10,6 +10,11 @@
 #define MAX_FRAME_BUF_SIZE (MAX_FRAME_SIZE + 4 + 2)
 #define DMA_ALIGN_SIZE (4)
 
+// Enable the IEEE 1588 timer, frame timestamps, and TS_CAPT on the TEST_1 pin
+#ifndef bm_adin2111_ptp_enabled
+#define bm_adin2111_ptp_enabled 0
+#endif
+
 struct LinkChange {
   void *device_handle;
   uint8_t port_mask;
@@ -30,7 +35,11 @@ static adin2111_DriverConfig_t DRIVER_CONFIG = {
     .devMemSize = sizeof(DEVICE_MEMORY),
     .fcsCheckEn = false,
     .tsTimerPin = ADIN2111_TS_TIMER_MUX_NA,
+#if (bm_adin2111_ptp_enabled != 0)
+    .tsCaptPin = ADIN2111_TS_CAPT_MUX_TEST_1,
+#else
     .tsCaptPin = ADIN2111_TS_CAPT_MUX_NA,
+#endif
 };
 static adi_eth_BufDesc_t RX_BUFFERS[RX_QUEUE_NUM_ENTRIES];
 static HAL_Callback_t ADIN2111_MAC_INT_CALLBACK = NULL;
@@ -324,6 +333,15 @@ static BmErr adin2111_netdevice_enable(void) {
       goto end;
     }
   }
+
+#if (bm_adin2111_ptp_enabled != 0)
+  // Must be enabled before adin2111_SyncConfig
+  result = adin2111_TsEnable(&DEVICE_STRUCT, ADI_MAC_TS_FORMAT_64B_1588);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+#endif
 
   result = adin2111_SyncConfig(&DEVICE_STRUCT);
   if (result != ADI_ETH_SUCCESS) {
