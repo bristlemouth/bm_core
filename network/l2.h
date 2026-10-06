@@ -17,6 +17,7 @@ extern "C" {
 
 typedef void (*L2LinkChangeCb)(uint8_t port, bool state);
 typedef void (*L2PcapCb)(const uint8_t *frame, size_t len);
+typedef void (*L2ThreadFn)(void *arg);
 
 BmErr bm_l2_handle_device_interrupt(void);
 BmErr bm_l2_link_output(void *buf, uint32_t length);
@@ -29,6 +30,7 @@ BmErr bm_l2_netif_set_power(bool on);
 BmErr bm_l2_netif_enable_disable_port(uint8_t port_num, bool enable);
 BmErr bm_l2_register_link_local_routing_callback(L2LinkLocalRoutingCb cb);
 BmErr bm_l2_register_pcap_callback(L2PcapCb cb);
+BmErr bm_l2_run_in_thread(L2ThreadFn fn, void *arg);
 
 #ifdef __cplusplus
 }

@@ -45,6 +45,9 @@ static adi_eth_BufDesc_t RX_BUFFERS[RX_QUEUE_NUM_ENTRIES];
 static HAL_Callback_t ADIN2111_MAC_INT_CALLBACK = NULL;
 static void *ADIN2111_MAC_INT_CALLBACK_PARAM = NULL;
 static struct LinkChange LINK_CHANGE = {NULL, ADIN2111_PORT_1};
+#if (bm_adin2111_ptp_enabled != 0)
+static Adin2111PtpCallbacks PTP_CALLBACKS = {0};
+#endif
 
 /**************** Private Helper Functions ****************/
 /*!
@@ -152,6 +155,44 @@ static void link_change_callback_(void *device_handle, uint32_t event,
     }
   }
 }
+
+#if (bm_adin2111_ptp_enabled != 0)
+/*!
+ @brief ADIN2111 egress timestamp ready callback
+
+ @details Called by the driver when transmit timestamps have been captured,
+          forwards each captured port/slot to the registered PTP callback
+
+ @param device_handle unused
+ @param event unused
+ @param timestamp_ready_param which port/slot egress timestamps are ready
+ */
+static void egress_timestamp_ready_callback_(void *device_handle,
+                                             uint32_t event,
+                                             void *timestamp_ready_param) {
+  (void)device_handle;
+  (void)event;
+  const adi_mac_TimestampRdy_t *ready =
+      (const adi_mac_TimestampRdy_t *)timestamp_ready_param;
+
+  if (PTP_CALLBACKS.egress_timestamp_ready && ready) {
+    const bool flags[ADIN2111_PORT_NUM][3] = {
+        {ready->p1TimestampReadyA, ready->p1TimestampReadyB,
+         ready->p1TimestampReadyC},
+        {ready->p2TimestampReadyA, ready->p2TimestampReadyB,
+         ready->p2TimestampReadyC},
+    };
+    for (uint8_t port = 0; port < ADIN2111_PORT_NUM; port++) {
+      for (uint8_t slot = 0; slot < 3; slot++) {
+        if (flags[port][slot]) {
+          PTP_CALLBACKS.egress_timestamp_ready(
+              port + 1, (adi_mac_EgressCapture_e)(ADI_MAC_EGRESS_CAPTURE_A + slot));
+        }
+      }
+    }
+  }
+}
+#endif
 
 /*!
  @brief Obtain the ADIN2111 driver's transmission port
@@ -341,6 +382,15 @@ static BmErr adin2111_netdevice_enable(void) {
     err = BmENODEV;
     goto end;
   }
+
+  // Must be registered after adin2111_TsEnable
+  result = adin2111_RegisterCallback(&DEVICE_STRUCT,
+                                     egress_timestamp_ready_callback_,
+                                     ADI_MAC_EVT_TIMESTAMP_RDY);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
 #endif
 
   result = adin2111_SyncConfig(&DEVICE_STRUCT);
@@ -523,12 +573,14 @@ static void tx_complete(void *device_param, uint32_t event,
   @param data pointer to data to send over the network
   @param length data length
   @param port port to transmit data onto
+  @param capture egress timestamp capture slot, or ADI_MAC_EGRESS_CAPTURE_NONE
 
   @return BmOk on success
   @return BmErr on failure
  */
 static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
-                                     uint8_t port) {
+                                     uint8_t port,
+                                     adi_mac_EgressCapture_e capture) {
   BmErr err = BmOK;
 
   adi_eth_BufDesc_t *buffer_description = bm_malloc(sizeof(adi_eth_BufDesc_t));
@@ -546,6 +598,7 @@ static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
   memcpy(buffer_description->pBuf, data, length);
   buffer_description->trxSize = length;
   buffer_description->cbFunc = tx_complete;
+  buffer_description->egressCapt = capture;
   adin2111_TxPort_e tx_port = driver_tx_port(port);
   adi_eth_Result_e result =
       adin2111_SubmitTxBuffer(&DEVICE_STRUCT, tx_port, buffer_description);
@@ -578,7 +631,8 @@ end:
 static inline BmErr adin2111_netdevice_send_(void *self, uint8_t *data,
                                              size_t length, uint8_t port) {
   (void)self;
-  return adin2111_netdevice_send(data, length, port);
+  return adin2111_netdevice_send(data, length, port,
+                                 ADI_MAC_EGRESS_CAPTURE_NONE);
 }
 
 /*!
@@ -598,9 +652,26 @@ static void receive_callback(void *device, uint32_t event,
   adi_eth_BufDesc_t *buffer_description =
       (adi_eth_BufDesc_t *)buffer_description_param;
 
-  if (NETWORK_DEVICE.callbacks->receive) {
-    // Driver gives us zero or one. Bristlemouth spec ingress port is 1-15.
-    uint8_t port_num = buffer_description->port + 1;
+  // Driver gives us zero or one. Bristlemouth spec ingress port is 1-15.
+  uint8_t port_num = buffer_description->port + 1;
+
+#if (bm_adin2111_ptp_enabled != 0)
+  const uint8_t *frame = buffer_description->pBuf;
+  if (PTP_CALLBACKS.receive && buffer_description->trxSize >= 14 &&
+      ((frame[12] << 8) | frame[13]) == ADIN2111_ETHERTYPE_PTP) {
+    adi_mac_TsTimespec_t rx_ts;
+    bool rx_ts_valid =
+        buffer_description->timestampValid &&
+        adin2111_TsConvert(buffer_description->timestamp,
+                           buffer_description->timestampExt,
+                           ADI_MAC_TS_FORMAT_64B_1588,
+                           &rx_ts) == ADI_ETH_SUCCESS;
+    PTP_CALLBACKS.receive(port_num, buffer_description->pBuf,
+                          buffer_description->trxSize,
+                          rx_ts_valid ? &rx_ts : NULL);
+  } else
+#endif
+      if (NETWORK_DEVICE.callbacks->receive) {
     NETWORK_DEVICE.callbacks->receive(port_num, buffer_description->pBuf,
                                       buffer_description->trxSize);
   }
@@ -816,3 +887,85 @@ NetworkDevice adin2111_network_device(void) {
   create_network_device();
   return NETWORK_DEVICE;
 }
+
+#if (bm_adin2111_ptp_enabled != 0)
+/*!
+  @brief Register IEEE 1588 frame and egress timestamp callbacks
+
+  @param callbacks callbacks to register, copied
+
+  @return BmOK on success
+  @return BmEINVAL if callbacks is NULL
+ */
+BmErr adin2111_ptp_register_callbacks(const Adin2111PtpCallbacks *callbacks) {
+  if (!callbacks) {
+    return BmEINVAL;
+  }
+  PTP_CALLBACKS = *callbacks;
+  return BmOK;
+}
+
+/*!
+  @brief Send a raw frame, optionally capturing its egress timestamp
+
+  @details Must be called from the L2 thread. When the timestamp is captured
+           the egress_timestamp_ready callback is called.
+
+  @param data frame to send, starting with the destination MAC address
+  @param length frame length, at least 60 bytes
+  @param port_num port to send on, 1 or 2
+  @param capture egress timestamp capture slot
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+BmErr adin2111_ptp_send(uint8_t *data, size_t length, uint8_t port_num,
+                        adi_mac_EgressCapture_e capture) {
+  if (!data || driver_port(port_num) == ADIN2111_PORT_NUM) {
+    return BmEINVAL;
+  }
+  return adin2111_netdevice_send(data, length, port_num, capture);
+}
+
+/*!
+  @brief Read a captured egress timestamp
+
+  @details Must be called from the L2 thread, after the egress_timestamp_ready
+           callback for this port and capture slot
+
+  @param port_num port the frame was sent on, 1 or 2
+  @param capture egress timestamp capture slot
+  @param ts captured timestamp
+
+  @return BmOK on success
+  @return BmErr on failure
+ */
+BmErr adin2111_ptp_get_egress_timestamp(uint8_t port_num,
+                                        adi_mac_EgressCapture_e capture,
+                                        adi_mac_TsTimespec_t *ts) {
+  // {low, high} register addresses for each port and capture slot
+  static const uint16_t regs[ADIN2111_PORT_NUM][3][2] = {
+      {{ADDR_MAC_TTSCAL, ADDR_MAC_TTSCAH},
+       {ADDR_MAC_TTSCBL, ADDR_MAC_TTSCBH},
+       {ADDR_MAC_TTSCCL, ADDR_MAC_TTSCCH}},
+      {{ADDR_MAC_P2_TTSCAL, ADDR_MAC_P2_TTSCAH},
+       {ADDR_MAC_P2_TTSCBL, ADDR_MAC_P2_TTSCBH},
+       {ADDR_MAC_P2_TTSCCL, ADDR_MAC_P2_TTSCCH}},
+  };
+  adin2111_Port_e port = driver_port(port_num);
+  if (!ts || port == ADIN2111_PORT_NUM || capture < ADI_MAC_EGRESS_CAPTURE_A ||
+      capture > ADI_MAC_EGRESS_CAPTURE_C) {
+    return BmEINVAL;
+  }
+
+  const uint16_t *reg = regs[port][capture - ADI_MAC_EGRESS_CAPTURE_A];
+  uint32_t low, high;
+  if (adin2111_ReadRegister(&DEVICE_STRUCT, reg[0], &low) != ADI_ETH_SUCCESS ||
+      adin2111_ReadRegister(&DEVICE_STRUCT, reg[1], &high) != ADI_ETH_SUCCESS ||
+      adin2111_TsConvert(low, high, ADI_MAC_TS_FORMAT_64B_1588, ts) !=
+          ADI_ETH_SUCCESS) {
+    return BmENODEV;
+  }
+  return BmOK;
+}
+#endif

@@ -50,6 +50,7 @@ typedef enum {
   L2Tx,
   L2Rx,
   L2Irq,
+  L2Fn,
 } BmL2QueueType;
 
 typedef struct {
@@ -57,6 +58,7 @@ typedef struct {
   uint32_t length;
   void *buf;
   uint16_t port_mask;
+  L2ThreadFn fn;
 } L2QueueElement;
 
 typedef struct {
@@ -445,6 +447,10 @@ static void bm_l2_thread(void *parameters) {
         CTX.network_device.trait->handle_interrupt(CTX.network_device.self);
         break;
       }
+      case L2Fn: {
+        event.fn(event.buf);
+        break;
+      }
       default: {
         break;
       }
@@ -718,5 +724,33 @@ BmErr bm_l2_register_pcap_callback(L2PcapCb cb) {
   }
 
   CTX.pcap_cb = cb;
+  return BmOK;
+}
+
+/*!
+  @brief Run A Function In The L2 Thread
+
+  @details Network device drivers are only accessed from the L2 thread, so
+           anything else that needs to access the network device directly
+           (ex: sending frames that are not IPv6) must do it from here
+
+  @param fn function to call from the L2 thread
+  @param arg argument passed to fn, the caller is responsible for its lifetime
+
+  @return BmOK if fn was queued
+  @return BmErr if unsuccessful
+ */
+BmErr bm_l2_run_in_thread(L2ThreadFn fn, void *arg) {
+  if (!fn) {
+    return BmEINVAL;
+  }
+
+  L2QueueElement fn_evt = {
+      .type = L2Fn, .length = 0, .buf = arg, .port_mask = 0, .fn = fn};
+
+  if (!CTX.evt_queue || bm_queue_send(CTX.evt_queue, &fn_evt, 10) != BmOK) {
+    return BmENOMEM;
+  }
+
   return BmOK;
 }
