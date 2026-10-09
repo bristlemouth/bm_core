@@ -15,6 +15,14 @@
 #define bm_adin2111_ptp_enabled 0
 #endif
 
+// Output a 1 PPS TS_TIMER pulse on P1_LED_0, 10ms past each second boundary
+#ifndef bm_adin2111_ts_timer_enabled
+#define bm_adin2111_ts_timer_enabled 0
+#endif
+#define TS_TIMER_HI_NS (50000U)
+#define TS_TIMER_LO_NS (999950000U)
+#define TS_TIMER_START_NS (10000U)
+
 struct LinkChange {
   void *device_handle;
   uint8_t port_mask;
@@ -34,7 +42,11 @@ static adin2111_DriverConfig_t DRIVER_CONFIG = {
     .pDevMem = (void *)DEVICE_MEMORY,
     .devMemSize = sizeof(DEVICE_MEMORY),
     .fcsCheckEn = false,
+#if (bm_adin2111_ts_timer_enabled != 0)
+    .tsTimerPin = ADIN2111_TS_TIMER_MUX_LED_0,
+#else
     .tsTimerPin = ADIN2111_TS_TIMER_MUX_NA,
+#endif
 #if (bm_adin2111_ptp_enabled != 0)
     .tsCaptPin = ADIN2111_TS_CAPT_MUX_TEST_1,
 #else
@@ -387,6 +399,77 @@ static BmErr adin2111_netdevice_enable(void) {
   result = adin2111_RegisterCallback(&DEVICE_STRUCT,
                                      egress_timestamp_ready_callback_,
                                      ADI_MAC_EVT_TIMESTAMP_RDY);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+#endif
+
+#if (bm_adin2111_ts_timer_enabled != 0)
+#if (bm_adin2111_ptp_enabled == 0)
+  // TS_TIMER needs the timer block, frame timestamps are left disabled
+  result = adin2111_TsEnable(&DEVICE_STRUCT, ADI_MAC_TS_FORMAT_NONE);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+#endif
+
+  // Set P1_LED_0 to active high, autosense could invert the TS_TIMER output
+  uint16_t led_polarity;
+  result = adin2111_PhyRead(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_POLARITY,
+                            &led_polarity);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+  led_polarity &= ~BITM_LED_POLARITY_LED0_POLARITY;
+  led_polarity |= (ENUM_LED_POLARITY_LED0_POLARITY_LED_ACTIVE_HI
+                   << BITP_LED_POLARITY_LED0_POLARITY) &
+                  BITM_LED_POLARITY_LED0_POLARITY;
+  result = adin2111_PhyWrite(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_POLARITY,
+                             led_polarity);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  // Set the P1_LED_0 pin function to TS_TIMER
+  uint16_t led_cntrl;
+  result = adin2111_PhyRead(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_CNTRL,
+                            &led_cntrl);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+  led_cntrl &= ~BITM_LED_CNTRL_LED0_FUNCTION;
+  led_cntrl |= (ENUM_LED_CNTRL_LED0_FUNCTION_TS_TIMER
+                << BITP_LED_CNTRL_LED0_FUNCTION) &
+               BITM_LED_CNTRL_LED0_FUNCTION;
+  result = adin2111_PhyWrite(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_CNTRL,
+                             led_cntrl);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_HI,
+                                  TS_TIMER_HI_NS);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_LO,
+                                  TS_TIMER_LO_NS);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  // TS_TIMER starts toggling when the nanoseconds counter reaches this value
+  result = adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_START,
+                                  TS_TIMER_START_NS);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
     goto end;
