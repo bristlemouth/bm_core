@@ -41,6 +41,8 @@ BmErr adin2111_ptp_send(uint8_t *data, size_t length, uint8_t port_num,
 BmErr adin2111_ptp_get_egress_timestamp(uint8_t port_num,
                                         adi_mac_EgressCapture_e capture,
                                         adi_mac_TsTimespec_t *ts);
+// Requires bm_adin2111_ts_timer_enabled, must only be called from the L2 thread
+BmErr adin2111_ts_timer_restart(void);
 
 #ifdef __cplusplus
 }

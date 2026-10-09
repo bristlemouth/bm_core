@@ -1052,3 +1052,25 @@ BmErr adin2111_ptp_get_egress_timestamp(uint8_t port_num,
   return BmOK;
 }
 #endif
+
+#if (bm_adin2111_ts_timer_enabled != 0)
+/*!
+  @brief Restart the TS_TIMER output after the 1588 timer was set
+
+  @details TS_TIMER doesn't realign to the second boundary when TS_SEC_CNT
+           and TS_NS_CNT are written, so it is stopped and started again to
+           pulse TS_TIMER_START_NS past each second. Must be called from the
+           L2 thread.
+
+  @return BmOK on success
+  @return BmENODEV on failure
+ */
+BmErr adin2111_ts_timer_restart(void) {
+  if (adin2111_TsTimerStop(&DEVICE_STRUCT) != ADI_ETH_SUCCESS ||
+      adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_START,
+                             TS_TIMER_START_NS) != ADI_ETH_SUCCESS) {
+    return BmENODEV;
+  }
+  return BmOK;
+}
+#endif
