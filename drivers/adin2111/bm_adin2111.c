@@ -19,9 +19,9 @@
 #ifndef bm_adin2111_ts_timer_enabled
 #define bm_adin2111_ts_timer_enabled 0
 #endif
-#define TS_TIMER_HI_NS (50000U)
-#define TS_TIMER_LO_NS (999950000U)
-#define TS_TIMER_START_NS (10000U)
+#define TS_TIMER_HI_NS (50000000U)
+#define TS_TIMER_LO_NS (950000000U)
+#define TS_TIMER_START_NS (10000000U)
 
 struct LinkChange {
   void *device_handle;
