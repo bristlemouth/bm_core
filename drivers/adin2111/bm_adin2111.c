@@ -343,6 +343,71 @@ static BmErr adin2111_netdevice_disable_port_(void *self, uint8_t port_num) {
   return adin2111_netdevice_disable_port(port_num);
 }
 
+#if (bm_adin2111_ts_timer_enabled != 0)
+/*!
+  @brief Route TS_TIMER to P1_LED_0 and start the 1 PPS pulse
+
+  @details Must run after adin2111_SyncConfig and enabling the ports. HI/LO
+           written before then read back correctly, but TS_TIMER runs as if
+           they were 0 (toggles every 16 ns) once started.
+
+  @return ADI_ETH_SUCCESS on success
+ */
+static adi_eth_Result_e ts_timer_configure_(void) {
+  adi_eth_Result_e result;
+
+  // Set P1_LED_0 to active high, autosense could invert the TS_TIMER output
+  uint16_t led_polarity;
+  result = adin2111_PhyRead(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_POLARITY,
+                            &led_polarity);
+  if (result != ADI_ETH_SUCCESS) {
+    return result;
+  }
+  led_polarity &= ~BITM_LED_POLARITY_LED0_POLARITY;
+  led_polarity |= (ENUM_LED_POLARITY_LED0_POLARITY_LED_ACTIVE_HI
+                   << BITP_LED_POLARITY_LED0_POLARITY) &
+                  BITM_LED_POLARITY_LED0_POLARITY;
+  result = adin2111_PhyWrite(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_POLARITY,
+                             led_polarity);
+  if (result != ADI_ETH_SUCCESS) {
+    return result;
+  }
+
+  // Set the P1_LED_0 pin function to TS_TIMER
+  uint16_t led_cntrl;
+  result = adin2111_PhyRead(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_CNTRL,
+                            &led_cntrl);
+  if (result != ADI_ETH_SUCCESS) {
+    return result;
+  }
+  led_cntrl &= ~BITM_LED_CNTRL_LED0_FUNCTION;
+  led_cntrl |= (ENUM_LED_CNTRL_LED0_FUNCTION_TS_TIMER
+                << BITP_LED_CNTRL_LED0_FUNCTION) &
+               BITM_LED_CNTRL_LED0_FUNCTION;
+  result = adin2111_PhyWrite(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_CNTRL,
+                             led_cntrl);
+  if (result != ADI_ETH_SUCCESS) {
+    return result;
+  }
+
+  result = adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_HI,
+                                  TS_TIMER_HI_NS);
+  if (result != ADI_ETH_SUCCESS) {
+    return result;
+  }
+
+  result = adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_LO,
+                                  TS_TIMER_LO_NS);
+  if (result != ADI_ETH_SUCCESS) {
+    return result;
+  }
+
+  // TS_TIMER starts toggling when the nanoseconds counter reaches this value
+  return adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_START,
+                                TS_TIMER_START_NS);
+}
+#endif
+
 /*!
   @brief Enable the network device
 
@@ -414,66 +479,6 @@ static BmErr adin2111_netdevice_enable(void) {
     goto end;
   }
 #endif
-
-  // Set P1_LED_0 to active high, autosense could invert the TS_TIMER output
-  uint16_t led_polarity;
-  result = adin2111_PhyRead(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_POLARITY,
-                            &led_polarity);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-  led_polarity &= ~BITM_LED_POLARITY_LED0_POLARITY;
-  led_polarity |= (ENUM_LED_POLARITY_LED0_POLARITY_LED_ACTIVE_HI
-                   << BITP_LED_POLARITY_LED0_POLARITY) &
-                  BITM_LED_POLARITY_LED0_POLARITY;
-  result = adin2111_PhyWrite(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_POLARITY,
-                             led_polarity);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-
-  // Set the P1_LED_0 pin function to TS_TIMER
-  uint16_t led_cntrl;
-  result = adin2111_PhyRead(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_CNTRL,
-                            &led_cntrl);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-  led_cntrl &= ~BITM_LED_CNTRL_LED0_FUNCTION;
-  led_cntrl |= (ENUM_LED_CNTRL_LED0_FUNCTION_TS_TIMER
-                << BITP_LED_CNTRL_LED0_FUNCTION) &
-               BITM_LED_CNTRL_LED0_FUNCTION;
-  result = adin2111_PhyWrite(&DEVICE_STRUCT, ADIN2111_PORT_1, ADDR_LED_CNTRL,
-                             led_cntrl);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-
-  result = adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_HI,
-                                  TS_TIMER_HI_NS);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-
-  result = adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_LO,
-                                  TS_TIMER_LO_NS);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-
-  // TS_TIMER starts toggling when the nanoseconds counter reaches this value
-  result = adin2111_WriteRegister(&DEVICE_STRUCT, ADDR_MAC_TS_TIMER_START,
-                                  TS_TIMER_START_NS);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
 #endif
 
   result = adin2111_SyncConfig(&DEVICE_STRUCT);
@@ -488,6 +493,12 @@ static BmErr adin2111_netdevice_enable(void) {
       break;
     }
   }
+
+#if (bm_adin2111_ts_timer_enabled != 0)
+  if (err == BmOK && ts_timer_configure_() != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+  }
+#endif
 
 end:
   if (err != BmOK && NETWORK_DEVICE.callbacks->power) {
