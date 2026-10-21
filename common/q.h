@@ -22,9 +22,10 @@ Q *q_create(uint32_t size);
 BmErr q_delete(Q *queue);
 BmErr q_create_static(Q *queue, uint8_t *buf, uint32_t size);
 BmErr q_enqueue(Q *queue, const void *data, uint32_t size);
-BmErr q_dequeue(Q *queue, void *data, uint32_t size);
+BmErr q_dequeue(Q *queue, void *data, uint32_t *size);
 uint32_t q_size(Q *queue);
 BmErr q_clear(Q *queue);
+uint32_t q_get_free_space(Q *queue);
 
 #ifdef __cplusplus
 }

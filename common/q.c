@@ -12,7 +12,7 @@
 
  @return Amount of free space in bytes in the queue buffer
  */
-static uint32_t q_get_free_space(Q *queue) {
+uint32_t q_get_free_space(Q *queue) {
   if (queue->head == queue->tail) {
     return queue->count ? 0 : queue->size;
   }
@@ -170,7 +170,7 @@ BmErr q_enqueue(Q *queue, const void *data, uint32_t size) {
 
  @param queue queue to dequeue data from
  @param data pointer to data buffer to hold dequeued element
- @param size size of data buffer
+ @param size size of data buffer input, output size of data stored
 
  @return BmOK on success
          BmEINVAL if invalid parameters
@@ -178,7 +178,7 @@ BmErr q_enqueue(Q *queue, const void *data, uint32_t size) {
          BmENOMEM if size of data is smaller than the size of the element being
                   dequeued
  */
-BmErr q_dequeue(Q *queue, void *data, uint32_t size) {
+BmErr q_dequeue(Q *queue, void *data, uint32_t *size) {
   if (!queue || !data || !size) {
     return BmEINVAL;
   }
@@ -197,7 +197,7 @@ BmErr q_dequeue(Q *queue, void *data, uint32_t size) {
     q_increment(queue, &tail_local);
   }
 
-  if (p_item->size > size) {
+  if (p_item->size > *size) {
     return BmENOMEM;
   }
 
@@ -209,6 +209,8 @@ BmErr q_dequeue(Q *queue, void *data, uint32_t size) {
     p_data[i] = queue->buf[queue->tail];
     q_increment(queue, &queue->tail);
   }
+
+  *size = p_item->size;
 
   queue->count--;
 
