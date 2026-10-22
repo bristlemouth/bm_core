@@ -503,6 +503,7 @@ void bm_ip_rx_cleanup(void *payload) {
  @param size size of object to create
 
  @return pointer to created abstraction object
+ @return NULL if dst is NULL or memory could not be allocated
  */
 void *bm_ip_tx_new(const BmIpAddr *dst, uint32_t size) {
   struct pbuf *pbuf = NULL;
@@ -511,8 +512,14 @@ void *bm_ip_tx_new(const BmIpAddr *dst, uint32_t size) {
 
   if (dst) {
     pbuf = pbuf_alloc(PBUF_IP, size, PBUF_RAM);
-    layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
-    *layout = (LwipLayout){pbuf, src, (const BmIpAddr *)dst, 1};
+    if (pbuf) {
+      layout = (LwipLayout *)bm_malloc(sizeof(LwipLayout));
+      if (layout) {
+        *layout = (LwipLayout){pbuf, src, (const BmIpAddr *)dst, 1};
+      } else {
+        pbuf_free(pbuf);
+      }
+    }
   }
 
   return (void *)layout;
