@@ -163,6 +163,41 @@ TEST_F(queue_test, enqueue) {
   q_delete(queue);
 }
 
+TEST_F(queue_test, multi_enqueue) {
+  Q *queue = q_create(queue_buf_size);
+  static constexpr uint8_t max_items = 3;
+  QMulti items[max_items] = {};
+  size_t max_queue_filled = queue_buf_size / 2;
+
+  // Test failure cases
+  EXPECT_EQ(q_multi_enqueue(NULL, items, max_queue_filled), BmEINVAL);
+  EXPECT_EQ(q_multi_enqueue(queue, NULL, max_queue_filled), BmEINVAL);
+  EXPECT_EQ(q_multi_enqueue(queue, items, 0), BmEINVAL);
+
+  // Test queueing and dequeueing multiple items
+  uint32_t total_size = 0;
+  for (uint8_t i = 0; i < array_size(items); i++) {
+    items[i].size = RND.rnd_int(UINT8_MAX, 1);
+    total_size += items[i].size;
+    items[i].data = bm_malloc(items[i].size);
+    RND.rnd_array((uint8_t *)items[i].data, items[i].size);
+  }
+  uint8_t *cmp_buf = (uint8_t *)bm_malloc(total_size);
+
+  ASSERT_EQ(q_multi_enqueue(queue, items, array_size(items)), BmOK);
+  uint32_t cmp_size = total_size;
+  ASSERT_EQ(q_dequeue(queue, cmp_buf, &cmp_size), BmOK);
+  EXPECT_EQ(cmp_size, total_size);
+
+  uint8_t *cmp = cmp_buf;
+  for (uint8_t i = 0; i < array_size(items); i++) {
+    EXPECT_TRUE(0 == memcmp(items[i].data, cmp, items[i].size));
+    bm_free((void *)items[i].data);
+    cmp += items[i].size;
+  }
+  bm_free(cmp_buf);
+}
+
 TEST_F(queue_test, dequeue) {
   Q *queue = q_create(queue_buf_size);
 

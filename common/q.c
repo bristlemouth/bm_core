@@ -2,6 +2,8 @@
 #include "bm_os.h"
 #include <string.h>
 
+#define ENOUGH_ROOM(q, s) (q_get_free_space(q) >= (s + sizeof(QItem)))
+
 /*!
  @brief Get Amount Of Free Space In Bytes In The Queue Buffer
 
@@ -138,7 +140,7 @@ BmErr q_enqueue(Q *queue, const void *data, uint32_t size) {
     return BmEINVAL;
   }
 
-  if (q_get_free_space(queue) < (size + sizeof(QItem))) {
+  if (!ENOUGH_ROOM(queue, size)) {
     return BmENOMEM;
   }
 
@@ -155,6 +157,58 @@ BmErr q_enqueue(Q *queue, const void *data, uint32_t size) {
   for (uint32_t i = 0; i < size; i++) {
     queue->buf[queue->head] = ((uint8_t *)data)[i];
     q_increment(queue, &queue->head);
+  }
+
+  queue->count++;
+
+  return BmOK;
+}
+
+/*!
+ @brief Enqueue Multiple Data Values To The Queue
+
+ @details Enqueues multiple data values associated with multiples sizes. 
+          This enqueues all of the items in the array into one queue element.
+
+ @param queue queue to enqueue data to
+ @param multi data to queue into single array size element
+ @param len length of data and sizes array
+
+ @return BmOK on success
+         BmEINVAL if invalid parameters
+         BmENOMEM if not enough space in the queue's buffer to enqueue data
+ */
+BmErr q_multi_enqueue(Q *queue, const QMulti multi[], uint32_t len) {
+  if (!queue || !multi || !len) {
+    return BmEINVAL;
+  }
+
+  uint32_t total_size = 0;
+
+  for (uint32_t i = 0; i < len; i++) {
+    total_size += multi[i].size;
+  }
+
+  if (!ENOUGH_ROOM(queue, total_size)) {
+    return BmENOMEM;
+  }
+
+  QItem item = {total_size};
+  QItem *p_item = &item;
+
+  // Copy queue item to buffer
+  for (uint8_t i = 0; i < sizeof(QItem); i++) {
+    queue->buf[queue->head] = ((uint8_t *)p_item)[i];
+    q_increment(queue, &queue->head);
+  }
+
+  for (uint32_t i = 0; i < len; i++) {
+    const void *data = multi[i].data;
+    uint32_t size = multi[i].size;
+    for (uint32_t j = 0; j < size; j++) {
+      queue->buf[queue->head] = ((uint8_t *)data)[j];
+      q_increment(queue, &queue->head);
+    }
   }
 
   queue->count++;
