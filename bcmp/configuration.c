@@ -10,7 +10,9 @@
 #ifndef CBOR_PARSER_MAX_RECURSIONS
 #error "CBOR_PARSER_MAX_RECURSIONS must be defined!"
 #endif // CBOR_PARSER_MAX_RECURSIONS
-#define RAM_CONFIG_BUFFER_SIZE (10 * 1024)
+// Each partition's RAM copy holds one ConfigPartition, the same number of
+// bytes that is read from and written to flash.
+#define RAM_CONFIG_BUFFER_SIZE sizeof(ConfigPartition)
 
 struct ConfigInfo {
   uint8_t ram_buffer[RAM_CONFIG_BUFFER_SIZE];
