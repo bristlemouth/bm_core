@@ -459,6 +459,51 @@ TEST_F(ConfigurationTest, ClearingPartition) {
   EXPECT_EQ(clear_partition(BM_CFG_PARTITION_COUNT), false);
 }
 
+// Fill a partition to MAX_NUM_KV keys, each with the longest key and value
+// it accepts, so every key and value slot in the partition is used.
+TEST_F(ConfigurationTest, full_partition_round_trips) {
+  config_init();
+  const BmConfigPartition partition = BM_CFG_PARTITION_HARDWARE;
+  ASSERT_EQ(clear_partition(partition), true);
+
+  // A CBOR byte string of 24 to 255 bytes has a 2 byte header.
+  uint8_t value[MAX_CONFIG_BUFFER_SIZE_BYTES - 2];
+  char key[MAX_KEY_LEN_BYTES];
+  for (int i = 0; i < MAX_NUM_KV; i++) {
+    memset(value, i, sizeof(value));
+    snprintf(key, sizeof(key), "key_%02d_%s", i, "abcdefghijklmnopqrstuvwx");
+    ASSERT_EQ(strlen(key), sizeof(key) - 1);
+    ASSERT_EQ(
+        set_config_buffer(partition, key, strlen(key), value, sizeof(value)),
+        true)
+        << "key " << i;
+  }
+
+  uint8_t num_keys = 0;
+  get_stored_keys(partition, &num_keys);
+  EXPECT_EQ(num_keys, MAX_NUM_KV);
+  EXPECT_EQ(
+      set_config_uint(partition, "one_too_many", strlen("one_too_many"), 1),
+      false);
+
+  for (int i = 0; i < MAX_NUM_KV; i++) {
+    uint8_t expected[sizeof(value)];
+    uint8_t result[sizeof(value)];
+    size_t result_len = sizeof(result);
+    memset(expected, i, sizeof(expected));
+    snprintf(key, sizeof(key), "key_%02d_%s", i, "abcdefghijklmnopqrstuvwx");
+    ASSERT_EQ(
+        get_config_buffer(partition, key, strlen(key), result, &result_len),
+        true)
+        << "key " << i;
+    EXPECT_EQ(result_len, sizeof(expected));
+    EXPECT_EQ(memcmp(result, expected, sizeof(expected)), 0) << "key " << i;
+  }
+
+  EXPECT_EQ(save_config(partition, false), true);
+  EXPECT_EQ(clear_partition(partition), true);
+}
+
 // Regression: find_key_idx used strncmp(key, stored, len) without checking
 // keys[i].key_len == len, so a shorter lookup that is a prefix of a stored
 // key matched it. Setting "wifi" after "wifi_ssid" would then overwrite
