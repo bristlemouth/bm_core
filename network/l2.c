@@ -529,27 +529,66 @@ BmErr bm_l2_handle_device_interrupt(void) {
 }
 
 /*!
-  @brief Deinitialize L2 Layer
+  @brief Stop L2 Layer
 
-  @details Frees and deinitializes all things L2
+  @details Stops the L2 task, renegotiation timers and event queue so that
+           bm_l2_init can be called again. Registered link change, routing
+           and pcap callbacks are kept. The task is deleted first so it is
+           not left blocked on a deleted queue, and any TX/RX buffers still
+           in the queue are freed.
  */
-void bm_l2_deinit(void) {
-  if (CTX.evt_queue) {
-    bm_queue_delete(CTX.evt_queue);
-  }
+void bm_l2_stop(void) {
   if (CTX.task_handle) {
     bm_task_delete(CTX.task_handle);
+    CTX.task_handle = NULL;
   }
   for (uint8_t port_num = 1; port_num <= CTX.num_ports; port_num++) {
     bm_l2_stop_renegotiate_check(port_num);
   }
+
+  // Clear the queue handle before draining so late TX or interrupt events
+  // fail safely instead of queueing onto a queue that is about to be deleted
+  BmQueue queue = CTX.evt_queue;
+  CTX.evt_queue = NULL;
+  if (queue) {
+    L2QueueElement event;
+    for (uint32_t i = 0; i < evt_queue_len &&
+                         bm_queue_receive(queue, &event, 0) == BmOK;
+         i++) {
+      if ((event.type == L2Tx || event.type == L2Rx) && event.buf) {
+        bm_l2_free(event.buf);
+      }
+    }
+    bm_queue_delete(queue);
+  }
+
+  LL link_change_callback_list = CTX.link_change_callback_list;
+  L2LinkLocalRoutingCb routing_cb = CTX.routing_cb;
+  L2PcapCb pcap_cb = CTX.pcap_cb;
   memset(&CTX, 0, sizeof(BmL2Ctx));
+  CTX.link_change_callback_list = link_change_callback_list;
+  CTX.routing_cb = routing_cb;
+  CTX.pcap_cb = pcap_cb;
+}
+
+/*!
+  @brief Deinitialize L2 Layer
+
+  @details Frees and deinitializes all things L2, including registered
+           callbacks
+ */
+void bm_l2_deinit(void) {
+  bm_l2_stop();
+  memset(&CTX.link_change_callback_list, 0, sizeof(LL));
+  CTX.routing_cb = NULL;
+  CTX.pcap_cb = NULL;
 }
 
 /*!
   @brief Initialize L2 layer
 
-  @details bm_l2_deinit must be called before this is called again to free resources
+  @details bm_l2_deinit or bm_l2_stop must be called before this is called
+           again to free resources
 
   @param netif The already-initialized network interface
   @return BmOK if successful, an error otherwise

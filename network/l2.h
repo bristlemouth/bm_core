@@ -21,6 +21,7 @@ typedef void (*L2PcapCb)(const uint8_t *frame, size_t len);
 BmErr bm_l2_handle_device_interrupt(void);
 BmErr bm_l2_link_output(void *buf, uint32_t length);
 void bm_l2_deinit(void);
+void bm_l2_stop(void);
 BmErr bm_l2_init(NetworkDevice network_device);
 BmErr bm_l2_register_link_change_callback(L2LinkChangeCb cb);
 bool bm_l2_get_port_state(uint8_t port);
