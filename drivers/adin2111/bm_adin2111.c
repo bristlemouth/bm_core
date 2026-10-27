@@ -193,6 +193,10 @@ static inline adin2111_Port_e driver_port(uint8_t port_num) {
   @return BmErr on failure
  */
 inline static BmErr adin2111_netdevice_enable_port(uint8_t port_num) {
+  if (DEVICE_STRUCT.pMacDevice == NULL) {
+    return BmENODEV;
+  }
+
   BmErr err = BmEINVAL;
   adin2111_Port_e enable_port = driver_port(port_num);
 
@@ -241,6 +245,10 @@ inline static BmErr adin2111_netdevice_enable_port_(void *self,
   @return BmErr on failure
  */
 inline static BmErr adin2111_netdevice_disable_port(uint8_t port_num) {
+  if (DEVICE_STRUCT.pMacDevice == NULL) {
+    return BmENODEV;
+  }
+
   BmErr err = BmEINVAL;
   adi_eth_Result_e result = ADI_ETH_SUCCESS;
   adin2111_Port_e disable_port = driver_port(port_num);
@@ -417,6 +425,10 @@ inline static BmErr adin2111_netdevice_disable_(void *self) {
  */
 inline static BmErr adin2111_netdevice_renegotiate(uint8_t port_num,
                                                    bool *renegotiated) {
+  if (DEVICE_STRUCT.pMacDevice == NULL) {
+    return BmENODEV;
+  }
+
   BmErr err = BmEINVAL;
   adi_eth_Result_e result = ADI_ETH_SUCCESS;
   adi_phy_AnStatus_t status = {};
@@ -511,6 +523,10 @@ static void tx_complete(void *device_param, uint32_t event,
  */
 static BmErr adin2111_netdevice_send(uint8_t *data, size_t length,
                                      uint8_t port) {
+  if (DEVICE_STRUCT.pMacDevice == NULL) {
+    return BmENODEV;
+  }
+
   BmErr err = BmOK;
 
   adi_eth_BufDesc_t *buffer_description = bm_malloc(sizeof(adi_eth_BufDesc_t));
@@ -629,6 +645,11 @@ static BmErr adin2111_port_stats(uint8_t port_index, Adin2111PortStats *stats) {
   }
 
   memset(stats, 0, sizeof(Adin2111PortStats));
+
+  if (DEVICE_STRUCT.pMacDevice == NULL) {
+    err = BmENODEV;
+    goto end;
+  }
 
   adi_eth_Result_e result = adin2111_GetMseLinkQuality(
       &DEVICE_STRUCT, port_index, &stats->mse_link_quality);
@@ -785,6 +806,43 @@ BmErr adin2111_init(void) {
   bm_err_check(err, adin2111_network_metrics_init());
 #endif
 end:
+  return err;
+}
+
+/*!
+  @brief De-initialize the Adin2111 device
+
+  @details Frees any TX buffers still pending in the MAC driver's transmit
+           queue and un-initializes the ADIN2111 driver (PHYs and MAC),
+           which disables the interrupt and clears the device handles.
+           RX buffers are allocated once in adin2111_init and are reused,
+           so they are not freed here. Power, pins and SPI are left to the
+           caller. Bring the device back up with the network device's
+           enable trait (e.g. via bm_l2_init).
+
+  @return BmOK on success, or if already de-initialized
+  @return BmErr on failure
+ */
+BmErr adin2111_deinit(void) {
+  if (DEVICE_STRUCT.pMacDevice == NULL) {
+    return BmOK;
+  }
+
+  // Free TX buffers that were submitted but never completed
+  adi_mac_Queue_t *q = &DEVICE_STRUCT.pMacDevice->txQueue;
+  while (!queueIsEmpty(q)) {
+    free_tx_buffer(q->pEntries[q->tail].pBufDesc);
+    q->pEntries[q->tail].pBufDesc = NULL;
+    queueRemove(q);
+  }
+
+  BmErr err = BmOK;
+  if (adin2111_UnInit(&DEVICE_STRUCT) != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+  }
+
+  LINK_CHANGE.device_handle = NULL;
+
   return err;
 }
 

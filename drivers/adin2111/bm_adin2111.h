@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 BmErr adin2111_init(void);
+BmErr adin2111_deinit(void);
 NetworkDevice adin2111_network_device(void);
 
 #ifdef __cplusplus
